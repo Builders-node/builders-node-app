@@ -1,0 +1,17 @@
+{
+  "name": "Builders Node",
+  "short_name": "Builders Node",
+  "description": "A startup society in Próspera for builders, founders, and content creators.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#EA5404",
+  "icons": [
+    {
+      "src": "/terminus-logo-small.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

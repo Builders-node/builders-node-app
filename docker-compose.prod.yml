@@ -1,0 +1,41 @@
+# Production stack: API (NestJS) + web (static React). Database is external
+# (Supabase / any Postgres) via DATABASE_URL + DIRECT_URL.
+# Usage:
+#   cp .env.example .env   # fill in secrets + Postgres URLs
+#   docker compose -f docker-compose.prod.yml up -d --build
+services:
+  api:
+    build: ./Backend
+    container_name: builders-node-api
+    restart: unless-stopped
+    environment:
+      # Supabase: DATABASE_URL = pooled (6543, ?pgbouncer=true), DIRECT_URL = direct (5432).
+      DATABASE_URL: "${DATABASE_URL:?set DATABASE_URL in .env}"
+      DIRECT_URL: "${DIRECT_URL:?set DIRECT_URL in .env}"
+      JWT_SECRET: "${JWT_SECRET:?set JWT_SECRET in .env}"
+      PORT: "3000"
+      HOST: "0.0.0.0"
+      FRONTEND_URL: "${FRONTEND_URL:-http://localhost:8080}"
+      ADMIN_ACCESS_KEY: "${ADMIN_ACCESS_KEY:?set ADMIN_ACCESS_KEY in .env}"
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
+      PROSPERA_API_BASE_URL: "https://prospera.co/api"
+      PROSPERA_API_KEY: "${PROSPERA_API_KEY:-}"
+      PROSPERA_SUB_API_BASE_URL: "https://api.prosperasub.com"
+      PROSPERA_SUB_API_KEY: "${PROSPERA_SUB_API_KEY:-}"
+      PROSPERA_SUB_SITE_URL: "https://prosperasub.com"
+    ports:
+      - "3000:3000"
+
+  web:
+    build:
+      context: ./Frontend
+      args:
+        # Vite inlines these at build time — must point at the PUBLIC API URL.
+        VITE_API_BASE_URL: "${VITE_API_BASE_URL:-http://localhost:3000}"
+        VITE_GOOGLE_CLIENT_ID: "${VITE_GOOGLE_CLIENT_ID:-}"
+    container_name: builders-node-web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - api

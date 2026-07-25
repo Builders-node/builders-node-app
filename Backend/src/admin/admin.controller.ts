@@ -1,0 +1,189 @@
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Req, UseGuards } from '@nestjs/common';
+import { Request } from 'express';
+import { AdminGuard } from './admin.guard';
+import { AdminService } from './admin.service';
+
+@Controller('admin')
+@UseGuards(AdminGuard)
+export class AdminController {
+  constructor(private readonly admin: AdminService) {}
+
+  @Get('overview')
+  overview() {
+    return this.admin.overview();
+  }
+
+  @Get('users/:userId')
+  userDetail(@Param('userId') userId: string) {
+    return this.admin.userDetail(userId);
+  }
+
+  @Post('applications/:applicationId/send-credentials')
+  sendCredentials(@Param('applicationId') applicationId: string) {
+    return this.admin.sendCredentials(applicationId);
+  }
+
+  @Post('applications/:applicationId/apartment-availability')
+  setApartmentAvailability(
+    @Param('applicationId') applicationId: string,
+    @Body() body: { available: boolean },
+  ) {
+    return this.admin.setApartmentAvailability(applicationId, body.available);
+  }
+
+  @Post('applications/:applicationId/first-check')
+  firstCheck(
+    @Param('applicationId') applicationId: string,
+    @Body() body: { approved: boolean },
+  ) {
+    return this.admin.firstCheck(applicationId, body.approved);
+  }
+
+  @Post('applications/:applicationId/online-meeting-check')
+  onlineMeetingCheck(
+    @Param('applicationId') applicationId: string,
+    @Body() body: { approved: boolean },
+  ) {
+    return this.admin.onlineMeetingCheck(applicationId, body.approved);
+  }
+
+  @Post('applications/:applicationId/send-payment-link')
+  sendPaymentLink(
+    @Param('applicationId') applicationId: string,
+    @Body() body: { paymentLink?: string },
+  ) {
+    return this.admin.sendPaymentLink(applicationId, body.paymentLink);
+  }
+
+  @Post('applications/:applicationId/confirm-payment')
+  confirmPayment(@Param('applicationId') applicationId: string) {
+    return this.admin.confirmPayment(applicationId);
+  }
+
+  @Get('apartments')
+  listApartments() {
+    return this.admin.listApartments();
+  }
+
+  @Post('apartments')
+  createApartment(
+    @Body() body: { name?: string; description?: string; priceCents?: number; currency?: string; availability?: string; bedrooms?: number; bathrooms?: number; squareFeet?: number; unitTypeId?: string },
+  ) {
+    return this.admin.createApartment(body);
+  }
+
+  @Get('unit-types')
+  listUnitTypes() {
+    return this.admin.listUnitTypes();
+  }
+
+  @Post('unit-types')
+  createUnitType(@Body() body: { name?: string; priceCents?: number; bedrooms?: number; bathrooms?: number; squareFeet?: number; description?: string }) {
+    return this.admin.createUnitType(body);
+  }
+
+  @Patch('unit-types/:typeId')
+  updateUnitType(@Param('typeId') typeId: string, @Body() body: { name?: string; priceCents?: number; bedrooms?: number; bathrooms?: number; squareFeet?: number | null; description?: string }) {
+    return this.admin.updateUnitType(typeId, body);
+  }
+
+  @Delete('unit-types/:typeId')
+  deleteUnitType(@Param('typeId') typeId: string) {
+    return this.admin.deleteUnitType(typeId);
+  }
+
+  @Patch('apartments/:apartmentId')
+  updateApartment(
+    @Param('apartmentId') apartmentId: string,
+    @Body() body: { name?: string; description?: string; availability?: string; unitTypeId?: string | null; priceCents?: number; currency?: string; bedrooms?: number; bathrooms?: number; squareFeet?: number | null },
+  ) {
+    return this.admin.updateApartment(apartmentId, body);
+  }
+
+  @Delete('apartments/:apartmentId')
+  deleteApartment(@Param('apartmentId') apartmentId: string) {
+    return this.admin.deleteApartment(apartmentId);
+  }
+
+  @Post('apartments/:apartmentId/assign')
+  assignResident(@Param('apartmentId') apartmentId: string, @Body() body: { userId?: string; moveInDate?: string }) {
+    return this.admin.assignResident(apartmentId, body.userId, body.moveInDate);
+  }
+
+  @Post('apartments/:apartmentId/unassign')
+  unassignResident(@Param('apartmentId') apartmentId: string, @Body() body: { userId?: string }) {
+    return this.admin.unassignResident(apartmentId, body.userId);
+  }
+
+  @Get('settings/global')
+  globalSettings() {
+    return this.admin.getGlobalSettings();
+  }
+
+  @Put('settings/global/meal-plan')
+  setGlobalMealPlan(
+    @Body() body: { planId?: string; custom?: { name?: string; weeklyPriceCents?: number; mealsLabel?: string } },
+  ) {
+    return this.admin.setGlobalMealPlan(body.planId, body.custom);
+  }
+
+  @Put('settings/global/cleaning-plan')
+  setGlobalCleaningPlan(@Body() body: { planId?: string }) {
+    return this.admin.setGlobalCleaningPlan(body.planId);
+  }
+
+  @Put('settings/global/batch')
+  setBatch(@Body() body: { startDate?: string; label?: string }) {
+    return this.admin.setBatch(body);
+  }
+
+  @Post('users/:userId/designations')
+  designateUser(
+    @Param('userId') userId: string,
+    @Body() body: { apartmentName?: string; mealPlan?: string; cleaningPlan?: string },
+  ) {
+    return this.admin.designateUser(userId, body);
+  }
+
+  @Patch('users/:userId/role')
+  updateUserRole(
+    @Param('userId') userId: string,
+    @Body() body: { role?: string },
+    @Req() request: Request & { adminAccess?: { role: string; via: 'key' | 'session' } },
+  ) {
+    return this.admin.updateUserRole(userId, body.role, request.adminAccess);
+  }
+
+  @Patch('users/:userId')
+  updateUser(
+    @Param('userId') userId: string,
+    @Body() body: { fullName?: string; phone?: string; location?: string; membershipStatus?: string; role?: string },
+    @Req() request: Request & { adminAccess?: { userId?: string; role: string; via: 'key' | 'session' } },
+  ) {
+    return this.admin.updateUser(userId, body, request.adminAccess);
+  }
+
+  @Post('users')
+  createUser(
+    @Body() body: { email?: string; fullName?: string; phone?: string; location?: string; role?: string; membershipStatus?: string },
+    @Req() request: Request & { adminAccess?: { userId?: string; role: string; via: 'key' | 'session' } },
+  ) {
+    return this.admin.createUser(body, request.adminAccess);
+  }
+
+  @Post('users/bulk-delete')
+  deleteUsers(
+    @Body() body: { userIds?: string[] },
+    @Req() request: Request & { adminAccess?: { userId?: string; role: string; via: 'key' | 'session' } },
+  ) {
+    return this.admin.deleteUsers(body.userIds ?? [], request.adminAccess);
+  }
+
+  @Delete('users/:userId')
+  deleteUser(
+    @Param('userId') userId: string,
+    @Req() request: Request & { adminAccess?: { userId?: string; role: string; via: 'key' | 'session' } },
+  ) {
+    return this.admin.deleteUser(userId, request.adminAccess);
+  }
+}

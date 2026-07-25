@@ -1,0 +1,280 @@
+generator client {
+  provider      = "prisma-client-js"
+  // "native" for local dev; "rhel-openssl-3.0.x" for the Vercel/AWS serverless runtime.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Pooled connection (Supabase Supavisor, port 6543) for the app runtime.
+  url       = env("DATABASE_URL")
+  // Direct connection (port 5432) for migrations / DDL — pgbouncer can't run these.
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                    String                   @id @default(uuid())
+  email                 String                   @unique
+  passwordHash          String
+  role                  String                   @default("MEMBER")
+  referralCode          String?                  @unique
+  mustChangePassword    Boolean                  @default(false)
+  emailVerifiedAt       DateTime?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  profile               Profile?
+  membership            Membership?
+  residencyApplication  ResidencyApplication?
+  subscriptionPlan      SubscriptionPlan?
+  communityPlans        CommunityPlanPurchase[]
+  payments              Payment[]
+  rentalRequests        RentalRequest[]
+  assignedApartment     AssignedApartment?
+  mealMenuItems         MealMenuItem[]
+  cleaningSchedules     CleaningSchedule[]
+  supportTickets        SupportTicket[]
+  emailVerification     EmailVerificationToken[]
+  passwordResetTokens   PasswordResetToken[]
+  auditEvents           AuditEvent[]
+}
+
+model Application {
+  id         String            @id @default(uuid())
+  fullName   String
+  email      String            @unique
+  phone      String?
+  note       String?
+  referralCode String?
+  referredByUserId String?
+  status     String   @default("SUBMITTED")
+  apartmentAvailable Boolean?
+  paymentLink String?
+  paymentStatus String @default("NOT_SENT")
+  firstApprovedAt DateTime?
+  meetingApprovedAt DateTime?
+  paymentLinkSentAt DateTime?
+  paymentConfirmedAt DateTime?
+  approvedAt DateTime?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+}
+
+model Profile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  fullName  String?
+  phone     String?
+  location  String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Membership {
+  id         String           @id @default(uuid())
+  userId     String           @unique
+  status     String   @default("APPLICANT")
+  approvedAt DateTime?
+  activatedAt DateTime?
+  startingDate DateTime?
+  dueDate DateTime?
+  finishDate DateTime?
+  notes      String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ResidencyApplication {
+  id                    String          @id @default(uuid())
+  userId                String          @unique
+  externalApplicationId String
+  continueUrl           String?
+  status                String   @default("NOT_STARTED")
+  stage                 String          @default("Not started")
+  requiredNextStepsJson String          @default("[]")
+  lastSyncedAt          DateTime?
+  lastError             String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SubscriptionPlan {
+  id                     String     @id @default(uuid())
+  userId                 String     @unique
+  externalSubscriptionId String?
+  planName               String
+  status                 String   @default("PENDING")
+  renewalDate            DateTime?
+  paymentUrl             String?
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
+  user                   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CommunityPlanPurchase {
+  id                     String     @id @default(uuid())
+  userId                 String
+  externalSubscriptionId String?
+  planName               String     @default("Builders Node Community Plan")
+  status                 String     @default("PENDING")
+  amountCents            Int        @default(0)
+  currency               String     @default("USD")
+  purchasedAt            DateTime   @default(now())
+  startsAt               DateTime?
+  endsAt                 DateTime?
+  renewalDate            DateTime?
+  paymentUrl             String?
+  source                 String     @default("ProsperaSub.com")
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
+  user                   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id          String        @id @default(uuid())
+  userId      String
+  amountCents Int
+  currency    String        @default("USD")
+  status      String        @default("DUE")
+  dueDate     DateTime
+  paidAt      DateTime?
+  description String
+  receiptUrl  String?
+  createdAt   DateTime      @default(now())
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Apartment {
+  id            String                @id @default(uuid())
+  name          String
+  description   String
+  priceCents    Int
+  currency      String                @default("USD")
+  availability  String   @default("AVAILABLE")
+  photoUrlsJson String   @default("[]")
+  bedrooms      Int
+  bathrooms     Int
+  squareFeet    Int?
+  availableFrom DateTime?
+  unitTypeId    String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  rentalRequests RentalRequest[]
+  assignments    AssignedApartment[]
+  unitType       UnitType?            @relation(fields: [unitTypeId], references: [id])
+}
+
+// A reusable apartment "template" (e.g. Studio, 1 Bedroom) with a shared price
+// and specs. Individual units are instances of a type with their own number.
+model UnitType {
+  id          String      @id @default(uuid())
+  name        String
+  priceCents  Int         @default(0)
+  currency    String      @default("USD")
+  bedrooms    Int         @default(0)
+  bathrooms   Int         @default(1)
+  squareFeet  Int?
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  apartments  Apartment[]
+}
+
+model AssignedApartment {
+  id           String    @id @default(uuid())
+  userId       String    @unique
+  apartmentId  String
+  moveInDate   DateTime?
+  moveOutDate  DateTime?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apartment    Apartment @relation(fields: [apartmentId], references: [id])
+}
+
+model MealMenuItem {
+  id        String   @id @default(uuid())
+  userId    String
+  day       String
+  meal      String
+  source    String   @default("ProsperaSub.com")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CleaningSchedule {
+  id           String   @id @default(uuid())
+  userId       String
+  nextCleaning DateTime?
+  frequency    String?
+  notes        String?
+  source       String   @default("ProsperaSub.com")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RentalRequest {
+  id           String       @id @default(uuid())
+  userId       String
+  apartmentId  String
+  status       String   @default("REQUESTED")
+  message      String?
+  moveInDate   DateTime?
+  moveOutDate  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apartment    Apartment    @relation(fields: [apartmentId], references: [id])
+}
+
+model SupportTicket {
+  id        String              @id @default(uuid())
+  userId    String
+  subject   String
+  message   String
+  status    String   @default("OPEN")
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditEvent {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  metadataJson String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+// Single-row-per-key store for community-wide settings (e.g. the global
+// ProsperaSub.com meal plan that applies to every member automatically).
+model GlobalSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

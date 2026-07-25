@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* shadcn theme variables — global so Radix portals (dialogs, toasts) resolve them.
+   The three names that collide with the dashboard (accent/border/muted) are
+   namespaced to --bn-* here and in tailwind.config.js. */
+:root {
+  --background: 0 0% 5%;
+  --foreground: 0 0% 96%;
+  --card: 0 0% 8%;
+  --card-foreground: 0 0% 96%;
+  --popover: 0 0% 8%;
+  --popover-foreground: 0 0% 96%;
+  --primary: 12 100% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 12%;
+  --secondary-foreground: 0 0% 96%;
+  --bn-muted: 0 0% 15%;
+  --muted-foreground: 0 0% 60%;
+  --bn-accent: 20 100% 60%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --bn-border: 0 0% 18%;
+  --input: 0 0% 18%;
+  --ring: 12 100% 50%;
+  --radius: 0.5rem;
+  --gradient-start: 0 100% 5%;
+  --gradient-mid: 8 85% 40%;
+  --gradient-end: 20 100% 60%;
+  --sidebar-background: 0 0% 6%;
+  --sidebar-foreground: 0 0% 96%;
+  --sidebar-primary: 12 100% 50%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 0 0% 12%;
+  --sidebar-accent-foreground: 0 0% 96%;
+  --sidebar-border: 0 0% 18%;
+  --sidebar-ring: 12 100% 50%;
+}
+
+/* Scoped preflight-equivalent for the landing subtree (global preflight is off).
+   Kept in @layer base so Tailwind utilities (border, m-*, etc.) still win. */
+@layer base {
+  .landing-root,
+  .landing-root *,
+  .landing-root *::before,
+  .landing-root *::after {
+    border-width: 0;
+    border-style: solid;
+    border-color: hsl(var(--bn-border));
+    box-sizing: border-box;
+  }
+  .landing-root :where(h1, h2, h3, h4, h5, h6, p, figure, blockquote, dl, dd, ul, ol) {
+    margin: 0;
+  }
+  .landing-root :where(ul, ol) {
+    padding: 0;
+    list-style: none;
+  }
+  .landing-root img,
+  .landing-root video,
+  .landing-root svg,
+  .landing-root canvas {
+    display: block;
+    max-width: 100%;
+  }
+  /* Reset only buttons that don't set their own bg utility, so components like
+     the Select trigger (a <button> with bg-white) keep their fill. */
+  .landing-root button:not([class*="bg-"]) {
+    background: transparent;
+  }
+  /* The dashboard's global `label { display: grid }` must not leak into the
+     landing/apply forms (it stacks the label text and the required asterisk). */
+  .landing-root label {
+    display: block;
+  }
+  .landing-root label > span {
+    display: inline;
+  }
+  /* Preflight is off, so restore its anchor reset (removes default underline).
+     Explicit Tailwind `underline` utilities still win (utilities layer). */
+  .landing-root a {
+    color: inherit;
+    text-decoration: inherit;
+  }
+}
+
+/* Auto-scrolling feature marquee on the Apply page. */
+@keyframes apply-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.apply-marquee {
+  overflow: hidden;
+}
+
+.apply-marquee-track {
+  display: flex;
+  gap: 1rem;
+  width: max-content;
+  animation: apply-marquee 40s linear infinite;
+}
+
+.apply-marquee:hover .apply-marquee-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apply-marquee-track {
+    animation: none;
+  }
+}
+
+/* Radix portals render on document.body (outside .landing-root); tag them so the
+   dialog/toast reset applies there too. */
+[data-radix-popper-content-wrapper] *,
+[role='dialog'] *,
+[data-sonner-toaster] * {
+  box-sizing: border-box;
+}

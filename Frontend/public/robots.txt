@@ -1,0 +1,8 @@
+# Builders Node — replace the Sitemap host with your real domain.
+User-agent: *
+Allow: /
+
+# Keep authenticated app views out of the index.
+Disallow: /setup-password
+
+Sitemap: https://buildersnode.com/sitemap.xml
