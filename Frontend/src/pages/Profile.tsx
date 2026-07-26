@@ -177,7 +177,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
 
   return (
     <div className="page-stack">
-      <PageHeader title="Account" description="This comes from the original apply form and can be edited by the member team." />
+      <PageHeader title="Account" description="Your Builders Node profile, referral code, and E-Residency." />
       {!currentUserId ? <section className="panel empty-state">Log in to load account details.</section> : null}
       {error ? <section className="panel"><p className="form-error">{error}</p></section> : null}
       {profileMessage ? <section className="panel"><p className="form-success">{profileMessage}</p></section> : null}

@@ -7,6 +7,8 @@ type SessionPayload = {
   role?: string;
 };
 
+const ADMIN_ROLES = ['SUPER_ADMIN', 'MODERATOR', 'COMMUNITY_LEADER'];
+
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(private readonly jwt: JwtService) {}
@@ -27,7 +29,10 @@ export class JwtAuthGuard implements CanActivate {
       const payload = this.jwt.verify<SessionPayload>(authorization.slice('Bearer '.length));
       request.user = payload;
 
-      if (request.params?.userId && request.params.userId !== payload.sub) {
+      // Users may only touch their own account; admins may access any user
+      // (needed e.g. for reviewing an E-Residency proof file).
+      const isAdmin = ADMIN_ROLES.includes(payload.role ?? '');
+      if (request.params?.userId && request.params.userId !== payload.sub && !isAdmin) {
         throw new ForbiddenException('You can only access your own account.');
       }
 
