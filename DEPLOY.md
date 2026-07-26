@@ -102,5 +102,15 @@ The app uses **Postgres** via Prisma. Supabase is the easiest managed option.
 3. Apply the schema: `npm run prisma:deploy` (or it runs automatically in the Docker image
    / Render start command). The migration builds all tables from scratch.
 
+> ⚠️ **Vercel / serverless: you MUST use the pooler host, not the direct host.**
+> Supabase's direct host (`db.<ref>.supabase.co`) resolves to **IPv6 only**, and Vercel
+> functions have no outbound IPv6 — so a direct connection fails with a 500 at runtime.
+> The pooler host (`aws-0-<region>.pooler.supabase.com`) is IPv4. On Vercel set BOTH:
+> - `DATABASE_URL` → `...@aws-0-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true`
+> - `DIRECT_URL`   → `...@aws-0-<region>.pooler.supabase.com:5432/postgres`
+>
+> The pooler username is `postgres.<project-ref>` (note the dot), not plain `postgres`.
+
 **Local development:** run the bundled Postgres with `docker compose up -d postgres`, then
-keep the default `DATABASE_URL` / `DIRECT_URL` in `Backend/.env` (they point at it).
+keep the default `DATABASE_URL` / `DIRECT_URL` in `Backend/.env` (they point at it). A
+laptop usually has IPv6, so the direct Supabase host also works locally.
