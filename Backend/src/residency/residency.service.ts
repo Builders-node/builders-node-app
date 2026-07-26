@@ -1,106 +1,85 @@
-import { BadGatewayException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, PayloadTooLargeException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { ProsperaResidencyClient } from './prospera-residency.client';
-import { residencyCallToAction } from './residency-status';
+
+// Manual E-Residency: the member applies on prospera.co, then uploads a proof
+// file here. An admin verifies it. No external API integration.
+export const PROSPERA_APPLY_URL = 'https://prospera.co/e-residency';
+
+// Base64 payload cap (~3.5 MB base64 ≈ ~2.5 MB file) to stay under the
+// serverless request body limit (Vercel Hobby is 4.5 MB).
+const MAX_PROOF_BASE64_LENGTH = 3_500_000;
+
+export type SubmitProofInput = {
+  fileName: string;
+  fileType: string;
+  dataBase64: string;
+};
 
 @Injectable()
 export class ResidencyService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly prospera: ProsperaResidencyClient,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async getResidency(userId: string) {
     const application = await this.prisma.residencyApplication.findUnique({ where: { userId } });
-    if (!application) {
-      return {
-        status: 'NOT_STARTED',
-        stage: 'Not started',
-        requiredNextSteps: ['Start your Prospera E-Residency application.'],
-        action: 'Start your Prospera E-Residency application.',
-      };
-    }
-
     return {
-      ...application,
-      requiredNextSteps: this.parseNextSteps(application.requiredNextStepsJson),
-      action: residencyCallToAction({
-        status: application.status as never,
-        stage: application.stage,
-        requiredNextSteps: this.parseNextSteps(application.requiredNextStepsJson),
-        lastSyncedAt: application.lastSyncedAt ?? undefined,
-        lastError: application.lastError,
-      }),
+      status: application?.status ?? 'NOT_STARTED',
+      applyUrl: PROSPERA_APPLY_URL,
+      hasProof: Boolean(application?.proofData),
+      proofFileName: application?.proofFileName ?? null,
+      submittedAt: application?.submittedAt ?? null,
+      reviewedAt: application?.reviewedAt ?? null,
+      reviewNote: application?.reviewNote ?? null,
     };
   }
 
-  async startOrContinue(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, include: { profile: true } });
+  async submitProof(userId: string, input: SubmitProofInput) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found.');
     }
-
-    const existing = await this.prisma.residencyApplication.findUnique({ where: { userId } });
-    if (existing?.continueUrl) {
-      return existing;
+    const data = (input.dataBase64 ?? '').split(',').pop() ?? '';
+    if (!data) {
+      throw new BadRequestException('Proof file is empty.');
+    }
+    if (data.length > MAX_PROOF_BASE64_LENGTH) {
+      throw new PayloadTooLargeException('Proof file is too large (max ~3 MB).');
     }
 
-    const started = await this.prospera.startApplication({
-      id: user.id,
-      email: user.email,
-      fullName: user.profile?.fullName,
-    });
-
-    return this.prisma.residencyApplication.upsert({
+    await this.prisma.residencyApplication.upsert({
       where: { userId },
       create: {
         userId,
-        externalApplicationId: started.externalApplicationId,
-        continueUrl: started.continueUrl,
-        status: 'IN_PROGRESS',
-        stage: 'Started',
-        requiredNextStepsJson: JSON.stringify(['Continue application on prospera.co']),
+        status: 'PENDING_REVIEW',
+        stage: 'Proof submitted — pending review',
+        proofFileName: input.fileName,
+        proofFileType: input.fileType,
+        proofData: data,
+        submittedAt: new Date(),
       },
       update: {
-        externalApplicationId: started.externalApplicationId,
-        continueUrl: started.continueUrl,
+        status: 'PENDING_REVIEW',
+        stage: 'Proof submitted — pending review',
+        proofFileName: input.fileName,
+        proofFileType: input.fileType,
+        proofData: data,
+        submittedAt: new Date(),
+        reviewedAt: null,
+        reviewNote: null,
       },
     });
+
+    return this.getResidency(userId);
   }
 
-  async sync(userId: string) {
+  async getProof(userId: string) {
     const application = await this.prisma.residencyApplication.findUnique({ where: { userId } });
-    if (!application) {
-      throw new NotFoundException('No E-Residency application exists for this user.');
+    if (!application?.proofData) {
+      throw new NotFoundException('No proof file uploaded.');
     }
-
-    try {
-      const snapshot = await this.prospera.fetchStatus(application.externalApplicationId);
-      return this.prisma.residencyApplication.update({
-        where: { userId },
-        data: {
-          status: snapshot.status,
-          stage: snapshot.stage,
-          requiredNextStepsJson: JSON.stringify(snapshot.requiredNextSteps),
-          lastSyncedAt: snapshot.lastSyncedAt ?? new Date(),
-          lastError: null,
-        },
-      });
-    } catch (error) {
-      await this.prisma.residencyApplication.update({
-        where: { userId },
-        data: { lastError: error instanceof Error ? error.message : 'Unknown Prospera API error' },
-      });
-      throw new BadGatewayException('Could not sync E-Residency status from prospera.co.');
-    }
-  }
-
-  private parseNextSteps(value: string): string[] {
-    try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
-    } catch {
-      return [];
-    }
+    return {
+      fileName: application.proofFileName ?? 'proof',
+      fileType: application.proofFileType ?? 'application/octet-stream',
+      dataBase64: application.proofData,
+    };
   }
 }

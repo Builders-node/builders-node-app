@@ -115,6 +115,16 @@ export class AdminController {
     return this.admin.unassignResident(apartmentId, body.userId);
   }
 
+  @Get('residency-reviews')
+  listResidencyReviews() {
+    return this.admin.listResidencyReviews();
+  }
+
+  @Post('users/:userId/residency/review')
+  reviewResidency(@Param('userId') userId: string, @Body() body: { decision?: string; note?: string }) {
+    return this.admin.reviewResidency(userId, body.decision, body.note);
+  }
+
   @Get('settings/global')
   globalSettings() {
     return this.admin.getGlobalSettings();

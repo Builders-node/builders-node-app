@@ -5,7 +5,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
-import express, { type Express, type Request, type Response } from 'express';
+import express, { json, urlencoded, type Express, type Request, type Response } from 'express';
 import { AppModule } from '../src/app.module';
 
 let cached: Express | null = null;
@@ -14,7 +14,10 @@ async function bootstrap(): Promise<Express> {
   if (cached) return cached;
 
   const expressApp = express();
-  const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp));
+  // Larger bodies for base64 proof uploads (default is 100 kb).
+  expressApp.use(json({ limit: '5mb' }));
+  expressApp.use(urlencoded({ extended: true, limit: '5mb' }));
+  const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), { bodyParser: false });
 
   const config = app.get(ConfigService);
   const allowlist = [

@@ -7,7 +7,6 @@ import { AdminLogin } from './pages/AdminLogin';
 import { Dashboard } from './pages/Dashboard';
 import { Landing } from './pages/Landing';
 import { Profile } from './pages/Profile';
-import { Residency } from './pages/Residency';
 import { Security } from './pages/Security';
 import { apiRequest, ApiError } from './lib/api';
 import { AllUsers } from './pages/AllUsers';
@@ -25,7 +24,6 @@ const PAGE_TITLES: Partial<Record<PageId, string>> = {
   setupPassword: 'Set your password — Builders Node',
   adminLogin: 'Admin login — Builders Node',
   profile: 'Account — Builders Node',
-  residency: 'E-Residency — Builders Node',
   security: 'Security — Builders Node',
   dashboard: 'Home — Builders Node',
   allUsers: 'Users — Builders Node',
@@ -168,7 +166,6 @@ function App() {
     if (activePage === 'signup') return <AuthPanel mode="signup" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
     if (activePage === 'setupPassword') return <AuthPanel mode="setupPassword" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
     if (activePage === 'profile') return <Profile currentUserId={currentUserId} setActivePage={setActivePage} />;
-    if (activePage === 'residency') return <Residency currentUserId={currentUserId} setActivePage={setActivePage} />;
     if (activePage === 'security') return <Security currentUserId={currentUserId} setCurrentUserId={updateCurrentUserId} setActivePage={setActivePage} />;
     if (activePage === 'allUsers') {
       if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;

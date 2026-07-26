@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Building2, Globe, Home, Settings, ShieldCheck, User, UsersRound } from 'lucide-react';
+import { Building2, Home, Settings, ShieldCheck, User, UsersRound } from 'lucide-react';
 
 export type StatusTone = 'good' | 'attention' | 'danger' | 'neutral';
 
@@ -28,7 +28,6 @@ export type PageId =
   | 'units'
   | 'dashboard'
   | 'profile'
-  | 'residency'
   | 'security';
 
 export const ADMIN_ROLES = ['SUPER_ADMIN', 'MODERATOR', 'COMMUNITY_LEADER'];
@@ -41,7 +40,6 @@ export const navSections: NavSection[] = [
     items: [
       { id: 'dashboard', label: 'Home', icon: Home },
       { id: 'profile', label: 'Profile', icon: User },
-      { id: 'residency', label: 'Residency', icon: Globe },
       { id: 'security', label: 'Settings', icon: Settings },
     ],
   },

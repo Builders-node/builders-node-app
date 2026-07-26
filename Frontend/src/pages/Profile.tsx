@@ -1,5 +1,5 @@
-import { ExternalLink, Pencil, RefreshCcw, Send, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ExternalLink, Pencil, Send, Upload, X } from 'lucide-react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import type { PageId } from '../data/dashboard';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
@@ -46,26 +46,36 @@ type ProfileData = {
 };
 
 type ResidencyData = {
-  status: string;
-  stage: string;
-  requiredNextSteps?: string[];
-  action?: string;
-  continueUrl?: string | null;
-  lastSyncedAt?: string | null;
-  lastError?: string | null;
+  status: string; // NOT_STARTED | PENDING_REVIEW | VERIFIED | REJECTED
+  applyUrl: string;
+  hasProof: boolean;
+  proofFileName?: string | null;
+  submittedAt?: string | null;
+  reviewedAt?: string | null;
+  reviewNote?: string | null;
 };
 
-const progressByStatus: Record<string, string> = {
-  NOT_STARTED: '0%',
-  IN_PROGRESS: '35%',
-  PENDING_REVIEW: '65%',
-  APPROVED: '100%',
+const RESIDENCY_LABELS: Record<string, string> = {
+  NOT_STARTED: 'Not started',
+  PENDING_REVIEW: 'Pending review',
+  VERIFIED: 'Verified',
+  REJECTED: 'Rejected',
 };
 
-function toneForResidency(status?: string) {
-  if (status === 'APPROVED') return 'good';
-  if (status === 'IN_PROGRESS' || status === 'PENDING_REVIEW' || status === 'NOT_STARTED') return 'attention';
+function toneForResidency(status?: string): 'good' | 'attention' | 'danger' | 'neutral' {
+  if (status === 'VERIFIED') return 'good';
+  if (status === 'REJECTED') return 'danger';
+  if (status === 'PENDING_REVIEW') return 'attention';
   return 'neutral';
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('Could not read the file.'));
+    reader.readAsDataURL(file);
+  });
 }
 
 function formatDate(value?: string | null) {
@@ -83,6 +93,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
   const [residencyMessage, setResidencyMessage] = useState<string | null>(null);
   const [isResidencyLoading, setIsResidencyLoading] = useState(false);
+  const proofInputRef = useRef<HTMLInputElement>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editFullName, setEditFullName] = useState('');
   const [editPhone, setEditPhone] = useState('');
@@ -131,48 +142,31 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
     }
   }
 
-  async function startOrContinueResidency() {
+  async function submitProof(file: File) {
     if (!currentUserId) return;
     setIsResidencyLoading(true);
     setError(null);
     setResidencyMessage(null);
     try {
-      const data = await apiRequest<ResidencyData>(`/users/${currentUserId}/residency/start-or-continue`, {
+      const dataBase64 = await fileToBase64(file);
+      await apiRequest(`/users/${currentUserId}/residency/proof`, {
         method: 'POST',
+        body: JSON.stringify({ fileName: file.name, fileType: file.type || 'application/octet-stream', dataBase64 }),
       });
       await loadResidency(currentUserId);
-      setResidencyMessage('E-Residency application link is ready.');
-      if (data.continueUrl) {
-        window.open(data.continueUrl, '_blank', 'noopener,noreferrer');
-      }
+      setResidencyMessage('Proof uploaded — our team will review it shortly.');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not start E-Residency.');
+      setError(caught instanceof Error ? caught.message : 'Could not upload proof.');
     } finally {
       setIsResidencyLoading(false);
     }
   }
 
-  async function syncResidency() {
-    if (!currentUserId) return;
-    setIsResidencyLoading(true);
-    setError(null);
-    setResidencyMessage(null);
-    try {
-      await apiRequest<ResidencyData>(`/users/${currentUserId}/residency/sync`, {
-        method: 'POST',
-      });
-      await loadResidency(currentUserId);
-      setResidencyMessage('E-Residency status synced from Prospera.');
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not sync E-Residency.');
-    } finally {
-      setIsResidencyLoading(false);
-    }
+  function onProofSelected(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (file) void submitProof(file);
   }
-
-  const nextSteps = residency?.requiredNextSteps?.length
-    ? residency.requiredNextSteps
-    : ['Start or continue your Prospera E-Residency application.'];
 
   // Member-only sections (E-Residency, community plans) stay hidden until the
   // account is an actual member — a registered-but-not-applied user should not
@@ -279,29 +273,54 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
           <div>
             <span className="section-label">Prospera.co</span>
             <h2>E-Residency</h2>
-            <p>{residency?.stage ?? 'Apply for E-Residency'}</p>
+            <p>Apply on Prospera.co, then upload your proof for our team to verify.</p>
           </div>
-          <StatusBadge tone={toneForResidency(residency?.status)}>{residency?.status ?? 'NOT_STARTED'}</StatusBadge>
-        </div>
-        <div className="progress-track" aria-label="E-Residency progress">
-          <span style={{ width: progressByStatus[residency?.status ?? 'NOT_STARTED'] ?? '15%' }} />
+          <StatusBadge tone={toneForResidency(residency?.status)}>
+            {RESIDENCY_LABELS[residency?.status ?? 'NOT_STARTED'] ?? residency?.status ?? 'Not started'}
+          </StatusBadge>
         </div>
         <div className="next-step-list">
-          {nextSteps.map((step) => (
-            <div className="next-step" key={step}>{step}</div>
-          ))}
-          {residency?.lastSyncedAt ? <div className="next-step">Last synced {new Date(residency.lastSyncedAt).toLocaleString()}</div> : null}
-          {residency?.lastError ? <div className="next-step">Last sync error: {residency.lastError}</div> : null}
+          <div className="next-step"><strong>1.</strong><span>Apply for E-Residency on Prospera.co.</span></div>
+          <div className="next-step"><strong>2.</strong><span>Upload your confirmation/proof below.</span></div>
+          <div className="next-step"><strong>3.</strong><span>Our team reviews and verifies it.</span></div>
+          {residency?.proofFileName ? (
+            <div className="next-step"><strong>Uploaded</strong><span>{residency.proofFileName}{residency.submittedAt ? ` · ${formatDate(residency.submittedAt)}` : ''}</span></div>
+          ) : null}
+          {residency?.status === 'PENDING_REVIEW' ? (
+            <div className="next-step"><strong>Status</strong><span>Waiting for our team to verify your proof.</span></div>
+          ) : null}
+          {residency?.status === 'VERIFIED' ? (
+            <div className="next-step"><strong>Verified</strong><span>Your E-Residency proof has been approved. ✅</span></div>
+          ) : null}
+          {residency?.status === 'REJECTED' && residency?.reviewNote ? (
+            <div className="next-step"><strong>Needs changes</strong><span>{residency.reviewNote}</span></div>
+          ) : null}
         </div>
         <div className="button-row">
-          <button className="primary-button" onClick={() => void startOrContinueResidency()} disabled={isResidencyLoading}>
-            {residency?.continueUrl ? 'Continue on Prospera.co' : 'Apply on Prospera.co'}
+          <a
+            className="primary-button link-button"
+            href={residency?.applyUrl ?? 'https://prospera.co/e-residency'}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apply on Prospera.co
             <ExternalLink size={16} />
-          </button>
-          <button className="ghost-button" onClick={() => void syncResidency()} disabled={isResidencyLoading}>
-            <RefreshCcw size={16} />
-            Sync status
-          </button>
+          </a>
+          {residency?.status !== 'VERIFIED' ? (
+            <>
+              <input
+                ref={proofInputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                style={{ display: 'none' }}
+                onChange={onProofSelected}
+              />
+              <button className="ghost-button" onClick={() => proofInputRef.current?.click()} disabled={isResidencyLoading}>
+                <Upload size={16} />
+                {isResidencyLoading ? 'Uploading…' : residency?.hasProof ? 'Re-upload proof' : "I've applied — upload proof"}
+              </button>
+            </>
+          ) : null}
         </div>
       </section>
       ) : null}

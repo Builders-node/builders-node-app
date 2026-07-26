@@ -532,6 +532,44 @@ export class AdminService {
    * selected global ProsperaSub.com meal plan plus the live list of meal options
    * to choose from.
    */
+  async listResidencyReviews() {
+    const apps = await this.prisma.residencyApplication.findMany({
+      where: { status: { in: ['PENDING_REVIEW', 'VERIFIED', 'REJECTED'] } },
+      orderBy: [{ submittedAt: 'desc' }],
+      include: { user: { include: { profile: true } } },
+    });
+    return apps.map((a) => ({
+      userId: a.userId,
+      email: a.user.email,
+      fullName: a.user.profile?.fullName ?? null,
+      status: a.status,
+      proofFileName: a.proofFileName,
+      submittedAt: a.submittedAt,
+      reviewedAt: a.reviewedAt,
+      reviewNote: a.reviewNote,
+    }));
+  }
+
+  async reviewResidency(userId: string, decision: string | undefined, note?: string) {
+    if (decision !== 'VERIFIED' && decision !== 'REJECTED') {
+      throw new BadRequestException('Decision must be VERIFIED or REJECTED.');
+    }
+    const app = await this.prisma.residencyApplication.findUnique({ where: { userId } });
+    if (!app) {
+      throw new NotFoundException('No E-Residency submission for this user.');
+    }
+    await this.prisma.residencyApplication.update({
+      where: { userId },
+      data: {
+        status: decision,
+        stage: decision === 'VERIFIED' ? 'Verified' : 'Rejected — resubmit proof',
+        reviewedAt: new Date(),
+        reviewNote: note?.trim() || null,
+      },
+    });
+    return this.listResidencyReviews();
+  }
+
   async getGlobalSettings() {
     const [mealRow, cleaningRow, batchRow, mealOptions, cleaningOptions, apartments] = await Promise.all([
       this.prisma.globalSetting.findUnique({ where: { key: GLOBAL_MEAL_PLAN_KEY } }),

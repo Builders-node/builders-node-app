@@ -1,5 +1,6 @@
-import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { SubmitProofDto } from './dto';
 import { ResidencyService } from './residency.service';
 
 @Controller('users/:userId/residency')
@@ -12,13 +13,13 @@ export class ResidencyController {
     return this.residency.getResidency(userId);
   }
 
-  @Post('start-or-continue')
-  startOrContinue(@Param('userId') userId: string) {
-    return this.residency.startOrContinue(userId);
+  @Post('proof')
+  submitProof(@Param('userId') userId: string, @Body() dto: SubmitProofDto) {
+    return this.residency.submitProof(userId, dto);
   }
 
-  @Post('sync')
-  sync(@Param('userId') userId: string) {
-    return this.residency.sync(userId);
+  @Get('proof')
+  getProof(@Param('userId') userId: string) {
+    return this.residency.getProof(userId);
   }
 }

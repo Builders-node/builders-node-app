@@ -53,7 +53,18 @@ type DesignationUser = AdminOverview['users'][number];
 type DesignationFilterId = 'all' | 'incomplete' | 'new' | 'members';
 type Applicant = AdminOverview['applications'][number];
 type ApplicantAction = { key: string; label: string; icon: ReactNode; tone?: 'ghost' | 'danger'; run: () => void };
-type AdminTab = 'overview' | 'applicants' | 'designations' | 'settings';
+type AdminTab = 'overview' | 'applicants' | 'residency' | 'designations' | 'settings';
+
+type ResidencyReview = {
+  userId: string;
+  email: string;
+  fullName?: string | null;
+  status: string;
+  proofFileName?: string | null;
+  submittedAt?: string | null;
+  reviewedAt?: string | null;
+  reviewNote?: string | null;
+};
 
 type AdminUserDetail = {
   id: string;
@@ -352,6 +363,8 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
   const [error, setError] = useState<string | null>(null);
   const [credentialMessage, setCredentialMessage] = useState<string | null>(null);
   const [adminTab, setAdminTab] = useState<AdminTab>('overview');
+  const [residencyReviews, setResidencyReviews] = useState<ResidencyReview[]>([]);
+  const [residencyRejectDrafts, setResidencyRejectDrafts] = useState<Record<string, string>>({});
   const [applicantSearch, setApplicantSearch] = useState('');
   const [applicantFilter, setApplicantFilter] = useState<ApplicantFilterId>('action');
   const [applicantPage, setApplicantPage] = useState(0);
@@ -422,6 +435,58 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    apiRequest<ResidencyReview[]>('/admin/residency-reviews')
+      .then((data) => {
+        if (isMounted) setResidencyReviews(data);
+      })
+      .catch(() => {
+        /* non-fatal */
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  async function reviewResidency(userId: string, decision: 'VERIFIED' | 'REJECTED') {
+    setError(null);
+    setCredentialMessage(null);
+    try {
+      const note = decision === 'REJECTED' ? residencyRejectDrafts[userId]?.trim() : undefined;
+      const data = await apiRequest<ResidencyReview[]>(`/admin/users/${userId}/residency/review`, {
+        method: 'POST',
+        body: JSON.stringify({ decision, note }),
+      });
+      setResidencyReviews(data);
+      setCredentialMessage(decision === 'VERIFIED' ? 'E-Residency verified.' : 'E-Residency sent back for changes.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not update E-Residency review.');
+    }
+  }
+
+  async function viewResidencyProof(userId: string) {
+    setError(null);
+    try {
+      const proof = await apiRequest<{ fileName: string; fileType: string; dataBase64: string }>(`/users/${userId}/residency/proof`);
+      const src = proof.dataBase64.startsWith('data:')
+        ? proof.dataBase64
+        : `data:${proof.fileType};base64,${proof.dataBase64}`;
+      const win = window.open();
+      if (win) {
+        win.document.write(
+          proof.fileType === 'application/pdf'
+            ? `<iframe src="${src}" style="border:0;width:100%;height:100vh"></iframe>`
+            : `<img src="${src}" style="max-width:100%" alt="${proof.fileName}" />`,
+        );
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not load proof file.');
+    }
+  }
+
+  const residencyPendingCount = residencyReviews.filter((r) => r.status === 'PENDING_REVIEW').length;
 
   useEffect(() => {
     setApplicantPage(0);
@@ -516,6 +581,7 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
   const adminTabs: Array<{ id: AdminTab; label: string; count?: number }> = [
     { id: 'overview', label: 'Overview' },
     { id: 'applicants', label: 'Applicants', count: applicantCountFor('action') },
+    { id: 'residency', label: 'E-Residency', count: residencyPendingCount },
     { id: 'designations', label: 'Designations', count: designationCountFor('incomplete') },
     { id: 'settings', label: 'Global settings' },
   ];
@@ -1431,6 +1497,62 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
                 </article>
               );
             })}
+          </div>
+        </section>
+        ) : null}
+
+        {adminTab === 'residency' ? (
+        <section className="panel admin-panel" id="admin-residency">
+          <div className="admin-panel__head">
+            <div>
+              <h2>E-Residency reviews</h2>
+              <p>Members apply on Prospera.co and upload proof here. Verify it or send it back for changes.</p>
+            </div>
+          </div>
+          <div className="applicant-list">
+            {residencyReviews.length === 0 ? <div className="empty-state">No E-Residency submissions yet.</div> : null}
+            {residencyReviews.map((review) => (
+              <article className="applicant-card" key={review.userId}>
+                <div className="admin-panel__head">
+                  <div>
+                    <strong>{review.fullName ?? review.email}</strong>
+                    <div className="designation-card__email">{review.email}</div>
+                    {review.submittedAt ? (
+                      <small className="designation-card__joined">Submitted {new Date(review.submittedAt).toLocaleDateString()}</small>
+                    ) : null}
+                  </div>
+                  <StatusBadge tone={review.status === 'VERIFIED' ? 'good' : review.status === 'REJECTED' ? 'danger' : 'attention'}>
+                    {review.status === 'PENDING_REVIEW' ? 'Pending' : review.status === 'VERIFIED' ? 'Verified' : 'Rejected'}
+                  </StatusBadge>
+                </div>
+                <div className="detail-box">
+                  <div><span>Proof file</span><strong>{review.proofFileName ?? '—'}</strong></div>
+                  {review.reviewNote ? <div><span>Note</span><strong>{review.reviewNote}</strong></div> : null}
+                </div>
+                <div className="button-row">
+                  <button className="ghost-button" onClick={() => void viewResidencyProof(review.userId)} disabled={!review.proofFileName}>
+                    View proof
+                  </button>
+                  <button className="primary-button" onClick={() => void reviewResidency(review.userId, 'VERIFIED')} disabled={review.status === 'VERIFIED'}>
+                    Verify
+                  </button>
+                </div>
+                {review.status !== 'VERIFIED' ? (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                    <input
+                      style={{ flex: 1 }}
+                      value={residencyRejectDrafts[review.userId] ?? ''}
+                      onChange={(event) => setResidencyRejectDrafts((drafts) => ({ ...drafts, [review.userId]: event.target.value }))}
+                      placeholder="Reason (optional)…"
+                      aria-label="Rejection reason"
+                    />
+                    <button className="ghost-button" onClick={() => void reviewResidency(review.userId, 'REJECTED')}>
+                      Reject
+                    </button>
+                  </div>
+                ) : null}
+              </article>
+            ))}
           </div>
         </section>
         ) : null}
