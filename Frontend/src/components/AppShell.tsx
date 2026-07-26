@@ -10,6 +10,7 @@ type AppShellProps = {
   menuOpen: boolean;
   setMenuOpen: (value: boolean) => void;
   currentUserRole?: string | null;
+  currentUserLabel?: string | null;
   children: ReactNode;
 };
 
@@ -21,9 +22,11 @@ export function AppShell({
   menuOpen,
   setMenuOpen,
   currentUserRole,
+  currentUserLabel,
   children,
 }: AppShellProps) {
   const isAdmin = ADMIN_ROLES.includes(currentUserRole ?? '');
+  const avatarInitial = currentUserLabel?.trim().charAt(0).toUpperCase() || '?';
   const visibleSections = navSections.filter((section) => !section.adminOnly || isAdmin);
   const currentLabel = allNavItems.find((item) => item.id === activePage)?.label ?? 'Dashboard';
 
@@ -95,7 +98,7 @@ export function AppShell({
               <Bell size={17} />
             </button>
             <button className="top-avatar" onClick={() => setActivePage('profile')} aria-label="Open profile">
-              <span>{currentUserRole?.slice(0, 1) ?? 'T'}</span>
+              <span>{avatarInitial}</span>
             </button>
           </div>
         </header>

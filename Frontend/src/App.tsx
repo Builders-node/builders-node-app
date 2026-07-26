@@ -45,6 +45,8 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(() => localStorage.getItem('terminus_user_id'));
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(() => localStorage.getItem('terminus_user_role'));
+  // Display name (or email) for the avatar/initial. Cached so it shows instantly on reload.
+  const [currentUserLabel, setCurrentUserLabel] = useState<string | null>(() => localStorage.getItem('terminus_user_label'));
 
   useEffect(() => {
     document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
@@ -91,7 +93,9 @@ function App() {
       localStorage.removeItem('terminus_user_id');
       localStorage.removeItem('terminus_access_token');
       localStorage.removeItem('terminus_user_role');
+      localStorage.removeItem('terminus_user_label');
       setCurrentUserRole(null);
+      setCurrentUserLabel(null);
     }
   }
 
@@ -104,6 +108,15 @@ function App() {
     }
   }
 
+  function updateCurrentUserLabel(label: string | null) {
+    setCurrentUserLabel(label);
+    if (label) {
+      localStorage.setItem('terminus_user_label', label);
+    } else {
+      localStorage.removeItem('terminus_user_label');
+    }
+  }
+
   useEffect(() => {
     if (!currentUserId) return;
     // A stored user id with no token is a broken session — drop it.
@@ -112,8 +125,11 @@ function App() {
       return;
     }
 
-    apiRequest<{ role: string }>(`/users/${currentUserId}/profile`)
-      .then((profile) => updateCurrentUserRole(profile.role))
+    apiRequest<{ role: string; email: string; profile?: { fullName?: string | null } }>(`/users/${currentUserId}/profile`)
+      .then((profile) => {
+        updateCurrentUserRole(profile.role);
+        updateCurrentUserLabel(profile.profile?.fullName?.trim() || profile.email);
+      })
       .catch((error) => {
         // Stale session: the stored user no longer exists / token is invalid.
         // Sign out so we show the landing/login instead of a broken account page.
@@ -212,6 +228,7 @@ function App() {
       menuOpen={menuOpen}
       setMenuOpen={setMenuOpen}
       currentUserRole={currentUserRole}
+      currentUserLabel={currentUserLabel}
     >
       {page}
     </AppShell>
