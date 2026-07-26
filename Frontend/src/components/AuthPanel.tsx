@@ -204,9 +204,6 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
             <button className="text-button" type="button" onClick={() => setActivePage('signup')}>
               Create an account
             </button>
-            <button className="text-button" type="button" onClick={() => setActivePage('setupPassword')}>
-              Received a setup link?
-            </button>
           </div>
         )}
       </form>
