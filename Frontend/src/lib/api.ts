@@ -1,6 +1,7 @@
-// Trim trailing slashes so a VITE_API_BASE_URL like "https://api.example.com/"
-// doesn't produce a broken "https://api.example.com//auth/login".
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
+// Normalize the base URL: strip trailing slashes and dots so a mistyped
+// VITE_API_BASE_URL like "https://api.example.com/" or "...example.com."
+// doesn't produce a broken request URL.
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000').replace(/[/.]+$/, '');
 
 /** Error carrying the HTTP status so callers can react to 401/404 (e.g. stale session). */
 export class ApiError extends Error {
