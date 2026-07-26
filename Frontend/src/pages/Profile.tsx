@@ -69,6 +69,12 @@ function toneForResidency(status?: string): 'good' | 'attention' | 'danger' | 'n
   return 'neutral';
 }
 
+type HomeMemberData = {
+  apartment: { name: string; status: string; moveInDate?: string | null; details: string } | null;
+  meals: { items: Array<{ id: string; day: string; meal: string }> };
+  cleaning: { nextCleaning?: string | null; frequency?: string | null; notes?: string | null } | null;
+};
+
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -89,6 +95,7 @@ function formatMoney(cents?: number, currency = 'USD') {
 export function Profile({ currentUserId, setActivePage }: ProfileProps) {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [residency, setResidency] = useState<ResidencyData | null>(null);
+  const [home, setHome] = useState<HomeMemberData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
   const [residencyMessage, setResidencyMessage] = useState<string | null>(null);
@@ -104,6 +111,11 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
     setResidency(data);
   }
 
+  async function loadHome(userId: string) {
+    const data = await apiRequest<HomeMemberData>(`/users/${userId}/home`);
+    setHome(data);
+  }
+
   async function loadProfile(userId: string) {
     const data = await apiRequest<ProfileData>(`/users/${userId}/profile`);
     setProfile(data);
@@ -117,6 +129,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
     Promise.all([
       loadProfile(currentUserId),
       loadResidency(currentUserId),
+      loadHome(currentUserId).catch(() => undefined),
     ])
       .catch((caught) => setError(caught instanceof Error ? caught.message : 'Could not load profile.'));
   }, [currentUserId]);
@@ -177,7 +190,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
 
   return (
     <div className="page-stack">
-      <PageHeader title="Account" description="Your Builders Node profile, referral code, and E-Residency." />
+      <PageHeader title="Home" description="Your Builders Node account, E-Residency, and residence." />
       {!currentUserId ? <section className="panel empty-state">Log in to load account details.</section> : null}
       {error ? <section className="panel"><p className="form-error">{error}</p></section> : null}
       {profileMessage ? <section className="panel"><p className="form-success">{profileMessage}</p></section> : null}
@@ -347,6 +360,59 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
             <StatusBadge tone={plan.status === 'ACTIVE' ? 'good' : plan.status === 'OVERDUE' ? 'danger' : 'attention'}>{plan.status}</StatusBadge>
           </div>
         ))}
+      </section>
+      ) : null}
+
+      {showMemberSections ? (
+      <div className="two-column">
+        {home?.apartment ? (
+          <article className="panel apartment-home-panel">
+            <div className="apartment-placeholder" />
+            <div>
+              <span className="section-label">{home.apartment.status}</span>
+              <h2>{home.apartment.name}</h2>
+              <p>{home.apartment.details}</p>
+              {home.apartment.moveInDate ? <strong>Move-in: {new Date(home.apartment.moveInDate).toLocaleDateString()}</strong> : null}
+            </div>
+          </article>
+        ) : (
+          <article className="panel">
+            <span className="section-label">Apartment</span>
+            <h2>Not assigned</h2>
+            <p className="empty-state">No apartment assignment is saved yet.</p>
+          </article>
+        )}
+
+        <article className="panel">
+          <span className="section-label">ProsperaSub.com</span>
+          <h2>Meals menu</h2>
+          <div className="next-step-list">
+            {home?.meals?.items?.length ? (
+              home.meals.items.map((item) => (
+                <div className="next-step" key={item.id ?? item.day}>
+                  <strong>{item.day}</strong>
+                  <span>{item.meal}</span>
+                </div>
+              ))
+            ) : (
+              <div className="empty-state">No meals are saved yet.</div>
+            )}
+          </div>
+        </article>
+      </div>
+      ) : null}
+
+      {showMemberSections ? (
+      <section className="panel split-panel">
+        <div>
+          <span className="section-label">Cleaning</span>
+          <h2>{home?.cleaning?.nextCleaning ? new Date(home.cleaning.nextCleaning).toLocaleDateString() : 'Not scheduled'}</h2>
+          <p>{home?.cleaning?.notes ?? 'No cleaning information is saved yet.'}</p>
+        </div>
+        <div className="detail-box">
+          <div><span>Source</span><strong>ProsperaSub.com</strong></div>
+          <div><span>Frequency</span><strong>{home?.cleaning?.frequency ?? '-'}</strong></div>
+        </div>
       </section>
       ) : null}
     </div>

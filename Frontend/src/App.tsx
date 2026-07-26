@@ -4,7 +4,6 @@ import { AuthPanel } from './components/AuthPanel';
 import type { PageId } from './data/dashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminLogin } from './pages/AdminLogin';
-import { Dashboard } from './pages/Dashboard';
 import { Landing } from './pages/Landing';
 import { Profile } from './pages/Profile';
 import { Security } from './pages/Security';
@@ -202,7 +201,9 @@ function App() {
 
       return <AdminDashboard currentUserRole={currentUserRole} setActivePage={setActivePage} />;
     }
-    return <Dashboard currentUserId={currentUserId} setActivePage={setActivePage} setMenuOpen={setMenuOpen} />;
+    // Profile is the single member home (also the fallback for the legacy
+    // 'dashboard' page id and any unmatched page).
+    return <Profile currentUserId={currentUserId} setActivePage={setActivePage} />;
   }, [activePage, currentUserId, currentUserRole, showLanding]);
 
   if (

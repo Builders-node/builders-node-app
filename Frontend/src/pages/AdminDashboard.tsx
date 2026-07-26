@@ -1011,7 +1011,7 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
           title="Admin Dashboard"
           description={`Role access: ${roleLabel(currentUserRole ?? 'MEMBER')}. Manage applicants, members, designations, and operations from the same dashboard.`}
           action={
-            <button className="ghost-button" onClick={() => setActivePage('dashboard')}>
+            <button className="ghost-button" onClick={() => setActivePage('profile')}>
               <Home size={16} />
               Member home
             </button>

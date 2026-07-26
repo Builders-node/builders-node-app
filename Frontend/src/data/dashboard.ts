@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Building2, Home, Settings, ShieldCheck, User, UsersRound } from 'lucide-react';
+import { Building2, Home, Settings, ShieldCheck, UsersRound } from 'lucide-react';
 
 export type StatusTone = 'good' | 'attention' | 'danger' | 'neutral';
 
@@ -38,8 +38,7 @@ export const navSections: NavSection[] = [
     id: 'members',
     title: 'Members',
     items: [
-      { id: 'dashboard', label: 'Home', icon: Home },
-      { id: 'profile', label: 'Profile', icon: User },
+      { id: 'profile', label: 'Home', icon: Home },
       { id: 'security', label: 'Settings', icon: Settings },
     ],
   },
