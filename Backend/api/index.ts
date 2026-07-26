@@ -17,8 +17,30 @@ async function bootstrap(): Promise<Express> {
   const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp));
 
   const config = app.get(ConfigService);
-  const frontendUrl = config.get<string>('FRONTEND_URL') ?? '*';
-  app.enableCors({ origin: [frontendUrl], credentials: true });
+  const allowlist = [
+    config.get<string>('FRONTEND_URL'),
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+  ].filter(Boolean) as string[];
+
+  app.enableCors({
+    // Allow the configured frontend, localhost dev, and any *.vercel.app deploy
+    // (covers the web project + preview URLs) without brittle env coupling.
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      let host = '';
+      try {
+        host = new URL(origin).hostname;
+      } catch {
+        return cb(null, false);
+      }
+      const ok = allowlist.includes(origin) || host === 'vercel.app' || host.endsWith('.vercel.app');
+      cb(null, ok);
+    },
+    credentials: true,
+  });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   await app.init();

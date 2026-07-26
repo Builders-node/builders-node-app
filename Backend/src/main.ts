@@ -7,9 +7,24 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
 
-  const frontendUrl = config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173';
+  const allowlist = [
+    config.get<string>('FRONTEND_URL'),
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+  ].filter(Boolean) as string[];
   app.enableCors({
-    origin: [frontendUrl, 'http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174'],
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      let host = '';
+      try {
+        host = new URL(origin).hostname;
+      } catch {
+        return cb(null, false);
+      }
+      cb(null, allowlist.includes(origin) || host === 'vercel.app' || host.endsWith('.vercel.app'));
+    },
     credentials: true,
   });
   app.useGlobalPipes(
