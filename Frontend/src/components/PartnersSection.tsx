@@ -1,15 +1,11 @@
 import { useGsapTitle } from "@/hooks/useGsapTitle";
 import nomadzLogo from "@/assets/nomadz-logo.png";
-import nomaLogo from "@/assets/noma-logo.png";
-import nomadxLogo from "@/assets/nomadx-logo.png";
 import infinitaLogo from "@/assets/infinita-logo.png";
 
 const partners = [
   { name: "Nomadz", logo: nomadzLogo, url: "https://nomadz.xyz/", isImage: true },
   { name: "Infinita", logo: infinitaLogo, url: "https://infinita.city", isImage: true },
   { name: "Próspera", logo: "PRÓSPERA", url: "https://prospera.co" },
-  { name: "Noma Collective", logo: nomaLogo, url: "https://www.noma-collective.com/", isImage: true },
-  { name: "NomadX", logo: nomadxLogo, url: "https://www.nomadx.com", isImage: true },
 ];
 
 const textDark = "hsl(0 0% 10%)";

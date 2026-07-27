@@ -44,6 +44,8 @@ function App() {
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(() => localStorage.getItem('terminus_user_role'));
   // Display name (or email) for the avatar/initial. Cached so it shows instantly on reload.
   const [currentUserLabel, setCurrentUserLabel] = useState<string | null>(() => localStorage.getItem('terminus_user_label'));
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [currentUserReferral, setCurrentUserReferral] = useState<string | null>(null);
 
   useEffect(() => {
     document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
@@ -123,10 +125,12 @@ function App() {
       return;
     }
 
-    apiRequest<{ role: string; email: string; profile?: { fullName?: string | null } }>(`/users/${currentUserId}/profile`)
+    apiRequest<{ role: string; email: string; referralCode?: string | null; profile?: { fullName?: string | null } }>(`/users/${currentUserId}/profile`)
       .then((profile) => {
         updateCurrentUserRole(profile.role);
         updateCurrentUserLabel(profile.profile?.fullName?.trim() || profile.email);
+        setCurrentUserEmail(profile.email);
+        setCurrentUserReferral(profile.referralCode ?? null);
       })
       .catch((error) => {
         // Stale session: the stored user no longer exists / token is invalid.
@@ -229,6 +233,14 @@ function App() {
       setMenuOpen={setMenuOpen}
       currentUserRole={currentUserRole}
       currentUserLabel={currentUserLabel}
+      currentUserEmail={currentUserEmail}
+      referralCode={currentUserReferral}
+      onLogout={() => {
+        updateCurrentUserId(null);
+        setCurrentUserEmail(null);
+        setCurrentUserReferral(null);
+        setActivePage('landing');
+      }}
     >
       {page}
     </AppShell>

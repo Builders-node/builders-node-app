@@ -288,21 +288,6 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
         </div>
       ) : null}
 
-      <section className="panel admin-user-list-panel">
-        <div className="admin-panel__head">
-          <div>
-            <span className="section-label">Referral program</span>
-            <h2>Invite code</h2>
-            <p>Share this code with people applying to Builders Node.</p>
-          </div>
-          <StatusBadge tone={profile?.referralCode ? 'good' : 'neutral'}>{profile?.referralCode ? 'Active' : 'Missing'}</StatusBadge>
-        </div>
-        <div className="detail-box">
-          <div><span>Your code</span><strong>{profile?.referralCode ?? '-'}</strong></div>
-          <div><span>Apply link</span><strong>{profile?.referralCode ? `${window.location.origin}/?ref=${profile.referralCode}` : '-'}</strong></div>
-        </div>
-      </section>
-
       {showMemberSections ? (
       <section className="panel residency-panel">
         <div className="admin-panel__head">

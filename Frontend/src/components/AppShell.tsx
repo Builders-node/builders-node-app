@@ -1,5 +1,5 @@
-import { Bell, Menu, Moon, Sun, X } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Bell, Check, LogOut, Menu, Moon, Settings as SettingsIcon, Share2, Sun, X } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ADMIN_ROLES, allNavItems, navSections, type PageId } from '../data/dashboard';
 
 type AppShellProps = {
@@ -11,6 +11,9 @@ type AppShellProps = {
   setMenuOpen: (value: boolean) => void;
   currentUserRole?: string | null;
   currentUserLabel?: string | null;
+  currentUserEmail?: string | null;
+  referralCode?: string | null;
+  onLogout?: () => void;
   children: ReactNode;
 };
 
@@ -23,12 +26,42 @@ export function AppShell({
   setMenuOpen,
   currentUserRole,
   currentUserLabel,
+  currentUserEmail,
+  referralCode,
+  onLogout,
   children,
 }: AppShellProps) {
   const isAdmin = ADMIN_ROLES.includes(currentUserRole ?? '');
   const avatarInitial = currentUserLabel?.trim().charAt(0).toUpperCase() || '?';
   const visibleSections = navSections.filter((section) => !section.adminOnly || isAdmin);
   const currentLabel = allNavItems.find((item) => item.id === activePage)?.label ?? 'Dashboard';
+
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const accountRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!accountOpen) return;
+    function onDocClick(event: MouseEvent) {
+      if (accountRef.current && !accountRef.current.contains(event.target as Node)) {
+        setAccountOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [accountOpen]);
+
+  const inviteLink = referralCode ? `${window.location.origin}/?ref=${referralCode}` : '';
+  async function copyInvite() {
+    if (!inviteLink) return;
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* clipboard blocked — ignore */
+    }
+  }
 
   function go(page: PageId) {
     setActivePage(page);
@@ -97,15 +130,59 @@ export function AppShell({
             </div>
           </div>
           <div className="top-menu-actions">
-            <button className="top-icon-button" onClick={() => setIsDark(!isDark)} aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
-              {isDark ? <Sun size={17} /> : <Moon size={17} />}
-            </button>
             <button className="top-icon-button" aria-label="Notifications">
               <Bell size={17} />
             </button>
-            <button className="top-avatar" onClick={() => setActivePage('profile')} aria-label="Open profile">
-              <span>{avatarInitial}</span>
-            </button>
+            <div className="account-menu" ref={accountRef}>
+              <button
+                className="top-avatar"
+                onClick={() => setAccountOpen((open) => !open)}
+                aria-label="Account menu"
+                aria-expanded={accountOpen}
+              >
+                <span>{avatarInitial}</span>
+              </button>
+
+              {accountOpen ? (
+                <div className="account-dropdown" role="menu">
+                  <div className="account-dropdown__head">
+                    <div className="top-avatar account-dropdown__avatar"><span>{avatarInitial}</span></div>
+                    <div className="account-dropdown__id">
+                      <strong>{currentUserLabel ?? 'Your account'}</strong>
+                      {currentUserEmail ? <span>{currentUserEmail}</span> : null}
+                    </div>
+                  </div>
+
+                  {referralCode ? (
+                    <button className="account-dropdown__invite" onClick={() => void copyInvite()}>
+                      {copied ? <Check size={16} /> : <Share2 size={16} />}
+                      {copied ? 'Invite link copied' : 'Copy invite link'}
+                    </button>
+                  ) : null}
+
+                  <div className="account-dropdown__sep" />
+
+                  <button className="account-dropdown__item" onClick={() => { setAccountOpen(false); go('security'); }}>
+                    <SettingsIcon size={16} />
+                    Settings
+                  </button>
+                  <button className="account-dropdown__item" onClick={() => setIsDark(!isDark)}>
+                    {isDark ? <Sun size={16} /> : <Moon size={16} />}
+                    {isDark ? 'Light mode' : 'Dark mode'}
+                  </button>
+
+                  {onLogout ? (
+                    <>
+                      <div className="account-dropdown__sep" />
+                      <button className="account-dropdown__item account-dropdown__item--danger" onClick={() => { setAccountOpen(false); onLogout(); }}>
+                        <LogOut size={16} />
+                        Log out
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
           </div>
         </header>
         <div className="main-content">{children}</div>
