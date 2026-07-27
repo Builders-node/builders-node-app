@@ -185,7 +185,7 @@ const GallerySection = () => {
             Apply
           </button>
         </div>
-        <div ref={mobileGridRef} className="grid grid-cols-2 gap-3">
+        <div ref={mobileGridRef} className="hidden">
           {items.map((item) => (
             <div key={item.label} className="group gallery-mobile-item">
               <div className="rounded-xl overflow-hidden shadow-md">
