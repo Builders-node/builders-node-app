@@ -3194,11 +3194,14 @@ textarea {
     width: 42px;
   }
 
-  /* Admin sub-tabs: one horizontal scrolling row instead of wrapping. */
+  /* Admin sub-tabs: one horizontal scrolling row instead of wrapping.
+     Not sticky on mobile — the sticky bar overlapped the top header. */
   .admin-tabs {
     flex-wrap: nowrap;
     overflow-x: auto;
+    position: static;
     scrollbar-width: none;
+    top: auto;
   }
   .admin-tabs::-webkit-scrollbar {
     display: none;
