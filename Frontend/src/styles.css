@@ -3155,3 +3155,58 @@ textarea {
     width: 100%;
   }
 }
+
+/* ── Mobile polish: bottom-sheet modal, scrollable tabs, transitions ───────── */
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.admin-tab,
+.bottom-nav__item {
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+@media (max-width: 760px) {
+  /* Edit-profile modal becomes a bottom sheet. */
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .profile-edit-modal {
+    animation: sheet-up 0.24s ease;
+    border-radius: 18px 18px 0 0;
+    max-height: 92vh;
+    max-width: 100%;
+    padding: 18px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+    width: 100%;
+  }
+  .profile-edit-modal::before {
+    background: var(--border);
+    border-radius: 999px;
+    content: '';
+    height: 4px;
+    margin: 0 auto 2px;
+    width: 42px;
+  }
+
+  /* Admin sub-tabs: one horizontal scrolling row instead of wrapping. */
+  .admin-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .admin-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .admin-tab,
+  .admin-tab--users {
+    flex: 0 0 auto;
+    padding: 9px 14px;
+    white-space: nowrap;
+  }
+}
