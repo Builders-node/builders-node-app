@@ -325,7 +325,8 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
       {notice ? <section className="panel"><p className="form-success">{notice}</p></section> : null}
 
       {showAddForm ? (
-        <section className="panel">
+        <div className="modal-overlay" role="presentation" onClick={() => setShowAddForm(false)}>
+        <section className="profile-edit-modal" role="dialog" aria-modal="true" aria-label="Add user" onClick={(event) => event.stopPropagation()}>
           <div className="admin-panel__head">
             <div>
               <h2>Add user</h2>
@@ -394,6 +395,7 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
             </>
           )}
         </section>
+        </div>
       ) : null}
       {isLoading ? <section className="panel">Loading users...</section> : null}
       {isDrawerLoading ? <section className="panel">Loading user information...</section> : null}

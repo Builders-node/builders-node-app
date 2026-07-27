@@ -292,7 +292,8 @@ export function Units() {
       {isLoading ? <section className="panel">Loading units...</section> : null}
 
       {showAddForm ? (
-        <section className="panel">
+        <div className="modal-overlay" role="presentation" onClick={() => setShowAddForm(false)}>
+        <section className="profile-edit-modal" role="dialog" aria-modal="true" aria-label="Add unit" onClick={(event) => event.stopPropagation()}>
           <div className="admin-panel__head">
             <div>
               <h2>Add unit</h2>
@@ -352,6 +353,7 @@ export function Units() {
             </>
           )}
         </section>
+        </div>
       ) : null}
 
       <section className="panel">
@@ -367,7 +369,12 @@ export function Units() {
         </div>
 
         {showTypeForm ? (
-          <div className="type-form-wrap">
+          <div className="modal-overlay" role="presentation" onClick={() => setShowTypeForm(false)}>
+          <div className="profile-edit-modal" role="dialog" aria-modal="true" aria-label={editingTypeId ? 'Edit type' : 'Add type'} onClick={(event) => event.stopPropagation()}>
+            <div className="admin-panel__head">
+              <div><h2>{editingTypeId ? 'Edit type' : 'Add type'}</h2></div>
+              <button className="icon-button" onClick={() => setShowTypeForm(false)} aria-label="Close type form"><X size={18} /></button>
+            </div>
             <div className="user-edit-form">
               <label>Type name *<input value={typeForm.name} onChange={(event) => setTypeForm({ ...typeForm, name: event.target.value })} placeholder="e.g. Studio" /></label>
               <label>Monthly price (USD)<input type="number" min="0" value={typeForm.price} onChange={(event) => setTypeForm({ ...typeForm, price: event.target.value })} placeholder="950" /></label>
@@ -380,6 +387,7 @@ export function Units() {
               <button className="ghost-button compact-button" onClick={() => setShowTypeForm(false)} disabled={isSavingType}>Cancel</button>
               <button className="primary-button compact-button" onClick={() => void saveType()} disabled={isSavingType || !typeForm.name.trim()}>{isSavingType ? 'Saving…' : editingTypeId ? 'Save type' : 'Create type'}</button>
             </div>
+          </div>
           </div>
         ) : null}
 

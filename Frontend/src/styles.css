@@ -3441,3 +3441,49 @@ textarea {
     justify-content: center;
   }
 }
+
+/* ── E-Residency proof viewer modal ────────────────────────────────────────── */
+.proof-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  display: grid;
+  gap: 14px;
+  max-width: 640px;
+  padding: 20px;
+  width: min(100%, 640px);
+}
+.proof-modal__viewer {
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  justify-content: center;
+  max-height: 64vh;
+  overflow: auto;
+  padding: 10px;
+}
+.proof-modal__viewer img {
+  border-radius: 6px;
+  height: auto;
+  max-width: 100%;
+}
+.proof-modal__viewer iframe {
+  border: 0;
+  height: 64vh;
+  width: 100%;
+}
+
+@media (max-width: 760px) {
+  .proof-modal {
+    animation: sheet-up 0.24s ease;
+    border-radius: 18px 18px 0 0;
+    max-height: 92vh;
+    max-width: 100%;
+    padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+    width: 100%;
+  }
+  .proof-modal__viewer {
+    max-height: 60vh;
+  }
+}

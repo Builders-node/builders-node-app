@@ -365,6 +365,7 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
   const [adminTab, setAdminTab] = useState<AdminTab>('overview');
   const [residencyReviews, setResidencyReviews] = useState<ResidencyReview[]>([]);
   const [residencyRejectDrafts, setResidencyRejectDrafts] = useState<Record<string, string>>({});
+  const [proofView, setProofView] = useState<{ review: ResidencyReview; src: string; fileType: string; fileName: string } | null>(null);
   const [applicantSearch, setApplicantSearch] = useState('');
   const [applicantFilter, setApplicantFilter] = useState<ApplicantFilterId>('action');
   const [applicantPage, setApplicantPage] = useState(0);
@@ -466,21 +467,14 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
     }
   }
 
-  async function viewResidencyProof(userId: string) {
+  async function viewResidencyProof(review: ResidencyReview) {
     setError(null);
     try {
-      const proof = await apiRequest<{ fileName: string; fileType: string; dataBase64: string }>(`/users/${userId}/residency/proof`);
+      const proof = await apiRequest<{ fileName: string; fileType: string; dataBase64: string }>(`/users/${review.userId}/residency/proof`);
       const src = proof.dataBase64.startsWith('data:')
         ? proof.dataBase64
         : `data:${proof.fileType};base64,${proof.dataBase64}`;
-      const win = window.open();
-      if (win) {
-        win.document.write(
-          proof.fileType === 'application/pdf'
-            ? `<iframe src="${src}" style="border:0;width:100%;height:100vh"></iframe>`
-            : `<img src="${src}" style="max-width:100%" alt="${proof.fileName}" />`,
-        );
-      }
+      setProofView({ review, src, fileType: proof.fileType, fileName: proof.fileName });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not load proof file.');
     }
@@ -1530,7 +1524,7 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
                   {review.reviewNote ? <div><span>Note</span><strong>{review.reviewNote}</strong></div> : null}
                 </div>
                 <div className="button-row">
-                  <button className="ghost-button" onClick={() => void viewResidencyProof(review.userId)} disabled={!review.proofFileName}>
+                  <button className="ghost-button" onClick={() => void viewResidencyProof(review)} disabled={!review.proofFileName}>
                     View proof
                   </button>
                   <button className="primary-button" onClick={() => void reviewResidency(review.userId, 'VERIFIED')} disabled={review.status === 'VERIFIED'}>
@@ -1557,6 +1551,45 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
         </section>
         ) : null}
       </div>
+
+      {proofView ? (
+        <div className="modal-overlay" role="presentation" onClick={() => setProofView(null)}>
+          <div className="proof-modal" role="dialog" aria-modal="true" aria-label="E-Residency proof" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <h2>E-Residency proof</h2>
+                <p>{proofView.review.fullName ?? proofView.review.email}</p>
+              </div>
+              <button className="icon-button" onClick={() => setProofView(null)} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="proof-modal__viewer">
+              {proofView.fileType === 'application/pdf' ? (
+                <iframe src={proofView.src} title={proofView.fileName} />
+              ) : (
+                <img src={proofView.src} alt={proofView.fileName} />
+              )}
+            </div>
+            {proofView.review.status !== 'VERIFIED' ? (
+              <div className="button-row">
+                <button
+                  className="ghost-button"
+                  onClick={() => { void reviewResidency(proofView.review.userId, 'REJECTED'); setProofView(null); }}
+                >
+                  Reject
+                </button>
+                <button
+                  className="primary-button"
+                  onClick={() => { void reviewResidency(proofView.review.userId, 'VERIFIED'); setProofView(null); }}
+                >
+                  Verify
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
