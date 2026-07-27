@@ -23,11 +23,13 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
   const [success, setSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const ADMIN_ROLES = ['SUPER_ADMIN', 'MODERATOR', 'COMMUNITY_LEADER'];
+
   function startSession(session: { accessToken: string; user: { id: string; role: string } }) {
     localStorage.setItem('terminus_access_token', session.accessToken);
     setCurrentUserId(session.user.id);
     setCurrentUserRole(session.user.role);
-    setActivePage('profile');
+    setActivePage(ADMIN_ROLES.includes(session.user.role) ? 'adminDashboard' : 'profile');
   }
 
   async function signInWithGoogle(credential: string) {

@@ -11,9 +11,16 @@ type ProfileProps = {
 };
 
 const MEMBER_STATUSES = ['APPROVED', 'ACTIVE_MEMBER'];
+const ADMIN_ROLES = ['SUPER_ADMIN', 'MODERATOR', 'COMMUNITY_LEADER'];
 
 function isMemberStatus(status?: string) {
   return Boolean(status && MEMBER_STATUSES.includes(status));
+}
+
+function membershipTone(status?: string): 'good' | 'attention' | 'danger' | 'neutral' {
+  if (status === 'ACTIVE_MEMBER' || status === 'APPROVED') return 'good';
+  if (status === 'PAST_MEMBER' || status === 'CANCELLED') return 'neutral';
+  return 'attention'; // APPLICANT / unknown
 }
 
 type ProfileData = {
@@ -70,6 +77,7 @@ function toneForResidency(status?: string): 'good' | 'attention' | 'danger' | 'n
 }
 
 type HomeMemberData = {
+  membership?: { status: string; hasApplied: boolean; applicationStatus?: string | null };
   apartment: { name: string; status: string; moveInDate?: string | null; details: string } | null;
   meals: { items: Array<{ id: string; day: string; meal: string }> };
   cleaning: { nextCleaning?: string | null; frequency?: string | null; notes?: string | null } | null;
@@ -181,12 +189,13 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
     if (file) void submitProof(file);
   }
 
-  // Member-only sections (E-Residency, community plans) stay hidden until the
-  // account is an actual member — a registered-but-not-applied user should not
-  // see external membership services yet.
+  // Membership (customer status) is independent of role (staff/permissions).
+  // Staff accounts don't need a membership, so they never see the apply prompt.
   const member = isMemberStatus(profile?.membership?.status);
+  const isStaff = ADMIN_ROLES.includes(profile?.role ?? '');
+  const hasApplied = Boolean(home?.membership?.hasApplied);
   const showMemberSections = Boolean(profile && member);
-  const showApplyPrompt = Boolean(profile && !member);
+  const showApplyPrompt = Boolean(profile && !member && !isStaff);
 
   return (
     <div className="page-stack">
@@ -202,7 +211,9 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
             <div>
               <h2>{profile?.profile?.fullName ?? 'No name loaded'}</h2>
               <p>{profile?.email ?? ''}</p>
-              <StatusBadge tone="good">{profile?.membership?.status ?? 'No membership'}</StatusBadge>
+              <StatusBadge tone={isStaff ? 'good' : membershipTone(profile?.membership?.status)}>
+                {isStaff ? (profile?.role?.split('_').join(' ') ?? 'Staff') : (profile?.membership?.status ?? 'No membership')}
+              </StatusBadge>
             </div>
           </div>
           <button className="icon-button profile-edit-button" onClick={() => setIsEditOpen(true)} aria-label="Edit profile">
@@ -214,17 +225,29 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
       {showApplyPrompt ? (
         <section className="panel residency-gate-panel">
           <span className="section-label">Membership</span>
-          <h2>You are not a member yet</h2>
-          <p>
-            Apply for a Builders Node membership to unlock your E-Residency tracking, community plans, and the
-            rest of your member account.
-          </p>
-          {setActivePage ? (
-            <button className="primary-button" onClick={() => setActivePage('apply')}>
-              <Send size={16} />
-              Apply for membership
-            </button>
-          ) : null}
+          {hasApplied ? (
+            <>
+              <h2>Your application is under review</h2>
+              <p>
+                Thanks for applying. Our team is reviewing your application — you&apos;ll get an email once it&apos;s
+                approved, and your member home unlocks then.
+              </p>
+            </>
+          ) : (
+            <>
+              <h2>You are not a member yet</h2>
+              <p>
+                Apply for a Builders Node membership to unlock your E-Residency, community plans, and the rest of
+                your member account.
+              </p>
+              {setActivePage ? (
+                <button className="primary-button" onClick={() => setActivePage('apply')}>
+                  <Send size={16} />
+                  Apply for membership
+                </button>
+              ) : null}
+            </>
+          )}
         </section>
       ) : null}
 

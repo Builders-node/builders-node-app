@@ -74,13 +74,14 @@ function App() {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  // A logged-in user must never sit on the public landing page. The signed-in
-  // home is the profile for everyone (admins reach the admin panel from the nav).
+  // A logged-in user must never sit on the public landing page. Admins/staff
+  // land on the admin dashboard; regular users land on their member home.
   useEffect(() => {
     if (currentUserId && activePage === 'landing') {
-      setActivePage('profile');
+      const isAdmin = ADMIN_ROLES.includes(currentUserRole ?? '');
+      setActivePage(isAdmin ? 'adminDashboard' : 'profile');
     }
-  }, [currentUserId, activePage]);
+  }, [currentUserId, currentUserRole, activePage]);
 
   function updateCurrentUserId(userId: string | null) {
     setCurrentUserId(userId);
@@ -148,7 +149,8 @@ function App() {
 
     if (activePage === 'landing') {
       if (showLanding) return <Landing setActivePage={setActivePage} currentUserId={currentUserId} />;
-      // Logged-in fallback while the redirect effect switches to 'profile'.
+      // Logged-in fallback while the redirect effect runs: admins → admin panel.
+      if (canAccessAdmin) return <AdminDashboard currentUserRole={currentUserRole} setActivePage={setActivePage} />;
       return <Profile currentUserId={currentUserId} setActivePage={setActivePage} />;
     }
     if (activePage === 'apply') return <Apply currentUserId={currentUserId} currentUserRole={currentUserRole} setActivePage={setActivePage} />;

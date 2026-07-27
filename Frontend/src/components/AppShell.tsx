@@ -41,8 +41,8 @@ export function AppShell({
         <div className="brand-row">
           <button
             className="brand-mark"
-            onClick={() => go('profile')}
-            aria-label="Go to your profile"
+            onClick={() => go(isAdmin ? 'adminDashboard' : 'profile')}
+            aria-label={isAdmin ? 'Go to admin dashboard' : 'Go to your home'}
           >
             <img src="/terminus-logo-small.svg" alt="" />
           </button>
