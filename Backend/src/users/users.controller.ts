@@ -12,6 +12,11 @@ export class UsersController {
     return this.users.findProfile(userId);
   }
 
+  @Get(':userId/referrals')
+  getReferrals(@Param('userId') userId: string) {
+    return this.users.findReferrals(userId);
+  }
+
   @Patch(':userId/profile')
   updateProfile(
     @Param('userId') userId: string,

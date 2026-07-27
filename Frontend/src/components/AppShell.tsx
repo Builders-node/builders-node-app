@@ -1,6 +1,7 @@
-import { Bell, Check, LogOut, Menu, Moon, Settings as SettingsIcon, Share2, Sun, X } from 'lucide-react';
+import { Bell, LogOut, Menu, Moon, Settings as SettingsIcon, Share2, Sun, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ADMIN_ROLES, allNavItems, navSections, type PageId } from '../data/dashboard';
+import { ReferralModal } from './ReferralModal';
 
 type AppShellProps = {
   activePage: PageId;
@@ -9,6 +10,7 @@ type AppShellProps = {
   setIsDark: (value: boolean) => void;
   menuOpen: boolean;
   setMenuOpen: (value: boolean) => void;
+  currentUserId?: string | null;
   currentUserRole?: string | null;
   currentUserLabel?: string | null;
   currentUserEmail?: string | null;
@@ -24,6 +26,7 @@ export function AppShell({
   setIsDark,
   menuOpen,
   setMenuOpen,
+  currentUserId,
   currentUserRole,
   currentUserLabel,
   currentUserEmail,
@@ -37,7 +40,7 @@ export function AppShell({
   const currentLabel = allNavItems.find((item) => item.id === activePage)?.label ?? 'Dashboard';
 
   const [accountOpen, setAccountOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [referralOpen, setReferralOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,16 +55,6 @@ export function AppShell({
   }, [accountOpen]);
 
   const inviteLink = referralCode ? `${window.location.origin}/?ref=${referralCode}` : '';
-  async function copyInvite() {
-    if (!inviteLink) return;
-    try {
-      await navigator.clipboard.writeText(inviteLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
-    } catch {
-      /* clipboard blocked — ignore */
-    }
-  }
 
   function go(page: PageId) {
     setActivePage(page);
@@ -154,9 +147,9 @@ export function AppShell({
                   </div>
 
                   {referralCode ? (
-                    <button className="account-dropdown__invite" onClick={() => void copyInvite()}>
-                      {copied ? <Check size={16} /> : <Share2 size={16} />}
-                      {copied ? 'Invite link copied' : 'Copy invite link'}
+                    <button className="account-dropdown__invite" onClick={() => { setAccountOpen(false); setReferralOpen(true); }}>
+                      <Share2 size={16} />
+                      Invite &amp; earn
                     </button>
                   ) : null}
 
@@ -208,6 +201,10 @@ export function AppShell({
             );
           })}
       </nav>
+
+      {referralOpen && currentUserId ? (
+        <ReferralModal userId={currentUserId} inviteLink={inviteLink} onClose={() => setReferralOpen(false)} />
+      ) : null}
     </div>
   );
 }

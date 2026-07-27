@@ -30,6 +30,21 @@ export class UsersService {
     return user;
   }
 
+  async findReferrals(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { referralCode: true },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+    // How many people applied using this member's referral link.
+    const referredCount = await this.prisma.application.count({
+      where: { referredByUserId: userId },
+    });
+    return { referralCode: user.referralCode, referredCount };
+  }
+
   async updateProfile(userId: string, data: { fullName?: string; phone?: string; location?: string }) {
     return this.prisma.profile.upsert({
       where: { userId },

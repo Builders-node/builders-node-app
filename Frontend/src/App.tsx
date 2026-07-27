@@ -231,6 +231,7 @@ function App() {
       setIsDark={setIsDark}
       menuOpen={menuOpen}
       setMenuOpen={setMenuOpen}
+      currentUserId={currentUserId}
       currentUserRole={currentUserRole}
       currentUserLabel={currentUserLabel}
       currentUserEmail={currentUserEmail}
