@@ -110,6 +110,27 @@ export function AppShell({
         </header>
         <div className="main-content">{children}</div>
       </main>
+
+      {/* Mobile-first bottom tab bar (primary navigation on small screens). */}
+      <nav className="bottom-nav" aria-label="Primary">
+        {visibleSections
+          .flatMap((section) => section.items)
+          .map((item) => {
+            const Icon = item.icon;
+            const active = activePage === item.id;
+            return (
+              <button
+                key={item.id}
+                className={active ? 'bottom-nav__item bottom-nav__item--active' : 'bottom-nav__item'}
+                onClick={() => go(item.id)}
+                aria-current={active ? 'page' : undefined}
+              >
+                <Icon size={20} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+      </nav>
     </div>
   );
 }
