@@ -27,7 +27,14 @@ async function bootstrap() {
       } catch {
         return cb(null, false);
       }
-      cb(null, allowlist.includes(origin) || host === 'vercel.app' || host.endsWith('.vercel.app'));
+      cb(
+        null,
+        allowlist.includes(origin) ||
+          host === 'vercel.app' ||
+          host.endsWith('.vercel.app') ||
+          host === 'buildersnode.com' ||
+          host.endsWith('.buildersnode.com'),
+      );
     },
     credentials: true,
   });

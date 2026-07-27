@@ -39,7 +39,12 @@ async function bootstrap(): Promise<Express> {
       } catch {
         return cb(null, false);
       }
-      const ok = allowlist.includes(origin) || host === 'vercel.app' || host.endsWith('.vercel.app');
+      const ok =
+        allowlist.includes(origin) ||
+        host === 'vercel.app' ||
+        host.endsWith('.vercel.app') ||
+        host === 'buildersnode.com' ||
+        host.endsWith('.buildersnode.com');
       cb(null, ok);
     },
     credentials: true,
