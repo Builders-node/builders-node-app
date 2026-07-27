@@ -3413,3 +3413,31 @@ textarea {
     width: 100%;
   }
 }
+
+/* ── Mobile-first: let grid/flex items shrink so admin pages never overflow ── */
+@media (max-width: 760px) {
+  .page-stack,
+  .page-stack * {
+    min-width: 0;
+  }
+  .page-header .primary-button {
+    margin-top: 12px;
+  }
+}
+
+/* ── Mobile: stack panel headers so title + actions/badges don't squish ────── */
+@media (max-width: 760px) {
+  .admin-panel__head {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .type-panel__actions {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+  .type-panel__actions .compact-button {
+    flex: 1;
+    justify-content: center;
+  }
+}
