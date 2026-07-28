@@ -19,7 +19,7 @@ interface ApplyFormProps {
 
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz3W2M-aHf3pNfxLF0_vnyVPSe4copxmHlm9RVHrUiQqeT3UNDukUDg6A9-crO9Gdgn/exec";
 
-const stayDurations = Array.from({ length: 12 }, (_, i) => `${i + 1} month${i > 0 ? "s" : ""}`);
+const stayDurations = ["1 month", "3 months", "6 months", "12 months"];
 
 const tshirtSizes = ["XS", "S", "M", "L", "XL", "XXL"];
 
