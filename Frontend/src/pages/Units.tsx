@@ -4,6 +4,7 @@ import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import type { StatusTone } from '../data/dashboard';
 import { apiRequest } from '../lib/api';
+import { useEscapeToClose } from '../lib/useModalA11y';
 
 type Occupant = { userId: string; name: string; email: string; moveInDate?: string | null };
 
@@ -88,6 +89,8 @@ export function Units() {
   const [addTemplateId, setAddTemplateId] = useState('');
   const [showTypes, setShowTypes] = useState(false);
   const [showTypeForm, setShowTypeForm] = useState(false);
+  useEscapeToClose(showAddForm, () => setShowAddForm(false));
+  useEscapeToClose(showTypeForm, () => setShowTypeForm(false));
   const [typeForm, setTypeForm] = useState<TypeForm>(emptyTypeForm);
   const [editingTypeId, setEditingTypeId] = useState<string | null>(null);
   const [isSavingType, setIsSavingType] = useState(false);

@@ -7,7 +7,7 @@ import { AdminLogin } from './pages/AdminLogin';
 import { Landing } from './pages/Landing';
 import { Profile } from './pages/Profile';
 import { Security } from './pages/Security';
-import { apiRequest, ApiError } from './lib/api';
+import { apiRequest, ApiError, isTokenExpired } from './lib/api';
 import { AllUsers } from './pages/AllUsers';
 import { Units } from './pages/Units';
 import { Apply } from './pages/Apply';
@@ -38,7 +38,15 @@ function App() {
   const [activePage, setActivePage] = useState<PageId>(() => pageForPath(window.location.pathname) ?? 'landing');
   const [isDark, setIsDark] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(() => localStorage.getItem('terminus_user_id'));
+  const [currentUserId, setCurrentUserId] = useState<string | null>(() => {
+    // Drop a dead/expired session on boot so we never fire a doomed authed request.
+    const id = localStorage.getItem('terminus_user_id');
+    if (!id || isTokenExpired(localStorage.getItem('terminus_access_token'))) {
+      ['terminus_access_token', 'terminus_user_id', 'terminus_user_role', 'terminus_user_label'].forEach((key) => localStorage.removeItem(key));
+      return null;
+    }
+    return id;
+  });
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(() => localStorage.getItem('terminus_user_role'));
   // Display name (or email) for the avatar/initial. Cached so it shows instantly on reload.
   const [currentUserLabel, setCurrentUserLabel] = useState<string | null>(() => localStorage.getItem('terminus_user_label'));
@@ -65,6 +73,21 @@ function App() {
       window.history.pushState(null, '', target);
     }
   }, [activePage]);
+
+  // Global reaction to an expired/invalid session (any authed request got 401):
+  // api.ts already cleared storage — reset React state and go to login.
+  useEffect(() => {
+    const onUnauthorized = () => {
+      setCurrentUserId(null);
+      setCurrentUserRole(null);
+      setCurrentUserLabel(null);
+      setCurrentUserEmail(null);
+      setCurrentUserReferral(null);
+      setActivePage('login');
+    };
+    window.addEventListener('auth:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', onUnauthorized);
+  }, []);
 
   // Browser back/forward: derive the active page from the URL.
   useEffect(() => {

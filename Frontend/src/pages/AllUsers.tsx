@@ -4,6 +4,7 @@ import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import type { StatusTone } from '../data/dashboard';
 import { apiRequest } from '../lib/api';
+import { useEscapeToClose } from '../lib/useModalA11y';
 
 type AdminOverviewUser = {
   id: string;
@@ -156,6 +157,8 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
   const [addForm, setAddForm] = useState<EditForm & { email: string }>({ email: '', fullName: '', phone: '', location: '', membershipStatus: 'ACTIVE_MEMBER', role: 'MEMBER' });
   const [isCreating, setIsCreating] = useState(false);
   const [createdInvite, setCreatedInvite] = useState<{ to: string; setupUrl: string; temporaryPassword: string } | null>(null);
+  useEscapeToClose(showAddForm, () => setShowAddForm(false));
+  useEscapeToClose(Boolean(selectedUser), () => setSelectedUser(null));
   const isSuperAdmin = currentUserRole === 'SUPER_ADMIN';
 
   useEffect(() => {

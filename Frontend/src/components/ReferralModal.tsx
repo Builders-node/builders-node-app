@@ -1,6 +1,7 @@
 import { Check, Copy, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../lib/api';
+import { useModalA11y } from '../lib/useModalA11y';
 
 type ReferralModalProps = {
   userId: string;
@@ -11,6 +12,7 @@ type ReferralModalProps = {
 export function ReferralModal({ userId, inviteLink, onClose }: ReferralModalProps) {
   const [count, setCount] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
+  const dialogRef = useModalA11y<HTMLDivElement>(onClose);
 
   useEffect(() => {
     apiRequest<{ referredCount: number }>(`/users/${userId}/referrals`)
@@ -31,6 +33,8 @@ export function ReferralModal({ userId, inviteLink, onClose }: ReferralModalProp
   return (
     <div className="modal-overlay" role="presentation" onClick={onClose}>
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="referral-modal"
         role="dialog"
         aria-modal="true"

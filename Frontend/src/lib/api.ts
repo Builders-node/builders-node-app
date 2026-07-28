@@ -14,6 +14,27 @@ export class ApiError extends Error {
   }
 }
 
+const SESSION_KEYS = ['terminus_access_token', 'terminus_user_id', 'terminus_user_role', 'terminus_user_label'];
+
+function clearSession() {
+  SESSION_KEYS.forEach((key) => localStorage.removeItem(key));
+}
+
+/**
+ * True if a JWT is expired (or unparseable). Used on boot to drop a dead session
+ * before it triggers a broken authenticated request.
+ */
+export function isTokenExpired(token: string | null): boolean {
+  if (!token) return true;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1] ?? ''));
+    if (typeof payload.exp !== 'number') return false;
+    return payload.exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+}
+
 export async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('terminus_access_token');
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -27,6 +48,13 @@ export async function apiRequest<T>(path: string, options?: RequestInit): Promis
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
+    // A 401 on a request we *authenticated* means the session is dead/expired —
+    // clear it and let the app react globally. (A 401 with no token is an
+    // ordinary auth failure, e.g. wrong password, and must NOT force a logout.)
+    if (response.status === 401 && token) {
+      clearSession();
+      window.dispatchEvent(new Event('auth:unauthorized'));
+    }
     throw new ApiError(body.message ?? 'Request failed. Please try again.', response.status);
   }
 

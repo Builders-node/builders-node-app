@@ -4,6 +4,7 @@ import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import type { PageId, StatusTone } from '../data/dashboard';
 import { apiRequest } from '../lib/api';
+import { useEscapeToClose } from '../lib/useModalA11y';
 
 type AdminOverview = {
   metrics: {
@@ -366,6 +367,7 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
   const [residencyReviews, setResidencyReviews] = useState<ResidencyReview[]>([]);
   const [residencyRejectDrafts, setResidencyRejectDrafts] = useState<Record<string, string>>({});
   const [proofView, setProofView] = useState<{ review: ResidencyReview; src: string; fileType: string; fileName: string } | null>(null);
+  useEscapeToClose(Boolean(proofView), () => setProofView(null));
   const [applicantSearch, setApplicantSearch] = useState('');
   const [applicantFilter, setApplicantFilter] = useState<ApplicantFilterId>('action');
   const [applicantPage, setApplicantPage] = useState(0);
