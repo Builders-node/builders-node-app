@@ -61,7 +61,21 @@ type DesignationUser = AdminOverview['users'][number];
 type DesignationFilterId = 'all' | 'incomplete' | 'new' | 'members';
 type Applicant = AdminOverview['applications'][number];
 type ApplicantAction = { key: string; label: string; icon: ReactNode; tone?: 'ghost' | 'danger'; run: () => void };
-type AdminTab = 'overview' | 'applicants' | 'residency' | 'designations' | 'settings';
+type AdminTab = 'overview' | 'applicants' | 'residency' | 'designations' | 'maintenance' | 'resources' | 'settings';
+
+type AdminResource = { id: string; title: string; slug: string; category: string; body: string; published: boolean; order: number };
+type AdminMaintenance = {
+  id: string;
+  category: string;
+  title: string;
+  description: string;
+  status: string;
+  adminNote?: string | null;
+  createdAt: string;
+  requesterName: string;
+  requesterEmail: string;
+  hasPhoto: boolean;
+};
 
 type ResidencyReview = {
   userId: string;
@@ -388,6 +402,10 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
   const [credentialMessage, setCredentialMessage] = useState<string | null>(null);
   const [adminTab, setAdminTab] = useState<AdminTab>('overview');
   const [applicantView, setApplicantView] = useState<'list' | 'board'>('board');
+  const [maintenance, setMaintenance] = useState<AdminMaintenance[]>([]);
+  const [resources, setResources] = useState<AdminResource[]>([]);
+  const [resourceForm, setResourceForm] = useState<{ id?: string; title: string; category: string; body: string; published: boolean } | null>(null);
+  useEscapeToClose(Boolean(resourceForm), () => setResourceForm(null));
   const [residencyReviews, setResidencyReviews] = useState<ResidencyReview[]>([]);
   const [residencyRejectDrafts, setResidencyRejectDrafts] = useState<Record<string, string>>({});
   const [proofView, setProofView] = useState<{ review: ResidencyReview; src: string; fileType: string; fileName: string } | null>(null);
@@ -603,6 +621,8 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
     { id: 'applicants', label: 'Applicants', count: applicantCountFor('action') },
     { id: 'residency', label: 'E-Residency', count: residencyPendingCount },
     { id: 'designations', label: 'Designations', count: designationCountFor('incomplete') },
+    { id: 'maintenance', label: 'Maintenance', count: maintenance.filter((m) => m.status !== 'RESOLVED').length },
+    { id: 'resources', label: 'Resources' },
     { id: 'settings', label: 'Global settings' },
   ];
 
@@ -620,6 +640,74 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
       });
       return next;
     });
+  }
+
+  async function loadMaintenance() {
+    try {
+      setMaintenance(await apiRequest<AdminMaintenance[]>('/admin/maintenance'));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not load maintenance.');
+    }
+  }
+
+  async function loadResources() {
+    try {
+      setResources(await apiRequest<AdminResource[]>('/admin/resources'));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not load resources.');
+    }
+  }
+
+  useEffect(() => {
+    if (adminTab === 'maintenance') void loadMaintenance();
+    if (adminTab === 'resources') void loadResources();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminTab]);
+
+  async function updateMaintenance(id: string, body: { status?: string; adminNote?: string }) {
+    setError(null);
+    try {
+      await apiRequest(`/admin/maintenance/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+      await loadMaintenance();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not update the request.');
+    }
+  }
+
+  async function viewMaintenancePhoto(id: string) {
+    try {
+      const photo = await apiRequest<{ fileType: string; dataBase64: string }>(`/admin/maintenance/${id}/photo`);
+      const src = photo.dataBase64.startsWith('data:') ? photo.dataBase64 : `data:${photo.fileType};base64,${photo.dataBase64}`;
+      window.open(src, '_blank', 'noopener');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not open the photo.');
+    }
+  }
+
+  async function saveResource() {
+    if (!resourceForm) return;
+    setError(null);
+    try {
+      const path = resourceForm.id ? `/admin/resources/${resourceForm.id}` : '/admin/resources';
+      await apiRequest(path, {
+        method: resourceForm.id ? 'PATCH' : 'POST',
+        body: JSON.stringify({ title: resourceForm.title, category: resourceForm.category, body: resourceForm.body, published: resourceForm.published }),
+      });
+      setResourceForm(null);
+      await loadResources();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not save the resource.');
+    }
+  }
+
+  async function deleteResource(id: string) {
+    setError(null);
+    try {
+      await apiRequest(`/admin/resources/${id}`, { method: 'DELETE' });
+      await loadResources();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not delete the resource.');
+    }
   }
 
   async function sendCredentials(applicationId: string) {
@@ -1393,6 +1481,72 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
         </section>
         ) : null}
 
+        {adminTab === 'maintenance' ? (
+        <section className="panel admin-panel">
+          <div className="admin-panel__head">
+            <div>
+              <h2>Maintenance queue</h2>
+              <p>Member-reported unit issues. Update status to keep members informed.</p>
+            </div>
+          </div>
+          <div className="maintenance-admin-list">
+            {maintenance.length === 0 ? <div className="empty-state">No maintenance requests.</div> : null}
+            {maintenance.map((m) => (
+              <article className="maintenance-admin-card" key={m.id}>
+                <div className="maintenance-admin-card__top">
+                  <div>
+                    <strong>{m.title}</strong>
+                    <span>{m.category} · {m.requesterName} ({m.requesterEmail}) · {new Date(m.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <StatusBadge tone={m.status === 'RESOLVED' ? 'good' : m.status === 'IN_PROGRESS' ? 'attention' : 'neutral'}>{m.status}</StatusBadge>
+                </div>
+                <p className="maintenance-admin-card__desc">{m.description}</p>
+                <div className="maintenance-admin-card__row">
+                  <select value={m.status} onChange={(event) => void updateMaintenance(m.id, { status: event.target.value })}>
+                    <option value="OPEN">Open</option>
+                    <option value="IN_PROGRESS">In progress</option>
+                    <option value="RESOLVED">Resolved</option>
+                  </select>
+                  <input
+                    defaultValue={m.adminNote ?? ''}
+                    placeholder="Note to member…"
+                    onBlur={(event) => { if (event.target.value !== (m.adminNote ?? '')) void updateMaintenance(m.id, { adminNote: event.target.value }); }}
+                  />
+                  {m.hasPhoto ? <button className="ghost-button compact-button" onClick={() => void viewMaintenancePhoto(m.id)}>View photo</button> : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+        ) : null}
+
+        {adminTab === 'resources' ? (
+        <section className="panel admin-panel">
+          <div className="admin-panel__head">
+            <div>
+              <h2>Resources</h2>
+              <p>Guides shown to members in the Resource Hub. Supports ## headings, - bullets, **bold**, and [links](https://…).</p>
+            </div>
+            <button className="primary-button compact-button" onClick={() => setResourceForm({ title: '', category: 'General', body: '', published: true })}>New article</button>
+          </div>
+          <div className="resource-admin-list">
+            {resources.length === 0 ? <div className="empty-state">No resources yet — create your first guide.</div> : null}
+            {resources.map((r) => (
+              <div className="resource-admin-row" key={r.id}>
+                <div className="resource-admin-row__id">
+                  <strong>{r.title}</strong>
+                  <span>{r.category}{r.published ? '' : ' · draft'}</span>
+                </div>
+                <div className="resource-admin-row__actions">
+                  <button className="ghost-button compact-button" onClick={() => setResourceForm({ id: r.id, title: r.title, category: r.category, body: r.body, published: r.published })}>Edit</button>
+                  <button className="compact-button applicant-action--danger" onClick={() => void deleteResource(r.id)}>Delete</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+        ) : null}
+
         {adminTab === 'settings' ? (
         <section className="panel admin-panel" id="admin-global">
           <div className="admin-panel__head">
@@ -1722,6 +1876,32 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
                 </button>
               </div>
             ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {resourceForm ? (
+        <div className="modal-overlay" role="presentation" onClick={() => setResourceForm(null)}>
+          <div className="profile-edit-modal" role="dialog" aria-modal="true" aria-label="Edit resource" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <h2>{resourceForm.id ? 'Edit article' : 'New article'}</h2>
+                <p>Shown to members in the Resource Hub.</p>
+              </div>
+              <button className="icon-button" onClick={() => setResourceForm(null)} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="form-grid">
+              <label>Title<input value={resourceForm.title} onChange={(event) => setResourceForm({ ...resourceForm, title: event.target.value })} placeholder="How to get E-Residency" /></label>
+              <label>Category<input value={resourceForm.category} onChange={(event) => setResourceForm({ ...resourceForm, category: event.target.value })} placeholder="Getting started" /></label>
+            </div>
+            <label>Body<textarea value={resourceForm.body} onChange={(event) => setResourceForm({ ...resourceForm, body: event.target.value })} rows={10} placeholder="## Heading&#10;- bullet&#10;**bold**, [link](https://…)" /></label>
+            <label className="checkbox-row">
+              <input type="checkbox" checked={resourceForm.published} onChange={(event) => setResourceForm({ ...resourceForm, published: event.target.checked })} />
+              Published (visible to members)
+            </label>
+            <button className="primary-button" onClick={() => void saveResource()}>Save article</button>
           </div>
         </div>
       ) : null}

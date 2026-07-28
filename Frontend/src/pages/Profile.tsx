@@ -5,6 +5,7 @@ import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import { apiRequest } from '../lib/api';
 import { useEscapeToClose } from '../lib/useModalA11y';
+import { MaintenanceSection } from '../components/MaintenanceSection';
 
 type ProfileProps = {
   currentUserId: string | null;
@@ -570,6 +571,8 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
         </div>
       </section>
       ) : null}
+
+      {showMemberSections && currentUserId ? <MaintenanceSection currentUserId={currentUserId} /> : null}
     </div>
   );
 }

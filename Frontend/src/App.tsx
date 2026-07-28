@@ -12,6 +12,7 @@ import { AllUsers } from './pages/AllUsers';
 import { Units } from './pages/Units';
 import { Apply } from './pages/Apply';
 import { VerifyEmail } from './pages/VerifyEmail';
+import { Resources } from './pages/Resources';
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'MODERATOR', 'COMMUNITY_LEADER'];
 
@@ -27,6 +28,7 @@ const PAGE_TITLES: Partial<Record<PageId, string>> = {
   verifyEmail: 'Confirm your email — Builders Node',
   adminLogin: 'Admin login — Builders Node',
   profile: 'Account — Builders Node',
+  resources: 'Resources — Builders Node',
   security: 'Security — Builders Node',
   dashboard: 'Home — Builders Node',
   allUsers: 'Users — Builders Node',
@@ -199,6 +201,10 @@ function App() {
       if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
       return <Profile currentUserId={currentUserId} setActivePage={setActivePage} />;
     }
+    if (activePage === 'resources') {
+      if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+      return <Resources />;
+    }
     if (activePage === 'security') {
       if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
       return <Security currentUserId={currentUserId} setCurrentUserId={updateCurrentUserId} setActivePage={setActivePage} />;
@@ -246,7 +252,7 @@ function App() {
   // Full-screen views (no app shell): the landing, every auth screen, and any
   // protected page viewed while logged out (which falls back to the login panel).
   const AUTH_PAGES: PageId[] = ['apply', 'login', 'signup', 'setupPassword', 'forgotPassword', 'resetPassword', 'verifyEmail', 'adminLogin'];
-  const PROTECTED_PAGES: PageId[] = ['profile', 'security', 'allUsers', 'units', 'adminDashboard'];
+  const PROTECTED_PAGES: PageId[] = ['profile', 'resources', 'security', 'allUsers', 'units', 'adminDashboard'];
   if (
     showLanding ||
     AUTH_PAGES.includes(activePage) ||

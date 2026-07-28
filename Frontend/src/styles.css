@@ -3757,3 +3757,64 @@ textarea {
 }
 .pipeline-card__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 .pipeline-card__actions .compact-button { flex: 1; justify-content: center; min-width: 0; }
+
+/* ── Resource Hub ───────────────────────────────────────────────────────────── */
+.resource-group__title { font-size: 1.05rem; margin: 0 0 0.5rem; }
+.resource-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.resource-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 11px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.95rem;
+  transition: background 0.12s ease;
+}
+.resource-item:hover { background: rgba(0, 0, 0, 0.035); }
+:root[data-theme='dark'] .resource-item:hover { background: rgba(255, 255, 255, 0.05); }
+.resource-item__icon { color: #e5541f; flex-shrink: 0; }
+.resource-item span { flex: 1; min-width: 0; }
+.resource-item__chev { color: var(--text-muted, #9aa0ad); flex-shrink: 0; }
+.resource-back { align-self: flex-start; }
+.resource-article h1 { font-size: 1.9rem; margin: 0.35rem 0 1rem; }
+.markdown-body { line-height: 1.7; }
+.markdown-body h3 { font-size: 1.25rem; margin: 1.4rem 0 0.5rem; }
+.markdown-body h4 { font-size: 1.05rem; margin: 1.1rem 0 0.4rem; }
+.markdown-body p { margin: 0 0 0.9rem; }
+.markdown-body ul { margin: 0 0 0.9rem; padding-left: 1.3rem; }
+.markdown-body li { margin: 0.2rem 0; }
+.markdown-body a { color: #e5541f; }
+
+/* ── Maintenance requests ───────────────────────────────────────────────────── */
+.maintenance-photo input { display: block; margin-top: 0.3rem; font-size: 0.85rem; }
+.maintenance-list { display: flex; flex-direction: column; gap: 10px; margin-top: 0.5rem; }
+.maintenance-item { border: 1px solid var(--line, #e7e9ee); border-radius: 12px; padding: 12px 14px; }
+.maintenance-item__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.maintenance-item__head strong { font-size: 0.95rem; }
+.maintenance-item__meta { font-size: 0.78rem; color: var(--text-muted, #6b7280); }
+.maintenance-item__desc { margin: 0.4rem 0 0; font-size: 0.9rem; }
+.maintenance-item__note { margin: 0.4rem 0 0; font-size: 0.85rem; color: #4752c4; }
+:root[data-theme='dark'] .maintenance-item__note { color: #aeb6ff; }
+
+/* ── Admin: maintenance queue + resources ───────────────────────────────────── */
+.maintenance-admin-list, .resource-admin-list { display: flex; flex-direction: column; gap: 10px; margin-top: 0.5rem; }
+.maintenance-admin-card { border: 1px solid var(--line, #e7e9ee); border-radius: 12px; padding: 12px 14px; }
+.maintenance-admin-card__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.maintenance-admin-card__top strong { display: block; font-size: 0.95rem; }
+.maintenance-admin-card__top span { font-size: 0.78rem; color: var(--text-muted, #6b7280); }
+.maintenance-admin-card__desc { margin: 0.5rem 0; font-size: 0.9rem; }
+.maintenance-admin-card__row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.maintenance-admin-card__row select { flex: 0 0 auto; }
+.maintenance-admin-card__row input { flex: 1; min-width: 160px; }
+.resource-admin-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--line, #e7e9ee); border-radius: 10px; padding: 10px 12px; }
+.resource-admin-row__id strong { display: block; font-size: 0.92rem; }
+.resource-admin-row__id span { font-size: 0.78rem; color: var(--text-muted, #6b7280); }
+.resource-admin-row__actions { display: flex; gap: 6px; flex-shrink: 0; }
+.checkbox-row { display: flex; flex-direction: row; align-items: center; gap: 8px; font-size: 0.9rem; }
+.checkbox-row input { width: auto; }

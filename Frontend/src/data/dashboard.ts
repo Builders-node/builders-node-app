@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Building2, Home, Settings, ShieldCheck, UsersRound } from 'lucide-react';
+import { BookOpen, Building2, Home, Settings, ShieldCheck, UsersRound } from 'lucide-react';
 
 export type StatusTone = 'good' | 'attention' | 'danger' | 'neutral';
 
@@ -31,6 +31,7 @@ export type PageId =
   | 'units'
   | 'dashboard'
   | 'profile'
+  | 'resources'
   | 'security';
 
 export const ADMIN_ROLES = ['SUPER_ADMIN', 'MODERATOR', 'COMMUNITY_LEADER'];
@@ -51,6 +52,7 @@ export const PAGE_PATHS: Record<PageId, string> = {
   units: '/units',
   dashboard: '/account',
   profile: '/account',
+  resources: '/resources',
   security: '/security',
 };
 
@@ -69,6 +71,7 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/users': 'allUsers',
   '/units': 'units',
   '/account': 'profile',
+  '/resources': 'resources',
   '/security': 'security',
 };
 
@@ -87,6 +90,7 @@ export const navSections: NavSection[] = [
     title: 'Members',
     items: [
       { id: 'profile', label: 'Home', icon: Home },
+      { id: 'resources', label: 'Resources', icon: BookOpen },
       { id: 'security', label: 'Settings', icon: Settings },
     ],
   },

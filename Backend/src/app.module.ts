@@ -6,6 +6,8 @@ import { validateEnv } from './config/env.validation';
 import { MailModule } from './mail/mail.module';
 import { DiscordModule } from './discord/discord.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ResourcesModule } from './resources/resources.module';
+import { MaintenanceModule } from './maintenance/maintenance.module';
 import { ApartmentsModule } from './apartments/apartments.module';
 import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
@@ -29,6 +31,8 @@ import { AdminModule } from './admin/admin.module';
     MailModule,
     DiscordModule,
     NotificationsModule,
+    ResourcesModule,
+    MaintenanceModule,
     DatabaseModule,
     AdminModule,
     ApplicationsModule,
