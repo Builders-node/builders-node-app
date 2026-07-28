@@ -140,7 +140,7 @@ export class ApplicationsService {
         })
       : null;
 
-    return this.prisma.application.create({
+    const application = await this.prisma.application.create({
       data: {
         fullName: dto.fullName,
         email: dto.email.toLowerCase(),
@@ -151,6 +151,15 @@ export class ApplicationsService {
         status: 'SUBMITTED',
       },
     });
+
+    await this.notifications.notifyAdmins({
+      type: 'info',
+      title: 'New application',
+      body: `${application.fullName} (${application.email}) applied.`,
+      link: '/admin',
+    });
+
+    return application;
   }
 
   async approveAndSendCredentials(dto: SendCredentialsDto) {

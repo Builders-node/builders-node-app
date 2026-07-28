@@ -17,7 +17,7 @@ describe('ApplicationsService referrals', () => {
         }),
       },
     };
-    const service = new ApplicationsService(prisma as never, new ConfigService(), {} as never, {} as never, {} as never);
+    const service = new ApplicationsService(prisma as never, new ConfigService(), {} as never, {} as never, { notify: async () => {}, notifyAdmins: async () => {} } as never);
 
     await service.apply({
       fullName: 'New Member',

@@ -13,6 +13,12 @@ type AdminOverview = {
     pendingSetup: number;
     activeMembers: number;
   };
+  attention?: {
+    pendingApplications: number;
+    pendingResidency: number;
+    openTickets: number;
+    overduePayments: number;
+  };
   income: {
     currency: string;
     weekCents: number;
@@ -1048,6 +1054,40 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
             </article>
           ))}
         </section>
+
+        {overview?.attention ? (
+          <section className="panel attention-panel">
+            <div className="admin-panel__head">
+              <div>
+                <h2>Needs attention</h2>
+                <p>
+                  {overview.attention.pendingApplications + overview.attention.pendingResidency + overview.attention.openTickets + overview.attention.overduePayments === 0
+                    ? 'All clear — nothing waiting on you.'
+                    : 'Items waiting on an admin decision.'}
+                </p>
+              </div>
+            </div>
+            <div className="attention-grid">
+              {[
+                { key: 'apps', label: 'Applications to review', count: overview.attention.pendingApplications, go: () => setAdminTab('applicants') },
+                { key: 'res', label: 'E-Residency proofs', count: overview.attention.pendingResidency, go: () => setAdminTab('residency') },
+                { key: 'tickets', label: 'Open support tickets', count: overview.attention.openTickets, go: undefined },
+                { key: 'pay', label: 'Overdue payments', count: overview.attention.overduePayments, go: undefined },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`attention-card${item.count > 0 ? ' attention-card--active' : ''}${item.go ? '' : ' attention-card--static'}`}
+                  onClick={item.go}
+                  disabled={!item.go}
+                >
+                  <strong>{item.count}</strong>
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className="panel income-panel">
           <div className="admin-panel__head">

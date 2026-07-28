@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, PayloadTooLargeException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 // Manual E-Residency: the member applies on prospera.co, then uploads a proof
 // file here. An admin verifies it. No external API integration.
@@ -17,7 +18,10 @@ export type SubmitProofInput = {
 
 @Injectable()
 export class ResidencyService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async getResidency(userId: string) {
     const application = await this.prisma.residencyApplication.findUnique({ where: { userId } });
@@ -66,6 +70,13 @@ export class ResidencyService {
         reviewedAt: null,
         reviewNote: null,
       },
+    });
+
+    await this.notifications.notifyAdmins({
+      type: 'info',
+      title: 'E-Residency proof submitted',
+      body: `${user.email} uploaded an E-Residency proof for review.`,
+      link: '/admin',
     });
 
     return this.getResidency(userId);

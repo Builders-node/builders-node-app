@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { ADMIN_ROLES } from '../users/roles';
 
 export type NewNotification = {
   type?: 'info' | 'success' | 'warning';
@@ -25,6 +26,25 @@ export class NotificationsService {
       });
     } catch (error) {
       this.logger.warn(`Failed to create notification for ${userId}: ${(error as Error).message}`);
+    }
+  }
+
+  /** Notify every admin (SUPER_ADMIN / MODERATOR / COMMUNITY_LEADER). Best-effort. */
+  async notifyAdmins(input: NewNotification): Promise<void> {
+    try {
+      const admins = await this.prisma.user.findMany({ where: { role: { in: ADMIN_ROLES } }, select: { id: true } });
+      if (admins.length === 0) return;
+      await this.prisma.notification.createMany({
+        data: admins.map((admin) => ({
+          userId: admin.id,
+          type: input.type ?? 'info',
+          title: input.title,
+          body: input.body,
+          link: input.link,
+        })),
+      });
+    } catch (error) {
+      this.logger.warn(`Failed to notify admins: ${(error as Error).message}`);
     }
   }
 

@@ -3691,3 +3691,31 @@ textarea {
 }
 .onboarding-step__action:hover { background: #e5541f; color: #fff; }
 :root[data-theme='dark'] .onboarding-step__check { border-color: #3a3f47; }
+
+/* ── Admin: Needs attention ─────────────────────────────────────────────────── */
+.attention-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 0.5rem;
+}
+.attention-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line, #e7e9ee);
+  background: var(--surface, #fff);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+.attention-card strong { font-size: 1.7rem; font-weight: 700; line-height: 1; }
+.attention-card span { font-size: 0.82rem; color: var(--text-muted, #6b7280); }
+.attention-card--active { border-color: rgba(229, 84, 31, 0.4); background: rgba(229, 84, 31, 0.05); }
+.attention-card--active strong { color: #e5541f; }
+.attention-card:not(.attention-card--static):hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08); border-color: rgba(229, 84, 31, 0.55); }
+.attention-card--static { cursor: default; }
+.attention-card:disabled { opacity: 1; }
+:root[data-theme='dark'] .attention-card--active { background: rgba(229, 84, 31, 0.12); }

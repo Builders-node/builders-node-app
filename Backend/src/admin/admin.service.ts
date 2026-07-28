@@ -54,7 +54,7 @@ export class AdminService {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const yearStart = new Date(now.getFullYear(), 0, 1);
 
-    const [applications, users, paidPayments] = await Promise.all([
+    const [applications, users, paidPayments, pendingResidency, openTickets, overduePayments] = await Promise.all([
       this.prisma.application.findMany({ orderBy: { createdAt: 'desc' } }),
       this.prisma.user.findMany({
         orderBy: { createdAt: 'desc' },
@@ -78,8 +78,15 @@ export class AdminService {
           paidAt: true,
         },
       }),
+      this.prisma.residencyApplication.count({ where: { status: 'PENDING_REVIEW' } }),
+      this.prisma.supportTicket.count({ where: { status: 'OPEN' } }),
+      this.prisma.payment.count({ where: { status: { in: ['DUE', 'OVERDUE'] }, dueDate: { lt: now } } }),
     ]);
     const income = this.buildIncomeSummary(paidPayments, { weekStart, monthStart, yearStart });
+
+    // Applications still awaiting an admin decision (not approved, not rejected).
+    const TERMINAL = new Set(['APPROVED', 'FIRST_REJECTED', 'MEETING_REJECTED']);
+    const pendingApplications = applications.filter((app) => !TERMINAL.has(app.status)).length;
 
     return {
       metrics: {
@@ -87,6 +94,12 @@ export class AdminService {
         users: users.length,
         pendingSetup: users.filter((user) => user.mustChangePassword).length,
         activeMembers: users.filter((user) => user.membership?.status === 'ACTIVE_MEMBER').length,
+      },
+      attention: {
+        pendingApplications,
+        pendingResidency,
+        openTickets,
+        overduePayments,
       },
       income,
       applications,
