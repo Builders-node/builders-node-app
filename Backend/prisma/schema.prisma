@@ -139,6 +139,8 @@ model CommunityPlanPurchase {
   createdAt              DateTime   @default(now())
   updatedAt              DateTime   @updatedAt
   user                   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Payment {
@@ -153,6 +155,8 @@ model Payment {
   receiptUrl  String?
   createdAt   DateTime      @default(now())
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Apartment {
@@ -173,6 +177,8 @@ model Apartment {
   rentalRequests RentalRequest[]
   assignments    AssignedApartment[]
   unitType       UnitType?            @relation(fields: [unitTypeId], references: [id])
+
+  @@index([unitTypeId])
 }
 
 // A reusable apartment "template" (e.g. Studio, 1 Bedroom) with a shared price
@@ -202,6 +208,8 @@ model AssignedApartment {
   updatedAt    DateTime  @updatedAt
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   apartment    Apartment @relation(fields: [apartmentId], references: [id])
+
+  @@index([apartmentId])
 }
 
 model MealMenuItem {
@@ -213,6 +221,8 @@ model MealMenuItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model CleaningSchedule {
@@ -225,6 +235,8 @@ model CleaningSchedule {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model RentalRequest {
@@ -239,6 +251,9 @@ model RentalRequest {
   updatedAt    DateTime     @updatedAt
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   apartment    Apartment    @relation(fields: [apartmentId], references: [id])
+
+  @@index([userId])
+  @@index([apartmentId])
 }
 
 model SupportTicket {
@@ -250,6 +265,8 @@ model SupportTicket {
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
   user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model EmailVerificationToken {
@@ -259,6 +276,8 @@ model EmailVerificationToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model PasswordResetToken {
@@ -268,6 +287,8 @@ model PasswordResetToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model AuditEvent {
@@ -277,6 +298,8 @@ model AuditEvent {
   metadataJson String?
   createdAt DateTime @default(now())
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
 }
 
 // Single-row-per-key store for community-wide settings (e.g. the global
