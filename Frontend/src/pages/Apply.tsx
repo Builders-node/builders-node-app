@@ -17,6 +17,8 @@ type ApplyProps = {
   /** Kept for prop compatibility; routing no longer branches on role here. */
   currentUserRole?: string | null;
   setActivePage: (page: PageId) => void;
+  setCurrentUserId?: (userId: string | null) => void;
+  setCurrentUserRole?: (role: string | null) => void;
 };
 
 const features = [
@@ -28,9 +30,17 @@ const features = [
   { img: featCoworking, label: '24/7 coworking' },
 ];
 
-export function Apply({ currentUserId, setActivePage }: ApplyProps) {
+export function Apply({ currentUserId, setActivePage, setCurrentUserId, setCurrentUserRole }: ApplyProps) {
   const [prefill, setPrefill] = useState<{ email?: string; fullName?: string }>({});
   const [done, setDone] = useState(false);
+
+  // Called when the applicant sets a password and their account is created —
+  // sign them in so the success screen (and the app) treat them as logged in.
+  const onAuthenticated = (session: { accessToken: string; user: { id: string; role: string } }) => {
+    localStorage.setItem('terminus_access_token', session.accessToken);
+    setCurrentUserId?.(session.user.id);
+    setCurrentUserRole?.(session.user.role);
+  };
   const avatarInitial = (prefill.fullName || prefill.email || 'A').trim().charAt(0).toUpperCase();
 
   // Logo: guest → landing; logged in → their profile (signed-in home).
@@ -130,7 +140,7 @@ export function Apply({ currentUserId, setActivePage }: ApplyProps) {
 
                 {/* Form */}
                 <div className="mt-12 max-w-3xl mx-auto">
-                  <ApplyForm initialEmail={prefill.email} initialFullName={prefill.fullName} onSuccess={() => setDone(true)} />
+                  <ApplyForm initialEmail={prefill.email} initialFullName={prefill.fullName} onSuccess={() => setDone(true)} onAuthenticated={onAuthenticated} />
                 </div>
               </>
             )}

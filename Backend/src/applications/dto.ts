@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, Length } from 'class-validator';
+import { IsEmail, IsOptional, IsString, Length, MinLength } from 'class-validator';
 
 export class ApplyDto {
   @IsString()
@@ -32,4 +32,13 @@ export class ConfirmApplicationDto {
   @IsString()
   @Length(6, 6)
   code!: string;
+}
+
+export class CreateAccountDto {
+  @IsEmail()
+  email!: string;
+
+  @IsString()
+  @MinLength(8)
+  password!: string;
 }

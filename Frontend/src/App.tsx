@@ -179,7 +179,7 @@ function App() {
       if (canAccessAdmin) return <AdminDashboard currentUserRole={currentUserRole} setActivePage={setActivePage} />;
       return <Profile currentUserId={currentUserId} setActivePage={setActivePage} />;
     }
-    if (activePage === 'apply') return <Apply currentUserId={currentUserId} currentUserRole={currentUserRole} setActivePage={setActivePage} />;
+    if (activePage === 'apply') return <Apply currentUserId={currentUserId} currentUserRole={currentUserRole} setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
     if (activePage === 'adminLogin') {
       return (
         <AdminLogin

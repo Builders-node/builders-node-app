@@ -13,6 +13,7 @@ import { useBatch } from "@/lib/batch";
 interface ApplyFormProps {
   onClose?: () => void;
   onSuccess?: () => void;
+  onAuthenticated?: (session: { accessToken: string; user: { id: string; role: string } }) => void;
   initialEmail?: string;
   initialFullName?: string;
 }
@@ -35,7 +36,7 @@ const referralSources = [
   "Other",
 ];
 
-const ApplyForm = ({ onClose, onSuccess, initialEmail, initialFullName }: ApplyFormProps) => {
+const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialFullName }: ApplyFormProps) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [email, setEmail] = useState(initialEmail ?? "");
@@ -52,11 +53,14 @@ const ApplyForm = ({ onClose, onSuccess, initialEmail, initialFullName }: ApplyF
   const [referralCode, setReferralCode] = useState("");
   const maxChars = 1000;
 
-  // Two-step flow: fill the form → confirm the emailed 6-digit code → success.
-  const [step, setStep] = useState<"form" | "code">("form");
+  // Flow: form → confirm emailed 6-digit code → (set password if no account) → success.
+  const [step, setStep] = useState<"form" | "code" | "password">("form");
   const [code, setCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
 
   const batch = useBatch();
 
@@ -127,6 +131,8 @@ const ApplyForm = ({ onClose, onSuccess, initialEmail, initialFullName }: ApplyF
     setReferralSource("");
     setReferralCode("");
     setCode("");
+    setPassword("");
+    setConfirmPassword("");
     setStep("form");
   };
 
@@ -171,7 +177,7 @@ const ApplyForm = ({ onClose, onSuccess, initialEmail, initialFullName }: ApplyF
     }
     setIsVerifying(true);
     try {
-      await apiRequest("/applications/confirm", {
+      const result = await apiRequest<{ accountExists: boolean }>("/applications/confirm", {
         method: "POST",
         body: JSON.stringify({ email, code }),
       });
@@ -207,8 +213,14 @@ const ApplyForm = ({ onClose, onSuccess, initialEmail, initialFullName }: ApplyF
         console.error("Tracking error:", trackingError);
       }
 
-      resetForm();
-      onSuccess?.();
+      if (result.accountExists) {
+        // Already has a login — nothing to set up, go straight to success.
+        resetForm();
+        onSuccess?.();
+      } else {
+        // No account yet — have them set a password to finish.
+        setStep("password");
+      }
     } catch (error) {
       toast({
         title: "Wrong code",
@@ -217,6 +229,36 @@ const ApplyForm = ({ onClose, onSuccess, initialEmail, initialFullName }: ApplyF
       });
     } finally {
       setIsVerifying(false);
+    }
+  };
+
+  // Step 3: set a password → create the account, sign in, then show success.
+  const createAccount = async () => {
+    if (password.length < 8) {
+      toast({ title: "Password too short", description: "Use at least 8 characters.", variant: "destructive" });
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast({ title: "Passwords don't match", description: "Please re-enter the same password.", variant: "destructive" });
+      return;
+    }
+    setIsCreatingAccount(true);
+    try {
+      const session = await apiRequest<{ accessToken: string; user: { id: string; role: string } }>(
+        "/applications/create-account",
+        { method: "POST", body: JSON.stringify({ email, password }) },
+      );
+      onAuthenticated?.(session);
+      resetForm();
+      onSuccess?.();
+    } catch (error) {
+      toast({
+        title: "Could not create your account",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingAccount(false);
     }
   };
 
@@ -236,6 +278,73 @@ const ApplyForm = ({ onClose, onSuccess, initialEmail, initialFullName }: ApplyF
       setIsResending(false);
     }
   };
+
+  if (step === "password") {
+    return (
+      <div className="w-full" style={{ color: "hsl(0 0% 10%)" }}>
+        <div className="max-w-md mx-auto text-center py-4">
+          <div className="mx-auto mb-6 flex items-center justify-center rounded-full" style={{ width: 56, height: 56, background: "#FBE3D3", color: "#EA5404" }}>
+            <User className="w-6 h-6" />
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-light tracking-tight">Create your password</h2>
+          <p className="mt-3 text-sm sm:text-base" style={{ color: "hsl(0 0% 40%)" }}>
+            Email confirmed. Set a password to finish and access your Builders Node account.
+          </p>
+
+          <form
+            className="mt-8 space-y-4 text-left"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void createAccount();
+            }}
+          >
+            <input type="email" value={email} readOnly hidden autoComplete="username" />
+            <div className="space-y-2">
+              <Label className="text-sm font-medium" style={{ color: "hsl(0 0% 10%)" }}>Password</Label>
+              <Input
+                type="password"
+                autoComplete="new-password"
+                placeholder="At least 8 characters"
+                value={password}
+                autoFocus
+                onChange={(e) => setPassword(e.target.value)}
+                className="border-0 bg-white shadow-sm focus-visible:ring-1"
+                style={{ color: "hsl(0 0% 10%)" }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium" style={{ color: "hsl(0 0% 10%)" }}>Confirm password</Label>
+              <Input
+                type="password"
+                autoComplete="new-password"
+                placeholder="Repeat your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="border-0 bg-white shadow-sm focus-visible:ring-1"
+                style={{ color: "hsl(0 0% 10%)" }}
+              />
+            </div>
+
+            <Button
+              type="submit"
+              disabled={isCreatingAccount}
+              className="w-full h-12 text-sm tracking-[0.15em] uppercase font-medium rounded-lg"
+              style={{ backgroundColor: "hsl(0 0% 10%)", color: "hsl(30 30% 93%)" }}
+            >
+              {isCreatingAccount ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating account...
+                </>
+              ) : (
+                "Create account & finish"
+              )}
+            </Button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   if (step === "code") {
     return (

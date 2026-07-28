@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { randomInt, randomUUID } from 'crypto';
 import { buildCredentialInvitation } from '../auth/invitation';
@@ -7,7 +8,7 @@ import { createTemporaryPassword } from '../auth/temporary-password';
 import { PrismaService } from '../database/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { createReferralCode } from '../users/referral-code';
-import { ApplyDto, ConfirmApplicationDto, SendCredentialsDto } from './dto';
+import { ApplyDto, ConfirmApplicationDto, CreateAccountDto, SendCredentialsDto } from './dto';
 
 const CODE_TTL_MS = 1000 * 60 * 10; // 10 minutes
 const MAX_CODE_ATTEMPTS = 5;
@@ -18,6 +19,7 @@ export class ApplicationsService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly mail: MailService,
+    private readonly jwt: JwtService,
   ) {}
 
   /**
@@ -76,7 +78,48 @@ export class ApplicationsService {
     const payload = JSON.parse(pending.payloadJson) as ApplyDto;
     const application = await this.apply(payload);
     await this.prisma.applicationVerification.delete({ where: { email } });
-    return { confirmed: true, applicationId: application.id };
+
+    // If they don't have a login yet, the frontend will prompt them to set a
+    // password (create-account below). If an account already exists, skip that.
+    const accountExists = Boolean(await this.prisma.user.findUnique({ where: { email }, select: { id: true } }));
+    return { confirmed: true, applicationId: application.id, accountExists };
+  }
+
+  /**
+   * Finishes apply by creating the applicant's login. Only allowed for an email
+   * that has a confirmed application and no account yet. The name comes from the
+   * application (server-side, not the client), and the email is already verified.
+   */
+  async createAccountFromApply(dto: CreateAccountDto) {
+    const email = dto.email.toLowerCase();
+
+    const application = await this.prisma.application.findUnique({ where: { email } });
+    if (!application) {
+      throw new BadRequestException('No confirmed application for this email. Please apply first.');
+    }
+
+    const existing = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (existing) {
+      throw new BadRequestException('An account already exists for this email. Please log in instead.');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 12);
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        referralCode: createReferralCode(),
+        emailVerifiedAt: new Date(), // verified via the apply code they just entered
+        profile: { create: { fullName: application.fullName } },
+        membership: { create: { status: 'APPLICANT' } },
+      },
+    });
+
+    // Sign them straight in — mirrors the shape returned by /auth/signup & /auth/login.
+    return {
+      accessToken: this.jwt.sign({ sub: user.id, email: user.email, role: user.role }),
+      user: { id: user.id, email: user.email, role: user.role },
+    };
   }
 
   async apply(dto: ApplyDto) {

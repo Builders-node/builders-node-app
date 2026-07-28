@@ -1,7 +1,7 @@
 import { Body, Controller, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApplicationsService } from './applications.service';
-import { ApplyDto, ConfirmApplicationDto } from './dto';
+import { ApplyDto, ConfirmApplicationDto, CreateAccountDto } from './dto';
 
 @Controller('applications')
 export class ApplicationsController {
@@ -19,5 +19,12 @@ export class ApplicationsController {
   @Post('confirm')
   confirm(@Body() dto: ConfirmApplicationDto) {
     return this.applications.confirmCode(dto);
+  }
+
+  // Step 3 (only when no account yet): set a password → create the login + sign in.
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('create-account')
+  createAccount(@Body() dto: CreateAccountDto) {
+    return this.applications.createAccountFromApply(dto);
   }
 }
