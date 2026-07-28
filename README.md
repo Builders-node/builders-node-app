@@ -4,7 +4,7 @@ Full-stack Builders Node member/applicant account system with real local auth, a
 
 ## Structure
 
-- `Backend` — NestJS API with Prisma and a local SQLite database.
+- `Backend` — NestJS API with Prisma and a Postgres database (Supabase in production).
 - `Frontend` — React + Vite dashboard UI.
 
 ## Backend
@@ -23,35 +23,25 @@ The backend includes modules for auth, admin, applications, users/profile, E-Res
 
 External systems are isolated behind adapter services:
 
-- `Backend/src/residency/prospera-residency.client.ts`
 - `Backend/src/subscriptions/prospera-sub.client.ts`
 
 ## Database
 
-The backend is configured with Prisma and a local SQLite database for development because this machine does not have Docker, Homebrew, or PostgreSQL installed.
-
-Local database file:
-
-```bash
-Backend/prisma/dev.db
-```
-
-Connection string:
+The backend uses **Postgres** via Prisma. In production it runs on Supabase (see
+`DEPLOY.md` for the pooled-vs-direct connection details). For local development,
+start the bundled Postgres and use the defaults in `Backend/.env`:
 
 ```bash
-DATABASE_URL="file:./dev.db"
-```
-
-The first migration is stored in `Backend/prisma/migrations/20260511134500_init_sqlite/migration.sql`.
-
-To recreate the local DB without Prisma's migration engine:
-
-```bash
+docker compose up -d postgres          # local Postgres
 cd Backend
-rm -f prisma/dev.db
-sqlite3 prisma/dev.db < prisma/migrations/20260511134500_init_sqlite/migration.sql
+cp .env.example .env                    # then fill in the secrets
+npm run prisma:migrate                  # apply migrations to the local DB
 npm run prisma:generate
 ```
+
+`DATABASE_URL` is the pooled connection; `DIRECT_URL` is the direct connection used
+for migrations. Production migrations are applied with `npm run prisma:deploy`
+against `DIRECT_URL` (see `DEPLOY.md`).
 
 ## Frontend
 
@@ -68,7 +58,7 @@ If 5173 is already in use, Vite will print the next available port, such as `htt
 
 ## Current Integration State
 
-The app is wired to real local backend routes and SQLite data. Prospera integrations are adapter-based and use fallback mock responses until API keys and exact contracts are available.
+The app is wired to real backend routes and Postgres data. Prospera integrations are adapter-based and use fallback mock responses until API keys and exact contracts are available.
 
 Required next production steps:
 

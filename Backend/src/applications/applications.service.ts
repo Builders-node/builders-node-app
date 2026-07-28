@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { buildCredentialInvitation } from '../auth/invitation';
+import { createTemporaryPassword } from '../auth/temporary-password';
 import { PrismaService } from '../database/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { createReferralCode } from '../users/referral-code';
@@ -46,7 +47,7 @@ export class ApplicationsService {
       throw new NotFoundException('Application not found.');
     }
 
-    const temporaryPassword = `BuildersNode-${randomUUID().slice(0, 8)}`;
+    const temporaryPassword = createTemporaryPassword();
     const passwordHash = await bcrypt.hash(temporaryPassword, 12);
     const user = await this.prisma.user.upsert({
       where: { email: application.email },

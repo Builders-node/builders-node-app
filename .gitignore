@@ -4,3 +4,8 @@ dist/
 .env.local
 *.tsbuildinfo
 .DS_Store
+
+# Legacy SQLite dev database (project uses Postgres/Supabase now)
+*.db
+*.sqlite
+*.sqlite3

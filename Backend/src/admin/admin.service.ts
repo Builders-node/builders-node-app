@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { buildCredentialInvitation } from '../auth/invitation';
+import { createTemporaryPassword } from '../auth/temporary-password';
 import { PrismaService } from '../database/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { createReferralCode } from '../users/referral-code';
@@ -276,7 +277,7 @@ export class AdminService {
       throw new BadRequestException('Confirm successful payment before sending create-password credentials.');
     }
 
-    const temporaryPassword = `BuildersNode-${randomUUID().slice(0, 8)}`;
+    const temporaryPassword = createTemporaryPassword();
     const passwordHash = await bcrypt.hash(temporaryPassword, 12);
     const dates = this.defaultMembershipDates();
     const user = await this.prisma.user.upsert({
@@ -838,7 +839,7 @@ export class AdminService {
       throw new BadRequestException('Choose a valid membership status.');
     }
 
-    const temporaryPassword = `BuildersNode-${randomUUID().slice(0, 8)}`;
+    const temporaryPassword = createTemporaryPassword();
     const passwordHash = await bcrypt.hash(temporaryPassword, 12);
     const dates = this.defaultMembershipDates();
 
