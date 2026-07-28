@@ -5,6 +5,7 @@
  */
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AllExceptionsFilter } from './common/all-exceptions.filter';
 
 const LOCALHOST_ORIGINS = [
   'http://localhost:5173',
@@ -62,6 +63,7 @@ export function makeCorsOrigin(config: ConfigService) {
 /** Applies the global CORS + validation config shared by both entrypoints. */
 export function applyGlobalConfig(app: INestApplication, config: ConfigService): void {
   app.enableCors({ origin: makeCorsOrigin(config), credentials: true });
+  app.useGlobalFilters(new AllExceptionsFilter());
   // whitelist strips unknown props (prevents mass-assignment); we intentionally
   // do NOT set forbidNonWhitelisted so a stray extra field is dropped, not a 400.
   app.useGlobalPipes(

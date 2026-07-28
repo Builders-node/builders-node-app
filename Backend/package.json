@@ -2,6 +2,9 @@
   "name": "builders-node-backend",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "nest start",
     "start:dev": "nest start --watch",

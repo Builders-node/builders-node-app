@@ -114,3 +114,31 @@ The app uses **Postgres** via Prisma. Supabase is the easiest managed option.
 **Local development:** run the bundled Postgres with `docker compose up -d postgres`, then
 keep the default `DATABASE_URL` / `DIRECT_URL` in `Backend/.env` (they point at it). A
 laptop usually has IPv6, so the direct Supabase host also works locally.
+
+## Database migrations (production)
+
+Migrations are **not** auto-applied by the Vercel build (build-time DB writes are
+fragile under concurrent deploys). Apply them explicitly after merging schema
+changes, before/with the code deploy:
+
+```bash
+cd Backend
+DATABASE_URL="$DIRECT_URL" npm run prisma:deploy   # prisma migrate deploy
+```
+
+Run it from CI or locally against `DIRECT_URL` (the direct 5432 connection, not the
+pooler). `migrate deploy` only applies migrations not yet recorded in
+`_prisma_migrations`, so it is safe to run repeatedly.
+
+## Error tracking (optional)
+
+The API ships a global exception filter that logs every 5xx with a stack trace —
+visible in the Vercel function logs, so you have baseline observability out of the
+box. To add Sentry later: `npm i @sentry/node`, init it when `SENTRY_DSN` is set,
+and call `Sentry.captureException` from `AllExceptionsFilter` for 5xx responses.
+
+## Transactional email
+
+Set `RESEND_API_KEY` and `MAIL_FROM` (a verified sender/domain) to enable
+password-reset, email-verification and invitation emails. Without the key those
+emails are logged instead of sent — no errors, but users won't receive them.
