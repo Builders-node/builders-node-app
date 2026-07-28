@@ -8,7 +8,7 @@ const borderWhite = "hsl(0 0% 100% / 0.2)";
 
 const socialLinks = [
   { label: "X / Twitter", href: "#" },
-  { label: "Instagram", href: "#" },
+  { label: "Instagram", href: "https://instagram.com/buildersnode" },
   { label: "Discord", href: "https://discord.gg/Aa4jqe4dth" },
 ];
 
