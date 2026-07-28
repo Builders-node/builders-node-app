@@ -5,6 +5,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { validateEnv } from './config/env.validation';
 import { MailModule } from './mail/mail.module';
 import { DiscordModule } from './discord/discord.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { ApartmentsModule } from './apartments/apartments.module';
 import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
@@ -27,6 +28,7 @@ import { AdminModule } from './admin/admin.module';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     MailModule,
     DiscordModule,
+    NotificationsModule,
     DatabaseModule,
     AdminModule,
     ApplicationsModule,

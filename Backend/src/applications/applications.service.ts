@@ -7,6 +7,7 @@ import { buildCredentialInvitation } from '../auth/invitation';
 import { createTemporaryPassword } from '../auth/temporary-password';
 import { PrismaService } from '../database/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { createReferralCode } from '../users/referral-code';
 import { ApplyDto, ConfirmApplicationDto, CreateAccountDto, SendCredentialsDto } from './dto';
 
@@ -20,6 +21,7 @@ export class ApplicationsService {
     private readonly config: ConfigService,
     private readonly mail: MailService,
     private readonly jwt: JwtService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /**
@@ -113,6 +115,13 @@ export class ApplicationsService {
         profile: { create: { fullName: application.fullName } },
         membership: { create: { status: 'APPLICANT' } },
       },
+    });
+
+    await this.notifications.notify(user.id, {
+      type: 'success',
+      title: 'Welcome to Builders Node 🎉',
+      body: 'Your account is ready. Complete your profile and connect Discord to get started.',
+      link: '/account',
     });
 
     // Sign them straight in — mirrors the shape returned by /auth/signup & /auth/login.

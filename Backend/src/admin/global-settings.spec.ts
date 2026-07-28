@@ -50,7 +50,7 @@ describe('AdminService.setGlobalMealPlan', () => {
       getMealsMenu: jest.fn().mockResolvedValue([option]),
       getCleaningSchedule: jest.fn().mockResolvedValue([]),
     };
-    const service = new AdminService(prisma as never, prosperaSub as never, {} as never);
+    const service = new AdminService(prisma as never, prosperaSub as never, {} as never, {} as never);
     return { service, upsert, deleteMany, findUnique };
   }
 
@@ -115,7 +115,7 @@ describe('AdminService.setGlobalCleaningPlan', () => {
       getMealsMenu: jest.fn().mockResolvedValue([]),
       getCleaningSchedule: jest.fn().mockResolvedValue([cleaningOption]),
     };
-    const service = new AdminService(prisma as never, prosperaSub as never, {} as never);
+    const service = new AdminService(prisma as never, prosperaSub as never, {} as never, {} as never);
     return { service, upsert, deleteMany };
   }
 

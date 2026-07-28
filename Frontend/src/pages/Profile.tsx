@@ -1,4 +1,4 @@
-import { ExternalLink, Pencil, Send, Upload, X } from 'lucide-react';
+import { Check, ExternalLink, Pencil, Send, Upload, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import type { PageId } from '../data/dashboard';
 import { PageHeader } from '../components/PageHeader';
@@ -28,6 +28,7 @@ type ProfileData = {
   email: string;
   referralCode?: string | null;
   role: string;
+  emailVerifiedAt?: string | null;
   discordId?: string | null;
   discordUsername?: string | null;
   discordEnabled?: boolean;
@@ -239,6 +240,44 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
   const showApplyPrompt = Boolean(profile && !member && !isStaff);
   const isLoading = Boolean(currentUserId) && !profile && !error;
 
+  // Onboarding checklist — derived purely from data already loaded.
+  const onboardingSteps = [
+    {
+      key: 'profile',
+      label: 'Complete your profile',
+      done: Boolean(profile?.profile?.fullName && profile?.profile?.phone && profile?.profile?.location),
+      show: true,
+      actionLabel: 'Complete',
+      action: () => setIsEditOpen(true),
+    },
+    {
+      key: 'email',
+      label: 'Verify your email',
+      done: Boolean(profile?.emailVerifiedAt),
+      show: true,
+      actionLabel: undefined as string | undefined,
+      action: undefined as (() => void) | undefined,
+    },
+    {
+      key: 'discord',
+      label: 'Connect Discord',
+      done: Boolean(profile?.discordId),
+      show: Boolean(profile?.discordEnabled),
+      actionLabel: 'Connect',
+      action: () => void connectDiscord(),
+    },
+    {
+      key: 'residency',
+      label: 'Start your E-Residency',
+      done: Boolean(residency && residency.status !== 'NOT_STARTED'),
+      show: showMemberSections,
+      actionLabel: 'Start',
+      action: () => { if (residency?.applyUrl) window.open(residency.applyUrl, '_blank', 'noopener'); },
+    },
+  ].filter((step) => step.show);
+  const onboardingDone = onboardingSteps.filter((step) => step.done).length;
+  const showOnboarding = Boolean(profile) && onboardingDone < onboardingSteps.length;
+
   return (
     <div className="page-stack">
       <PageHeader title="Home" description="Your Builders Node account, E-Residency, and residence." />
@@ -278,6 +317,32 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
           </div>
         </section>
       )}
+
+      {showOnboarding ? (
+        <section className="panel onboarding-card">
+          <div className="onboarding-card__head">
+            <div>
+              <span className="section-label">Get started</span>
+              <h2>Set up your account</h2>
+            </div>
+            <span className="onboarding-card__count">{onboardingDone}/{onboardingSteps.length}</span>
+          </div>
+          <div className="onboarding-progress">
+            <span style={{ width: `${(onboardingDone / onboardingSteps.length) * 100}%` }} />
+          </div>
+          <ul className="onboarding-steps">
+            {onboardingSteps.map((step) => (
+              <li key={step.key} className={step.done ? 'onboarding-step onboarding-step--done' : 'onboarding-step'}>
+                <span className="onboarding-step__check">{step.done ? <Check size={13} /> : null}</span>
+                <span className="onboarding-step__label">{step.label}</span>
+                {!step.done && step.action ? (
+                  <button className="onboarding-step__action" onClick={step.action}>{step.actionLabel}</button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {profile?.discordEnabled ? (
         <section className="panel form-panel discord-card">

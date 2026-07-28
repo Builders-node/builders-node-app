@@ -1,7 +1,30 @@
 import { Bell, LogOut, Menu, Moon, Settings as SettingsIcon, Share2, Sun, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ADMIN_ROLES, allNavItems, navSections, type PageId } from '../data/dashboard';
+import { ADMIN_ROLES, allNavItems, navSections, pageForPath, type PageId } from '../data/dashboard';
+import { apiRequest } from '../lib/api';
 import { ReferralModal } from './ReferralModal';
+
+type NotificationItem = {
+  id: string;
+  type: 'info' | 'success' | 'warning';
+  title: string;
+  body?: string | null;
+  link?: string | null;
+  readAt?: string | null;
+  createdAt: string;
+};
+
+function formatWhen(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.round(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
 
 type AppShellProps = {
   activePage: PageId;
@@ -43,6 +66,11 @@ export function AppShell({
   const [referralOpen, setReferralOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
 
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifItems, setNotifItems] = useState<NotificationItem[]>([]);
+  const [unread, setUnread] = useState(0);
+  const notifRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!accountOpen) return;
     function onDocClick(event: MouseEvent) {
@@ -53,6 +81,51 @@ export function AppShell({
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [accountOpen]);
+
+  useEffect(() => {
+    if (!notifOpen) return;
+    function onDocClick(event: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setNotifOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [notifOpen]);
+
+  // Load notifications on mount and refresh the unread count periodically.
+  useEffect(() => {
+    if (!currentUserId) return;
+    let alive = true;
+    const load = () =>
+      apiRequest<{ items: NotificationItem[]; unread: number }>(`/users/${currentUserId}/notifications`)
+        .then((data) => {
+          if (!alive) return;
+          setNotifItems(data.items);
+          setUnread(data.unread);
+        })
+        .catch(() => undefined);
+    void load();
+    const timer = setInterval(load, 60000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [currentUserId]);
+
+  async function toggleNotifications() {
+    const opening = !notifOpen;
+    setNotifOpen(opening);
+    if (opening && unread > 0 && currentUserId) {
+      setUnread(0);
+      setNotifItems((items) => items.map((item) => ({ ...item, readAt: item.readAt ?? new Date().toISOString() })));
+      try {
+        await apiRequest(`/users/${currentUserId}/notifications/read`, { method: 'POST', body: '{}' });
+      } catch {
+        /* non-critical */
+      }
+    }
+  }
 
   const inviteLink = referralCode ? `${window.location.origin}/?ref=${referralCode}` : '';
 
@@ -123,9 +196,46 @@ export function AppShell({
             </div>
           </div>
           <div className="top-menu-actions">
-            <button className="top-icon-button" aria-label="Notifications">
-              <Bell size={17} />
-            </button>
+            <div className="notif-menu" ref={notifRef}>
+              <button
+                className="top-icon-button"
+                aria-label={`Notifications${unread > 0 ? ` (${unread} unread)` : ''}`}
+                aria-expanded={notifOpen}
+                onClick={() => void toggleNotifications()}
+              >
+                <Bell size={17} />
+                {unread > 0 ? <span className="notif-badge">{unread > 9 ? '9+' : unread}</span> : null}
+              </button>
+
+              {notifOpen ? (
+                <div className="notif-dropdown" role="menu">
+                  <div className="notif-dropdown__head"><strong>Notifications</strong></div>
+                  {notifItems.length === 0 ? (
+                    <p className="notif-empty">You&apos;re all caught up.</p>
+                  ) : (
+                    <div className="notif-list">
+                      {notifItems.map((n) => (
+                        <button
+                          key={n.id}
+                          className={n.readAt ? 'notif-item' : 'notif-item notif-item--unread'}
+                          onClick={() => {
+                            setNotifOpen(false);
+                            if (n.link) go(pageForPath(n.link) ?? 'profile');
+                          }}
+                        >
+                          <span className={`notif-dot notif-dot--${n.type}`} />
+                          <span className="notif-item__body">
+                            <strong>{n.title}</strong>
+                            {n.body ? <span>{n.body}</span> : null}
+                            <time>{formatWhen(n.createdAt)}</time>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
             <div className="account-menu" ref={accountRef}>
               <button
                 className="top-avatar"

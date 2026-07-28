@@ -8,6 +8,7 @@ import type { PrismaService } from '../database/prisma.service';
 export async function purgeUser(tx: PrismaService, userId: string): Promise<void> {
   const where = { userId };
   await tx.auditEvent.updateMany({ where, data: { userId: null } });
+  await tx.notification.deleteMany({ where });
   await tx.mealMenuItem.deleteMany({ where });
   await tx.cleaningSchedule.deleteMany({ where });
   await tx.rentalRequest.deleteMany({ where });

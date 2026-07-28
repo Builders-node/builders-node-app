@@ -5,6 +5,7 @@ import { buildCredentialInvitation } from '../auth/invitation';
 import { createTemporaryPassword } from '../auth/temporary-password';
 import { PrismaService } from '../database/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { createReferralCode } from '../users/referral-code';
 import { purgeUser } from '../users/purge-user';
 import { isUserRole } from '../users/roles';
@@ -44,6 +45,7 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly prosperaSub: ProsperaSubClient,
     private readonly mail: MailService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async overview() {
@@ -570,6 +572,17 @@ export class AdminService {
         reviewNote: note?.trim() || null,
       },
     });
+
+    await this.notifications.notify(userId, {
+      type: decision === 'VERIFIED' ? 'success' : 'warning',
+      title: decision === 'VERIFIED' ? 'E-Residency verified ✅' : 'E-Residency needs another look',
+      body:
+        decision === 'VERIFIED'
+          ? 'Your E-Residency proof has been verified.'
+          : `Your E-Residency proof was rejected. ${note?.trim() ? note.trim() : 'Please resubmit your proof.'}`,
+      link: '/account',
+    });
+
     return this.listResidencyReviews();
   }
 
