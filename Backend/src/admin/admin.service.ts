@@ -190,6 +190,16 @@ export class AdminService {
     };
   }
 
+  /** Save an internal admin note on an application (not shown to the applicant). */
+  async setApplicationNote(applicationId: string, note: string | undefined) {
+    await this.requireApplication(applicationId);
+    return this.prisma.application.update({
+      where: { id: applicationId },
+      data: { adminNote: note?.trim() || null },
+      select: { id: true, adminNote: true },
+    });
+  }
+
   async setApartmentAvailability(applicationId: string, available: boolean) {
     const application = await this.requireApplication(applicationId);
     const status = available ? 'APARTMENT_AVAILABLE' : 'NO_APARTMENT_AVAILABLE';

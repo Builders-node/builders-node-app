@@ -23,6 +23,11 @@ export class AdminController {
     return this.admin.sendCredentials(applicationId);
   }
 
+  @Post('applications/:applicationId/note')
+  setApplicationNote(@Param('applicationId') applicationId: string, @Body() body: { note?: string }) {
+    return this.admin.setApplicationNote(applicationId, body.note);
+  }
+
   @Post('applications/:applicationId/apartment-availability')
   setApartmentAvailability(
     @Param('applicationId') applicationId: string,

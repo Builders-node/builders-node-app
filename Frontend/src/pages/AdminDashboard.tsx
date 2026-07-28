@@ -38,6 +38,7 @@ type AdminOverview = {
     apartmentAvailable?: boolean | null;
     paymentStatus: string;
     paymentLink?: string | null;
+    adminNote?: string | null;
     createdAt: string;
   }>;
   users: Array<{
@@ -218,6 +219,22 @@ function nextStepFor(status: string, apartmentAvailable?: boolean | null, paymen
 // Ordered pipeline shown as a per-applicant progress stepper.
 const APPLICANT_STAGES = ['Apply', 'First check', 'Meeting', 'Apartment', 'Payment', 'Password'];
 
+// Kanban columns for the pipeline board, keyed by the applicant's current stage.
+const PIPELINE_COLUMNS: { stage: number; title: string }[] = [
+  { stage: 1, title: 'First check' },
+  { stage: 2, title: 'Meeting' },
+  { stage: 3, title: 'Apartment' },
+  { stage: 4, title: 'Payment' },
+  { stage: 5, title: 'Credentials' },
+  { stage: 6, title: 'Onboarded' },
+  { stage: -1, title: 'Rejected' },
+];
+
+function pipelineStage(status: string, apartmentAvailable?: boolean | null): number {
+  const index = applicantStageIndex(status, apartmentAvailable);
+  return index < 0 ? -1 : Math.min(index, 6);
+}
+
 type ApplicantBucket = 'action' | 'onboarded' | 'rejected';
 type ApplicantFilterId = 'all' | ApplicantBucket;
 const APPLICANTS_PER_PAGE = 8;
@@ -370,6 +387,7 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
   const [error, setError] = useState<string | null>(null);
   const [credentialMessage, setCredentialMessage] = useState<string | null>(null);
   const [adminTab, setAdminTab] = useState<AdminTab>('overview');
+  const [applicantView, setApplicantView] = useState<'list' | 'board'>('board');
   const [residencyReviews, setResidencyReviews] = useState<ResidencyReview[]>([]);
   const [residencyRejectDrafts, setResidencyRejectDrafts] = useState<Record<string, string>>({});
   const [proofView, setProofView] = useState<{ review: ResidencyReview; src: string; fileType: string; fileName: string } | null>(null);
@@ -1168,12 +1186,22 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
           <div className="admin-panel__head">
             <div>
               <h2>Applicants</h2>
-              <p>Follow the FigJam flow: checks, apartment availability, payment, then password creation.</p>
+              <p>Follow the pipeline: checks, apartment availability, payment, then password creation.</p>
             </div>
-            <button className="ghost-button">
-              <ShieldCheck size={16} />
-              Private access enabled
-            </button>
+            <div className="view-toggle" role="group" aria-label="View mode">
+              <button
+                className={applicantView === 'board' ? 'view-toggle__btn view-toggle__btn--active' : 'view-toggle__btn'}
+                onClick={() => setApplicantView('board')}
+              >
+                Board
+              </button>
+              <button
+                className={applicantView === 'list' ? 'view-toggle__btn view-toggle__btn--active' : 'view-toggle__btn'}
+                onClick={() => setApplicantView('list')}
+              >
+                List
+              </button>
+            </div>
           </div>
 
           <div className="designation-toolbar">
@@ -1200,6 +1228,69 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
             </div>
           </div>
 
+          {applicantView === 'board' ? (
+            <div className="pipeline-board">
+              {PIPELINE_COLUMNS.map((column) => {
+                const cards = filteredApplicants.filter(
+                  (app) => pipelineStage(app.status, app.apartmentAvailable) === column.stage,
+                );
+                return (
+                  <div className="pipeline-col" key={column.stage}>
+                    <div className="pipeline-col__head">
+                      <span>{column.title}</span>
+                      <strong>{cards.length}</strong>
+                    </div>
+                    <div className="pipeline-col__cards">
+                      {cards.length === 0 ? <p className="pipeline-empty">—</p> : null}
+                      {cards.map((app) => {
+                        const actions = applicantActions(app);
+                        return (
+                          <article className="pipeline-card" key={app.id}>
+                            <strong className="pipeline-card__name">{app.fullName}</strong>
+                            <span className="pipeline-card__email">{app.email}</span>
+                            <div className="pipeline-card__badges">
+                              <StatusBadge tone={toneForStatus(app.status)}>{app.status}</StatusBadge>
+                            </div>
+                            <textarea
+                              className="pipeline-card__note"
+                              defaultValue={app.adminNote ?? ''}
+                              placeholder="Internal note…"
+                              rows={2}
+                              onBlur={(event) => {
+                                const value = event.target.value;
+                                if (value !== (app.adminNote ?? '')) void updateApplication(app.id, 'note', { note: value }, 'Note saved.');
+                              }}
+                            />
+                            {actions.primary || actions.secondary.length > 0 ? (
+                              <div className="pipeline-card__actions">
+                                {actions.secondary.map((action) => (
+                                  <button
+                                    key={action.key}
+                                    className={action.tone === 'danger' ? 'compact-button applicant-action--danger' : 'ghost-button compact-button'}
+                                    onClick={action.run}
+                                  >
+                                    {action.icon}
+                                    {action.label}
+                                  </button>
+                                ))}
+                                {actions.primary ? (
+                                  <button className="primary-button compact-button" onClick={actions.primary.run}>
+                                    {actions.primary.icon}
+                                    {actions.primary.label}
+                                  </button>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+          <>
           <div className="applicant-list">
             {allApplicants.length === 0 ? (
               <div className="empty-state">No applications in the database yet.</div>
@@ -1297,6 +1388,8 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
               </button>
             </div>
           ) : null}
+          </>
+          )}
         </section>
         ) : null}
 

@@ -3719,3 +3719,41 @@ textarea {
 .attention-card--static { cursor: default; }
 .attention-card:disabled { opacity: 1; }
 :root[data-theme='dark'] .attention-card--active { background: rgba(229, 84, 31, 0.12); }
+
+/* ── Admin: applicant pipeline board ────────────────────────────────────────── */
+.view-toggle { display: inline-flex; border: 1px solid var(--line, #e2e4e9); border-radius: 10px; overflow: hidden; }
+.view-toggle__btn { font: inherit; font-size: 0.82rem; padding: 0.4rem 0.9rem; background: transparent; border: none; cursor: pointer; color: var(--text-muted, #6b7280); }
+.view-toggle__btn--active { background: #16181d; color: #fff; }
+:root[data-theme='dark'] .view-toggle__btn--active { background: #e5541f; }
+
+.pipeline-board {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(230px, 1fr);
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-top: 0.5rem;
+}
+.pipeline-col { background: rgba(0, 0, 0, 0.025); border: 1px solid var(--line, #edeef1); border-radius: 12px; padding: 10px; min-width: 0; }
+:root[data-theme='dark'] .pipeline-col { background: rgba(255, 255, 255, 0.03); }
+.pipeline-col__head { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 10px; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted, #6b7280); }
+.pipeline-col__head strong { background: var(--surface, #fff); border: 1px solid var(--line, #e7e9ee); border-radius: 999px; padding: 0 8px; font-size: 0.78rem; }
+.pipeline-col__cards { display: flex; flex-direction: column; gap: 10px; }
+.pipeline-empty { text-align: center; color: var(--text-muted, #b3b8c0); padding: 10px 0; margin: 0; }
+.pipeline-card { background: var(--surface, #fff); border: 1px solid var(--line, #e7e9ee); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.pipeline-card__name { font-size: 0.92rem; }
+.pipeline-card__email { font-size: 0.78rem; color: var(--text-muted, #6b7280); word-break: break-all; }
+.pipeline-card__badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.pipeline-card__note {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  font-size: 0.8rem;
+  border: 1px solid var(--line, #e7e9ee);
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.015);
+}
+.pipeline-card__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.pipeline-card__actions .compact-button { flex: 1; justify-content: center; min-width: 0; }

@@ -63,6 +63,7 @@ model Application {
   email      String            @unique
   phone      String?
   note       String?
+  adminNote  String?
   referralCode String?
   referredByUserId String?
   status     String   @default("SUBMITTED")
