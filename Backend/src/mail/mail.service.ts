@@ -88,6 +88,20 @@ export class MailService {
     });
   }
 
+  async sendApplicationCode(to: string, code: string): Promise<void> {
+    await this.send({
+      to,
+      subject: `Your Builders Node confirmation code: ${code}`,
+      text: `Your Builders Node application confirmation code is ${code}. It expires in 10 minutes. If you didn't apply, you can ignore this email.`,
+      html: layout(
+        'Confirm your application',
+        `<p>Enter this code to confirm your Builders Node application. It expires in 10 minutes.</p>
+         <p style="font-size:34px;font-weight:700;letter-spacing:10px;margin:18px 0;color:#111827">${code}</p>
+         <p style="color:#6b7280;font-size:13px">If you didn't apply, you can safely ignore this email.</p>`,
+      ),
+    });
+  }
+
   async sendInvitation(invitation: InvitationEmail): Promise<void> {
     await this.send({
       to: invitation.to,

@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Mail, User, Loader2 } from "lucide-react";
+import { Mail, User, Loader2, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/api";
 import { useBatch } from "@/lib/batch";
@@ -52,6 +52,12 @@ const ApplyForm = ({ onClose, onSuccess, initialEmail, initialFullName }: ApplyF
   const [referralCode, setReferralCode] = useState("");
   const maxChars = 1000;
 
+  // Two-step flow: fill the form → confirm the emailed 6-digit code → success.
+  const [step, setStep] = useState<"form" | "code">("form");
+  const [code, setCode] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+
   const batch = useBatch();
 
   const visitOptions = useMemo(() => {
@@ -74,6 +80,57 @@ const ApplyForm = ({ onClose, onSuccess, initialEmail, initialFullName }: ApplyF
   const privatePrice = isOneMonth ? 2450 : 1950;
   const sharedPrice = isOneMonth ? 3450 : 2950;
 
+  const visitLabel = visitOptions.find((o) => o.value === visitDate)?.label ?? visitDate;
+  const planLabel =
+    plan === "shared"
+      ? `Couple option (2 people) - $${sharedPrice.toLocaleString()}/month`
+      : `Private room - $${privatePrice.toLocaleString()}/month`;
+
+  const buildNote = () =>
+    [
+      `Move-in: ${visitLabel}`,
+      `Stay: ${stayDuration}`,
+      `Plan: ${planLabel}`,
+      gender ? `Gender: ${gender}` : "",
+      tshirtSize ? `T-shirt: ${tshirtSize}` : "",
+      social1 ? `Social 1: ${social1}` : "",
+      social2 ? `Social 2: ${social2}` : "",
+      referralSource ? `Heard via: ${referralSource}` : "",
+      aboutText ? `\nAbout:\n${aboutText}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+  const requestCode = async () => {
+    await apiRequest("/applications/request-code", {
+      method: "POST",
+      body: JSON.stringify({
+        fullName,
+        email,
+        note: buildNote(),
+        referralCode: referralCode || undefined,
+      }),
+    });
+  };
+
+  const resetForm = () => {
+    setEmail("");
+    setFullName("");
+    setVisitDate("");
+    setStayDuration("");
+    setGender("male");
+    setPlan("private");
+    setTshirtSize("");
+    setSocial1("");
+    setSocial2("");
+    setAboutText("");
+    setReferralSource("");
+    setReferralCode("");
+    setCode("");
+    setStep("form");
+  };
+
+  // Step 1: validate, then email a confirmation code and move to the code step.
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -90,40 +147,36 @@ const ApplyForm = ({ onClose, onSuccess, initialEmail, initialFullName }: ApplyF
     }
 
     setIsSubmitting(true);
-
-    const visitLabel = visitOptions.find((o) => o.value === visitDate)?.label ?? visitDate;
-    const planLabel =
-      plan === "shared"
-        ? `Couple option (2 people) - $${sharedPrice.toLocaleString()}/month`
-        : `Private room - $${privatePrice.toLocaleString()}/month`;
-    const note = [
-      `Move-in: ${visitLabel}`,
-      `Stay: ${stayDuration}`,
-      `Plan: ${planLabel}`,
-      gender ? `Gender: ${gender}` : "",
-      tshirtSize ? `T-shirt: ${tshirtSize}` : "",
-      social1 ? `Social 1: ${social1}` : "",
-      social2 ? `Social 2: ${social2}` : "",
-      referralSource ? `Heard via: ${referralSource}` : "",
-      aboutText ? `\nAbout:\n${aboutText}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
-
     try {
-      // Primary: register the application in our backend so it enters the admin
-      // Applicants funnel.
-      await apiRequest("/applications", {
+      await requestCode();
+      setCode("");
+      setStep("code");
+      toast({ title: "Check your email", description: `We sent a 6-digit code to ${email}.` });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Could not send the code. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Step 2: confirm the emailed code; the application is created server-side here.
+  const verifyCode = async () => {
+    if (code.length !== 6) {
+      toast({ title: "Enter the 6-digit code", description: "Check your email for the confirmation code.", variant: "destructive" });
+      return;
+    }
+    setIsVerifying(true);
+    try {
+      await apiRequest("/applications/confirm", {
         method: "POST",
-        body: JSON.stringify({
-          fullName,
-          email,
-          note,
-          referralCode: referralCode || undefined,
-        }),
+        body: JSON.stringify({ email, code }),
       });
 
-      // Best-effort mirror to the Google Sheet (never blocks submission).
+      // Best-effort mirror to the Google Sheet (never blocks; only on confirmed apps).
       fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
         mode: "no-cors",
@@ -146,42 +199,120 @@ const ApplyForm = ({ onClose, onSuccess, initialEmail, initialFullName }: ApplyF
         /* mirror is optional */
       });
 
-      // Fire conversion tracking once per successful submission
+      // Fire conversion tracking once per confirmed application.
       try {
-        (window as any).gtag?.("event", "generate_lead", {
-          lead_type: "completed_application",
-        });
+        (window as any).gtag?.("event", "generate_lead", { lead_type: "completed_application" });
         (window as any).fbq?.("track", "Lead");
       } catch (trackingError) {
         console.error("Tracking error:", trackingError);
       }
 
-      toast({ title: "Application sent!", description: "We'll get back to you soon." });
-      // Reset form
-      setEmail("");
-      setFullName("");
-      setVisitDate("");
-      setStayDuration("");
-      setGender("male");
-      setPlan("private");
-      setTshirtSize("");
-      setSocial1("");
-      setSocial2("");
-      setAboutText("");
-      setReferralSource("");
-      setReferralCode("");
+      resetForm();
       onSuccess?.();
     } catch (error) {
-      console.error("Submission error:", error);
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to submit. Please try again.",
+        title: "Wrong code",
+        description: error instanceof Error ? error.message : "That code is not correct. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setIsVerifying(false);
     }
   };
+
+  const resendCode = async () => {
+    setIsResending(true);
+    try {
+      await requestCode();
+      setCode("");
+      toast({ title: "Code resent", description: `A new code is on its way to ${email}.` });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Could not resend the code.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  if (step === "code") {
+    return (
+      <div className="w-full" style={{ color: "hsl(0 0% 10%)" }}>
+        <div className="max-w-md mx-auto text-center py-4">
+          <div className="mx-auto mb-6 flex items-center justify-center rounded-full" style={{ width: 56, height: 56, background: "#FBE3D3", color: "#EA5404" }}>
+            <Mail className="w-6 h-6" />
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-light tracking-tight">Confirm your email</h2>
+          <p className="mt-3 text-sm sm:text-base" style={{ color: "hsl(0 0% 40%)" }}>
+            We sent a 6-digit code to <strong style={{ color: "hsl(0 0% 15%)" }}>{email}</strong>.
+            Enter it below to submit your application.
+          </p>
+
+          <form
+            className="mt-8 space-y-5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void verifyCode();
+            }}
+          >
+            <Input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="••••••"
+              value={code}
+              autoFocus
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              className="mx-auto w-full max-w-[16rem] h-16 text-center border-0 bg-white shadow-sm focus-visible:ring-1"
+              style={{ fontSize: "2rem", letterSpacing: "0.5rem", fontWeight: 600, color: "hsl(0 0% 10%)" }}
+            />
+
+            <Button
+              type="submit"
+              disabled={isVerifying || code.length !== 6}
+              className="w-full h-12 text-sm tracking-[0.15em] uppercase font-medium rounded-lg"
+              style={{ backgroundColor: "hsl(0 0% 10%)", color: "hsl(30 30% 93%)" }}
+            >
+              {isVerifying ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                "Verify & Submit"
+              )}
+            </Button>
+          </form>
+
+          <div className="mt-6 text-sm" style={{ color: "hsl(0 0% 45%)" }}>
+            Didn&apos;t get it?{" "}
+            <button
+              type="button"
+              onClick={() => void resendCode()}
+              disabled={isResending}
+              className="font-medium underline underline-offset-2 disabled:opacity-50"
+              style={{ color: "hsl(0 0% 15%)" }}
+            >
+              {isResending ? "Resending..." : "Resend code"}
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setStep("form")}
+            className="mt-6 inline-flex items-center gap-2 text-sm"
+            style={{ color: "hsl(0 0% 45%)" }}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Use a different email
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full" style={{ color: "hsl(0 0% 10%)" }}>
@@ -421,10 +552,10 @@ const ApplyForm = ({ onClose, onSuccess, initialEmail, initialFullName }: ApplyF
             {isSubmitting ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Submitting...
+                Sending code...
               </>
             ) : (
-              "Submit Application"
+              "Continue"
             )}
           </Button>
         </form>

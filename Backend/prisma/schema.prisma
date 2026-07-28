@@ -59,6 +59,19 @@ model Application {
   updatedAt  DateTime          @updatedAt
 }
 
+// Holds a submitted-but-not-yet-email-confirmed application. The applicant enters
+// the 6-digit code we email them; on success the real Application is created from
+// `payloadJson` and this row is deleted.
+model ApplicationVerification {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  code        String
+  payloadJson String
+  attempts    Int      @default(0)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+}
+
 model Profile {
   id        String   @id @default(uuid())
   userId    String   @unique
