@@ -32,7 +32,7 @@ describe('UsersService findProfile', () => {
         }),
       },
     };
-    const service = new UsersService(prisma as never);
+    const service = new UsersService(prisma as never, { isEnabled: () => false } as never);
 
     const profile = (await service.findProfile('user-1')) as { communityPlans?: typeof communityPlans };
 
@@ -64,7 +64,7 @@ describe('UsersService findProfile', () => {
         }),
       },
     };
-    const service = new UsersService(prisma as never);
+    const service = new UsersService(prisma as never, { isEnabled: () => false } as never);
 
     const profile = (await service.findProfile('user-1')) as { referralCode?: string };
 

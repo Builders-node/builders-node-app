@@ -28,6 +28,9 @@ type ProfileData = {
   email: string;
   referralCode?: string | null;
   role: string;
+  discordId?: string | null;
+  discordUsername?: string | null;
+  discordEnabled?: boolean;
   profile?: {
     fullName?: string | null;
     phone?: string | null;
@@ -165,6 +168,42 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
     }
   }
 
+  async function connectDiscord() {
+    if (!currentUserId) return;
+    setError(null);
+    try {
+      const { url } = await apiRequest<{ url: string }>(`/users/${currentUserId}/discord/authorize-url`);
+      window.location.href = url; // full-page redirect to Discord's consent screen
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not start Discord verification.');
+    }
+  }
+
+  async function disconnectDiscord() {
+    if (!currentUserId) return;
+    setError(null);
+    try {
+      await apiRequest(`/users/${currentUserId}/discord`, { method: 'DELETE' });
+      await loadProfile(currentUserId);
+      setProfileMessage('Discord disconnected.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not disconnect Discord.');
+    }
+  }
+
+  // Handle the return from Discord's OAuth redirect (?discord=connected|error).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('discord');
+    if (!status) return;
+    if (status === 'connected') setProfileMessage('Discord connected — your role has been granted.');
+    if (status === 'error') setError('Discord verification failed. Please try again.');
+    // Clean the query so it doesn't re-fire on refresh.
+    window.history.replaceState(null, '', '/account');
+    if (currentUserId) void loadProfile(currentUserId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function submitProof(file: File) {
     if (!currentUserId) return;
     setIsResidencyLoading(true);
@@ -239,6 +278,35 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
           </div>
         </section>
       )}
+
+      {profile?.discordEnabled ? (
+        <section className="panel form-panel discord-card">
+          <div className="discord-card__head">
+            <div>
+              <span className="section-label">Community</span>
+              <h2>Discord</h2>
+              <p className="discord-card__copy">
+                {profile.discordId
+                  ? 'Your Discord is verified — your member role is active on the server.'
+                  : 'Connect your Discord to verify your membership and get your role on the server automatically.'}
+              </p>
+            </div>
+          </div>
+          {profile.discordId ? (
+            <div className="discord-card__connected">
+              <span className="discord-card__badge">Connected{profile.discordUsername ? ` · @${profile.discordUsername}` : ''}</span>
+              <button className="ghost-button" onClick={() => void disconnectDiscord()}>Disconnect</button>
+            </div>
+          ) : (
+            <button className="primary-button discord-card__connect" onClick={() => void connectDiscord()}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.24.5c1.66.4 2.9 1 4.06 1.8a14 14 0 0 0-9.44 0c1.16-.8 2.4-1.4 4.06-1.8L13.6 3A19.8 19.8 0 0 0 8.7 4.4C5.6 9 4.8 13.5 5.2 17.9a20 20 0 0 0 5.1 2.6l.66-1.1c-.6-.22-1.15-.5-1.66-.83l.4-.3a14 14 0 0 0 11 0l.4.3c-.5.33-1.06.6-1.66.83l.66 1.1a20 20 0 0 0 5.1-2.6c.5-5.1-.85-9.55-4.6-13.5ZM9.9 15.3c-.98 0-1.78-.9-1.78-2s.78-2 1.78-2 1.8.9 1.78 2c0 1.1-.8 2-1.78 2Zm4.2 0c-.98 0-1.78-.9-1.78-2s.78-2 1.78-2 1.8.9 1.78 2c0 1.1-.8 2-1.78 2Z" />
+              </svg>
+              Connect Discord
+            </button>
+          )}
+        </section>
+      ) : null}
 
       {showApplyPrompt ? (
         <section className="panel residency-gate-panel">

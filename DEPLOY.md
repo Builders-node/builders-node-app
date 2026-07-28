@@ -142,3 +142,28 @@ and call `Sentry.captureException` from `AllExceptionsFilter` for 5xx responses.
 Set `RESEND_API_KEY` and `MAIL_FROM` (a verified sender/domain) to enable
 password-reset, email-verification and invitation emails. Without the key those
 emails are logged instead of sent — no errors, but users won't receive them.
+
+## Discord verification (optional)
+
+Links a member's Builders Node account to Discord and auto-grants a server role.
+Set these on the **API** Vercel project; leave them empty to hide the feature.
+
+1. Create an application + bot at https://discord.com/developers/applications.
+2. **OAuth2 → Redirects**: add `https://api.buildersnode.com/auth/discord/callback`
+   (must exactly match `DISCORD_REDIRECT_URI`).
+3. Invite the bot to your server with the **Manage Roles** permission, and in
+   Server Settings → Roles drag the **bot's role above** the roles it will assign.
+4. Copy the ids/secrets into env vars:
+
+```
+DISCORD_CLIENT_ID       # OAuth2 client id
+DISCORD_CLIENT_SECRET   # OAuth2 client secret
+DISCORD_BOT_TOKEN       # Bot → Token
+DISCORD_GUILD_ID        # right-click the server → Copy Server ID (dev mode on)
+DISCORD_REDIRECT_URI    # https://api.buildersnode.com/auth/discord/callback
+DISCORD_ROLE_MEMBER     # role id granted to ACTIVE members
+DISCORD_ROLE_APPLICANT  # (optional) role id for applicants; falls back to MEMBER
+```
+
+Members then see a **Connect Discord** card in their profile: it runs the OAuth
+consent, and the bot adds them to the server (if needed) and assigns the role.

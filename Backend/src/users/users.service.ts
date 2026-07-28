@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { DiscordService } from '../discord/discord.service';
 import { purgeUser } from './purge-user';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly discord: DiscordService,
+  ) {}
 
   async findProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -16,6 +20,8 @@ export class UsersService {
         role: true,
         mustChangePassword: true,
         emailVerifiedAt: true,
+        discordId: true,
+        discordUsername: true,
         createdAt: true,
         updatedAt: true,
         profile: true,
@@ -28,7 +34,8 @@ export class UsersService {
       throw new NotFoundException('User profile not found.');
     }
 
-    return user;
+    // Whether the server has Discord configured (drives the "Connect Discord" UI).
+    return { ...user, discordEnabled: this.discord.isEnabled() };
   }
 
   async findReferrals(userId: string) {
