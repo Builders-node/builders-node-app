@@ -21,6 +21,9 @@ export type PageId =
   | 'apply'
   | 'login'
   | 'signup'
+  | 'forgotPassword'
+  | 'resetPassword'
+  | 'verifyEmail'
   | 'setupPassword'
   | 'adminLogin'
   | 'adminDashboard'
@@ -31,6 +34,51 @@ export type PageId =
   | 'security';
 
 export const ADMIN_ROLES = ['SUPER_ADMIN', 'MODERATOR', 'COMMUNITY_LEADER'];
+
+/** Canonical URL path for each page (source of truth for the address bar). */
+export const PAGE_PATHS: Record<PageId, string> = {
+  landing: '/',
+  apply: '/apply',
+  login: '/login',
+  signup: '/signup',
+  forgotPassword: '/forgot-password',
+  resetPassword: '/reset-password',
+  verifyEmail: '/verify-email',
+  setupPassword: '/setup-password',
+  adminLogin: '/admin-login',
+  adminDashboard: '/admin',
+  allUsers: '/users',
+  units: '/units',
+  dashboard: '/account',
+  profile: '/account',
+  security: '/security',
+};
+
+// Reverse map. '/account' resolves to `profile` (dashboard is a legacy alias).
+const PATH_TO_PAGE: Record<string, PageId> = {
+  '/': 'landing',
+  '/apply': 'apply',
+  '/login': 'login',
+  '/signup': 'signup',
+  '/forgot-password': 'forgotPassword',
+  '/reset-password': 'resetPassword',
+  '/verify-email': 'verifyEmail',
+  '/setup-password': 'setupPassword',
+  '/admin-login': 'adminLogin',
+  '/admin': 'adminDashboard',
+  '/users': 'allUsers',
+  '/units': 'units',
+  '/account': 'profile',
+  '/security': 'security',
+};
+
+export function pageForPath(pathname: string): PageId | null {
+  return PATH_TO_PAGE[pathname] ?? null;
+}
+
+export function pathForPage(page: PageId): string {
+  return PAGE_PATHS[page] ?? '/';
+}
 
 // Sidebar navigation, grouped into a members area and an admin area.
 export const navSections: NavSection[] = [

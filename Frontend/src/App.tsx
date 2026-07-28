@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from './components/AppShell';
 import { AuthPanel } from './components/AuthPanel';
-import type { PageId } from './data/dashboard';
+import { pageForPath, pathForPage, type PageId } from './data/dashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminLogin } from './pages/AdminLogin';
 import { Landing } from './pages/Landing';
@@ -11,6 +11,7 @@ import { apiRequest, ApiError } from './lib/api';
 import { AllUsers } from './pages/AllUsers';
 import { Units } from './pages/Units';
 import { Apply } from './pages/Apply';
+import { VerifyEmail } from './pages/VerifyEmail';
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'MODERATOR', 'COMMUNITY_LEADER'];
 
@@ -21,6 +22,9 @@ const PAGE_TITLES: Partial<Record<PageId, string>> = {
   login: 'Log in — Builders Node',
   signup: 'Create your account — Builders Node',
   setupPassword: 'Set your password — Builders Node',
+  forgotPassword: 'Forgot password — Builders Node',
+  resetPassword: 'Reset password — Builders Node',
+  verifyEmail: 'Confirm your email — Builders Node',
   adminLogin: 'Admin login — Builders Node',
   profile: 'Account — Builders Node',
   security: 'Security — Builders Node',
@@ -29,12 +33,6 @@ const PAGE_TITLES: Partial<Record<PageId, string>> = {
   units: 'Units — Builders Node',
   adminDashboard: 'Admin — Builders Node',
 };
-
-function pageForPath(pathname: string): PageId | null {
-  if (pathname === '/apply') return 'apply';
-  if (pathname === '/setup-password') return 'setupPassword';
-  return null;
-}
 
 function App() {
   const [activePage, setActivePage] = useState<PageId>(() => pageForPath(window.location.pathname) ?? 'landing');
@@ -56,21 +54,22 @@ function App() {
     document.title = PAGE_TITLES[activePage] ?? SITE_NAME;
   }, [activePage]);
 
-  // Keep the /apply URL in sync so it is deep-linkable and refresh-safe.
+  // Keep the address bar in sync with the active page so every view is
+  // deep-linkable, bookmarkable and refresh-safe. Compares pathname only, so any
+  // query string (e.g. ?token=... on the reset/verify pages) is preserved.
   useEffect(() => {
-    const path = window.location.pathname;
-    if (activePage === 'apply' && path !== '/apply') {
-      window.history.pushState(null, '', '/apply');
-    } else if (activePage === 'landing' && path === '/apply') {
-      window.history.pushState(null, '', '/');
+    const target = pathForPage(activePage);
+    // Landing on a token URL (e.g. /reset-password?token=…) already matches the
+    // target pathname, so no push fires and the query survives for the page to read.
+    if (window.location.pathname !== target) {
+      window.history.pushState(null, '', target);
     }
   }, [activePage]);
 
-  // Browser back/forward between /apply and the rest of the app.
+  // Browser back/forward: derive the active page from the URL.
   useEffect(() => {
     const onPopState = () => {
-      const mapped = pageForPath(window.location.pathname);
-      setActivePage(mapped ?? 'landing');
+      setActivePage(pageForPath(window.location.pathname) ?? 'landing');
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
@@ -170,8 +169,17 @@ function App() {
     if (activePage === 'login') return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
     if (activePage === 'signup') return <AuthPanel mode="signup" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
     if (activePage === 'setupPassword') return <AuthPanel mode="setupPassword" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
-    if (activePage === 'profile') return <Profile currentUserId={currentUserId} setActivePage={setActivePage} />;
-    if (activePage === 'security') return <Security currentUserId={currentUserId} setCurrentUserId={updateCurrentUserId} setActivePage={setActivePage} />;
+    if (activePage === 'forgotPassword') return <AuthPanel mode="forgotPassword" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+    if (activePage === 'resetPassword') return <AuthPanel mode="resetPassword" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+    if (activePage === 'verifyEmail') return <VerifyEmail setActivePage={setActivePage} />;
+    if (activePage === 'profile') {
+      if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+      return <Profile currentUserId={currentUserId} setActivePage={setActivePage} />;
+    }
+    if (activePage === 'security') {
+      if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+      return <Security currentUserId={currentUserId} setCurrentUserId={updateCurrentUserId} setActivePage={setActivePage} />;
+    }
     if (activePage === 'allUsers') {
       if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
       if (!canAccessAdmin) {
@@ -212,13 +220,14 @@ function App() {
     return <Profile currentUserId={currentUserId} setActivePage={setActivePage} />;
   }, [activePage, currentUserId, currentUserRole, showLanding]);
 
+  // Full-screen views (no app shell): the landing, every auth screen, and any
+  // protected page viewed while logged out (which falls back to the login panel).
+  const AUTH_PAGES: PageId[] = ['apply', 'login', 'signup', 'setupPassword', 'forgotPassword', 'resetPassword', 'verifyEmail', 'adminLogin'];
+  const PROTECTED_PAGES: PageId[] = ['profile', 'security', 'allUsers', 'units', 'adminDashboard'];
   if (
     showLanding ||
-    activePage === 'apply' ||
-    activePage === 'login' ||
-    activePage === 'signup' ||
-    activePage === 'setupPassword' ||
-    activePage === 'adminLogin'
+    AUTH_PAGES.includes(activePage) ||
+    (!currentUserId && PROTECTED_PAGES.includes(activePage))
   ) {
     return page;
   }

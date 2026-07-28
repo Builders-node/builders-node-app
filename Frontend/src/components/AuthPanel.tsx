@@ -4,15 +4,22 @@ import { useState } from 'react';
 import { GoogleSignInButton } from './GoogleSignInButton';
 
 type AuthPanelProps = {
-  mode: 'login' | 'setupPassword' | 'signup';
+  mode: 'login' | 'setupPassword' | 'signup' | 'resetPassword' | 'forgotPassword';
   setActivePage: (page: PageId) => void;
   setCurrentUserId: (userId: string | null) => void;
   setCurrentUserRole: (role: string | null) => void;
 };
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUserRole }: AuthPanelProps) {
   const isSetup = mode === 'setupPassword';
+  const isReset = mode === 'resetPassword';
+  const isForgot = mode === 'forgotPassword';
   const isSignup = mode === 'signup';
+  const isLogin = mode === 'login';
+  // Setup and reset are the same mechanic: a token from an email + a new password.
+  const isTokenPassword = isSetup || isReset;
   const googleEnabled = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -54,9 +61,21 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
     setSuccess(null);
     setIsSubmitting(true);
     try {
-      if (isSetup) {
+      if (isForgot) {
+        if (!EMAIL_RE.test(email)) {
+          throw new Error('Enter a valid email address.');
+        }
+        await apiRequest('/auth/password-reset', {
+          method: 'POST',
+          body: JSON.stringify({ email }),
+        });
+        setSuccess('If an account exists for that email, we sent a reset link. Check your inbox.');
+        return;
+      }
+
+      if (isTokenPassword) {
         if (!token.trim()) {
-          throw new Error('Setup token is missing. Open the link from your Builders Node email.');
+          throw new Error('This link is missing its token. Open it directly from your Builders Node email.');
         }
         if (password.length < 8) {
           throw new Error('Password must be at least 8 characters.');
@@ -69,7 +88,7 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
           body: JSON.stringify({ token, password }),
         });
         window.history.replaceState(null, '', '/');
-        setSuccess('Password set. You can log in now.');
+        setSuccess(isReset ? 'Password updated. You can log in now.' : 'Password set. You can log in now.');
         setTimeout(() => setActivePage('login'), 700);
         return;
       }
@@ -77,6 +96,9 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
       if (isSignup) {
         if (!fullName.trim()) {
           throw new Error('Enter your full name.');
+        }
+        if (!EMAIL_RE.test(email)) {
+          throw new Error('Enter a valid email address.');
         }
         if (password.length < 8) {
           throw new Error('Password must be at least 8 characters.');
@@ -92,6 +114,9 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
         return;
       }
 
+      if (!EMAIL_RE.test(email)) {
+        throw new Error('Enter a valid email address.');
+      }
       const session = await apiRequest<{ accessToken: string; user: { id: string; role: string } }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
@@ -104,19 +129,53 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
     }
   }
 
-  const heading = isSetup ? 'Set your password' : isSignup ? 'Join Builders Node' : 'Welcome back to Builders Node';
+  const heading = isSetup
+    ? 'Set your password'
+    : isReset
+      ? 'Reset your password'
+      : isForgot
+        ? 'Forgot your password?'
+        : isSignup
+          ? 'Join Builders Node'
+          : 'Welcome back to Builders Node';
   const copy = isSetup
     ? 'Use the secure link from your approval email, set a new password, then continue to your member home.'
-    : isSignup
-      ? 'Create your account, then apply for a membership from inside your dashboard.'
-      : 'Log in after receiving your Builders Node credentials and setting your password.';
-  const cardTitle = isSetup ? 'Set up your account' : isSignup ? 'Create your account' : 'Sign in to your account';
+    : isReset
+      ? 'Choose a new password to regain access to your Builders Node account.'
+      : isForgot
+        ? "Enter your email and we'll send you a link to reset your password."
+        : isSignup
+          ? 'Create your account, then apply for a membership from inside your dashboard.'
+          : 'Log in after receiving your Builders Node credentials and setting your password.';
+  const cardTitle = isSetup
+    ? 'Set up your account'
+    : isReset
+      ? 'Choose a new password'
+      : isForgot
+        ? 'Reset your password'
+        : isSignup
+          ? 'Create your account'
+          : 'Sign in to your account';
   const cardCopy = isSetup
     ? 'Create a secure password from your Builders Node invitation email.'
-    : isSignup
-      ? 'Register with your email and a password.'
-      : 'Use your Builders Node member email and password.';
-  const submitLabel = isSubmitting ? 'Working...' : isSetup ? 'Set password and continue' : isSignup ? 'Create account' : 'Log in';
+    : isReset
+      ? 'Enter a new password for your account.'
+      : isForgot
+        ? "We'll email you a secure link to set a new password."
+        : isSignup
+          ? 'Register with your email and a password.'
+          : 'Use your Builders Node member email and password.';
+  const submitLabel = isSubmitting
+    ? 'Working...'
+    : isSetup
+      ? 'Set password and continue'
+      : isReset
+        ? 'Update password'
+        : isForgot
+          ? 'Send reset link'
+          : isSignup
+            ? 'Create account'
+            : 'Log in';
 
   return (
     <section className="setup-auth-layout">
@@ -148,12 +207,14 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
         <h2>{cardTitle}</h2>
         <p className="setup-card-copy">{cardCopy}</p>
 
-        {!isSetup && googleEnabled ? (
+        {isLogin && googleEnabled ? (
           <div className="auth-google">
-            <GoogleSignInButton
-              text={isSignup ? 'signup_with' : 'signin_with'}
-              onCredential={(credential) => void signInWithGoogle(credential)}
-            />
+            <GoogleSignInButton text="signin_with" onCredential={(credential) => void signInWithGoogle(credential)} />
+            <div className="auth-divider"><span>or</span></div>
+          </div>
+        ) : isSignup && googleEnabled ? (
+          <div className="auth-google">
+            <GoogleSignInButton text="signup_with" onCredential={(credential) => void signInWithGoogle(credential)} />
             <div className="auth-divider"><span>or</span></div>
           </div>
         ) : null}
@@ -165,7 +226,7 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
           </label>
         ) : null}
 
-        {isSetup ? (
+        {isTokenPassword ? (
           <input type="hidden" value={token} readOnly />
         ) : (
           <label>
@@ -174,12 +235,14 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
           </label>
         )}
 
-        <label>
-          {isSetup ? 'New password' : 'Password'}
-          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" />
-        </label>
+        {isForgot ? null : (
+          <label>
+            {isTokenPassword ? 'New password' : 'Password'}
+            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" />
+          </label>
+        )}
 
-        {isSetup || isSignup ? (
+        {isTokenPassword || isSignup ? (
           <label>
             Confirm password
             <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Repeat your password" />
@@ -193,7 +256,7 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
           {submitLabel}
         </button>
 
-        {isSetup ? (
+        {isTokenPassword || isForgot ? (
           <button className="text-button" type="button" onClick={() => setActivePage('login')}>
             Back to login
           </button>
@@ -203,6 +266,9 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
           </button>
         ) : (
           <div className="auth-links">
+            <button className="text-button" type="button" onClick={() => setActivePage('forgotPassword')}>
+              Forgot password?
+            </button>
             <button className="text-button" type="button" onClick={() => setActivePage('signup')}>
               Create an account
             </button>
