@@ -147,8 +147,8 @@ export class AuthService {
     return { passwordReset: true };
   }
 
-  async changePassword(dto: ChangePasswordDto) {
-    const user = await this.prisma.user.findUnique({ where: { id: dto.userId } });
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || !(await bcrypt.compare(dto.currentPassword, user.passwordHash))) {
       throw new UnauthorizedException('Current password is incorrect.');
     }

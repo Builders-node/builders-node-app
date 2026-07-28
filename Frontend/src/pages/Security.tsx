@@ -27,11 +27,16 @@ export function Security({ currentUserId, setCurrentUserId, setActivePage }: Sec
       setError('New passwords do not match.');
       return;
     }
+    if (newPassword.length < 8) {
+      setError('New password must be at least 8 characters.');
+      return;
+    }
 
     try {
+      // The account is derived from the auth token server-side; no userId in body.
       await apiRequest('/auth/change-password', {
         method: 'POST',
-        body: JSON.stringify({ userId: currentUserId, currentPassword, newPassword }),
+        body: JSON.stringify({ currentPassword, newPassword }),
       });
       setCurrentPassword('');
       setNewPassword('');

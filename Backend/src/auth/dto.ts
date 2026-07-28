@@ -42,9 +42,6 @@ export class PasswordResetDto {
 
 export class ChangePasswordDto {
   @IsString()
-  userId!: string;
-
-  @IsString()
   currentPassword!: string;
 
   @IsString()

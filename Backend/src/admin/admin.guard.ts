@@ -17,9 +17,11 @@ export class AdminGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request & { adminAccess?: { userId?: string; role: string; via: 'key' | 'session' } }>();
     const providedKey = request.header('x-admin-key');
-    const expectedKey = this.config.get<string>('ADMIN_ACCESS_KEY') ?? 'terminus-local-admin';
+    const expectedKey = this.resolveAdminKey();
 
-    if (!isValidAdminAccessKey(providedKey, expectedKey)) {
+    // With no configured key the header path is disabled entirely; admins must
+    // authenticate with a real session (Bearer token) instead.
+    if (!expectedKey || !isValidAdminAccessKey(providedKey, expectedKey)) {
       const authorization = request.header('authorization');
 
       if (!authorization?.startsWith('Bearer ')) {
@@ -45,5 +47,16 @@ export class AdminGuard implements CanActivate {
 
     request.adminAccess = { role: 'SUPER_ADMIN', via: 'key' };
     return true;
+  }
+
+  /**
+   * The break-glass admin key. Required to be set explicitly; the insecure
+   * `terminus-local-admin` default is only honoured outside production so local
+   * tooling still works. In production a missing key disables the header path.
+   */
+  private resolveAdminKey(): string | undefined {
+    const key = this.config.get<string>('ADMIN_ACCESS_KEY');
+    if (key && key.trim() !== '') return key;
+    return process.env.NODE_ENV === 'production' ? undefined : 'terminus-local-admin';
   }
 }
