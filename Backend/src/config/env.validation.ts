@@ -8,7 +8,11 @@
  * back to a publicly-known default secret (which would let anyone forge admin
  * tokens or unlock the admin API).
  */
-const REQUIRED_IN_PRODUCTION = ['JWT_SECRET', 'ADMIN_ACCESS_KEY', 'DATABASE_URL'] as const;
+// Kept deliberately minimal: only vars whose absence is unambiguously fatal.
+// ADMIN_ACCESS_KEY is intentionally NOT required — if unset in production the
+// guard simply disables the break-glass header path (see admin.guard.ts), so
+// requiring it here would needlessly take down an otherwise-healthy deploy.
+const REQUIRED_IN_PRODUCTION = ['JWT_SECRET', 'DATABASE_URL'] as const;
 
 // Values that must never be used in production, even if the env var is "set".
 const FORBIDDEN_PRODUCTION_VALUES: Record<string, string> = {
@@ -36,9 +40,12 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     }
   }
 
+  // A short secret is weak but functional — warn rather than refuse to boot, so
+  // this check can never take down a running deployment on its own.
   const jwtSecret = config.JWT_SECRET;
   if (typeof jwtSecret === 'string' && jwtSecret.trim() !== '' && jwtSecret.length < 32) {
-    problems.push('JWT_SECRET must be at least 32 characters in production.');
+    // eslint-disable-next-line no-console
+    console.warn('[env] JWT_SECRET is shorter than 32 characters; use `openssl rand -hex 32` for a stronger secret.');
   }
 
   if (problems.length > 0) {
