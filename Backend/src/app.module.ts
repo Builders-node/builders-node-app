@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { validateEnv } from './config/env.validation';
+import { MailModule } from './mail/mail.module';
 import { ApartmentsModule } from './apartments/apartments.module';
 import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
@@ -23,6 +24,7 @@ import { AdminModule } from './admin/admin.module';
     // this further with @Throttle. Note: on serverless the store is per-lambda
     // (in-memory), so this is a best-effort guard, not a global counter.
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
+    MailModule,
     DatabaseModule,
     AdminModule,
     ApplicationsModule,

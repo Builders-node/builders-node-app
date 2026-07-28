@@ -5,6 +5,7 @@ import { OAuth2Client } from 'google-auth-library';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../database/prisma.service';
+import { MailService } from '../mail/mail.service';
 import { createReferralCode } from '../users/referral-code';
 import { ChangePasswordDto, GoogleLoginDto, LoginDto, PasswordResetDto, PasswordResetRequestDto, SignUpDto } from './dto';
 
@@ -16,6 +17,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly mail: MailService,
   ) {}
 
   async signUp(dto: SignUpDto) {
@@ -30,13 +32,14 @@ export class AuthService {
       },
     });
 
-    await this.prisma.emailVerificationToken.create({
+    const verification = await this.prisma.emailVerificationToken.create({
       data: {
         userId: user.id,
         token: randomUUID(),
         expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
       },
     });
+    await this.mail.sendEmailVerification(user.email, verification.token);
 
     return this.issueSession(user.id, user.email);
   }
@@ -117,13 +120,14 @@ export class AuthService {
       return { resetRequested: true };
     }
 
-    await this.prisma.passwordResetToken.create({
+    const reset = await this.prisma.passwordResetToken.create({
       data: {
         userId: user.id,
         token: randomUUID(),
         expiresAt: new Date(Date.now() + 1000 * 60 * 30),
       },
     });
+    await this.mail.sendPasswordReset(user.email, reset.token);
 
     return { resetRequested: true };
   }

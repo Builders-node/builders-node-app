@@ -3,6 +3,7 @@ import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { buildCredentialInvitation } from '../auth/invitation';
 import { PrismaService } from '../database/prisma.service';
+import { MailService } from '../mail/mail.service';
 import { createReferralCode } from '../users/referral-code';
 import { isUserRole } from '../users/roles';
 import { ProsperaSubClient } from '../subscriptions/prospera-sub.client';
@@ -40,6 +41,7 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly prosperaSub: ProsperaSubClient,
+    private readonly mail: MailService,
   ) {}
 
   async overview() {
@@ -366,16 +368,15 @@ export class AdminService {
       fullName: application.fullName,
     });
 
-    return {
-      userId: userWithReferral.id,
-      provisioning,
-      invitation: buildCredentialInvitation({
-        email: userWithReferral.email,
-        token,
-        temporaryPassword,
-        frontendUrl: process.env.FRONTEND_URL ?? 'http://127.0.0.1:5174',
-      }),
-    };
+    const invitation = buildCredentialInvitation({
+      email: userWithReferral.email,
+      token,
+      temporaryPassword,
+      frontendUrl: this.mail.frontendBaseUrl(),
+    });
+    await this.mail.sendInvitation(invitation);
+
+    return { userId: userWithReferral.id, provisioning, invitation };
   }
 
   /**
@@ -871,15 +872,15 @@ export class AdminService {
       data: { userId: user.id, token, expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7) },
     });
 
-    return {
-      userId: user.id,
-      invitation: buildCredentialInvitation({
-        email,
-        token,
-        temporaryPassword,
-        frontendUrl: process.env.FRONTEND_URL ?? 'http://127.0.0.1:5174',
-      }),
-    };
+    const invitation = buildCredentialInvitation({
+      email,
+      token,
+      temporaryPassword,
+      frontendUrl: this.mail.frontendBaseUrl(),
+    });
+    await this.mail.sendInvitation(invitation);
+
+    return { userId: user.id, invitation };
   }
 
   /**

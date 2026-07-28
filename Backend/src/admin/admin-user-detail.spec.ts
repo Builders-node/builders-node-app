@@ -43,7 +43,7 @@ describe('AdminService userDetail', () => {
         findMany: jest.fn().mockResolvedValue([]),
       },
     };
-    const service = new AdminService(prisma as never, {} as never);
+    const service = new AdminService(prisma as never, {} as never, {} as never);
 
     const detail = (await service.userDetail('user-1')) as { communityPlans?: typeof communityPlans };
 
@@ -86,7 +86,7 @@ describe('AdminService userDetail', () => {
         findMany: jest.fn().mockResolvedValue([]),
       },
     };
-    const service = new AdminService(prisma as never, {} as never);
+    const service = new AdminService(prisma as never, {} as never, {} as never);
 
     const detail = (await service.userDetail('user-1')) as { referralCode?: string };
 
@@ -132,7 +132,7 @@ describe('AdminService userDetail', () => {
         findMany: jest.fn().mockResolvedValue(referredApplications),
       },
     };
-    const service = new AdminService(prisma as never, {} as never);
+    const service = new AdminService(prisma as never, {} as never, {} as never);
 
     const detail = (await service.userDetail('user-1')) as { referredApplications?: typeof referredApplications };
 

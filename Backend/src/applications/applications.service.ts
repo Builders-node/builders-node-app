@@ -4,6 +4,7 @@ import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { buildCredentialInvitation } from '../auth/invitation';
 import { PrismaService } from '../database/prisma.service';
+import { MailService } from '../mail/mail.service';
 import { createReferralCode } from '../users/referral-code';
 import { ApplyDto, SendCredentialsDto } from './dto';
 
@@ -12,6 +13,7 @@ export class ApplicationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly mail: MailService,
   ) {}
 
   async apply(dto: ApplyDto) {
@@ -93,15 +95,15 @@ export class ApplicationsService {
       data: { status: 'APPROVED', approvedAt: new Date() },
     });
 
-    return {
-      userId: userWithReferral.id,
-      invitation: buildCredentialInvitation({
-        email: userWithReferral.email,
-        token,
-        temporaryPassword,
-        frontendUrl: this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173',
-      }),
-    };
+    const invitation = buildCredentialInvitation({
+      email: userWithReferral.email,
+      token,
+      temporaryPassword,
+      frontendUrl: this.mail.frontendBaseUrl(),
+    });
+    await this.mail.sendInvitation(invitation);
+
+    return { userId: userWithReferral.id, invitation };
   }
 
   private normalizeReferralCode(value?: string) {
