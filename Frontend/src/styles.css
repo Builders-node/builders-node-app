@@ -3547,3 +3547,11 @@ textarea {
 .danger-confirm__actions { display: flex; gap: 10px; flex-wrap: wrap; }
 :root[data-theme='dark'] .danger-confirm { background: #241614; border-color: #4a2a24; }
 :root[data-theme='dark'] .danger-button { border-color: #5a2f28; color: #ff8a7a; }
+
+/* Small helper note under the edit-profile fields */
+.modal-hint {
+  margin: 0 0 0.25rem;
+  font-size: 0.82rem;
+  color: var(--text-muted, #6b7280);
+}
+:root[data-theme='dark'] .modal-hint { color: #9aa0ad; }

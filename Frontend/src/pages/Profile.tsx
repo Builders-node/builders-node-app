@@ -293,14 +293,10 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
             </div>
             <div className="form-grid">
               <label>Full name<input value={editFullName} onChange={(event) => setEditFullName(event.target.value)} placeholder="Full name" /></label>
-              <label>Email<input value={profile?.email ?? ''} readOnly /></label>
-              <label>Role<input value={profile?.role?.split('_').join(' ') ?? ''} readOnly /></label>
               <label>Phone<input value={editPhone} onChange={(event) => setEditPhone(event.target.value)} placeholder="Phone number" /></label>
               <label>Location<input value={editLocation} onChange={(event) => setEditLocation(event.target.value)} placeholder="Location" /></label>
-              <label>Starting date<input value={formatDate(profile?.membership?.startingDate)} readOnly /></label>
-              <label>Due date<input value={formatDate(profile?.membership?.dueDate)} readOnly /></label>
-              <label>Finish date<input value={formatDate(profile?.membership?.finishDate)} readOnly /></label>
             </div>
+            <p className="modal-hint">Your email and membership details aren&apos;t editable here — contact us if they need to change.</p>
             <button className="primary-button" type="submit">Save changes</button>
           </form>
         </div>
