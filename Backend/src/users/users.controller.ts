@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UsersService } from './users.service';
 
@@ -23,5 +24,24 @@ export class UsersController {
     @Body() body: { fullName?: string; phone?: string; location?: string },
   ) {
     return this.users.updateProfile(userId, body);
+  }
+
+  // GDPR data portability. The guard already restricts :userId to the owner
+  // (admins may also access it).
+  @Get(':userId/export')
+  exportData(@Param('userId') userId: string) {
+    return this.users.exportData(userId);
+  }
+
+  // GDPR right to erasure — a member deletes their OWN account only. The guard's
+  // admin bypass allows admins to reach any :userId, so we additionally require
+  // self-ownership here; admin-initiated deletion goes through the (SUPER_ADMIN-
+  // only) admin endpoint instead, never this one.
+  @Delete(':userId')
+  deleteOwnAccount(@Param('userId') userId: string, @Req() req: Request & { user?: { sub: string } }) {
+    if (req.user?.sub !== userId) {
+      throw new ForbiddenException('You can only delete your own account here.');
+    }
+    return this.users.deleteOwnAccount(userId);
   }
 }

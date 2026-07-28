@@ -1,6 +1,5 @@
 import { useApplyNav } from "@/lib/applyNav";
 import { Mail, ArrowUpRight } from "lucide-react";
-import { Link } from "react-router-dom";
 import logo from "@/assets/logo.svg";
 
 const textWhite = "hsl(0 0% 100%)";
@@ -77,29 +76,18 @@ const Footer = () => {
                 { label: "Home", href: "#home" },
                 { label: "About", href: "#about" },
                 { label: "Events", href: "#events" },
-                { label: "Privacy Policy", href: "/privacy", isRoute: true },
-                { label: "Terms of Service", href: "/terms", isRoute: true },
-              ].map((link) =>
-                (link as any).isRoute ? (
-                  <Link
-                    key={link.label}
-                    to={link.href}
-                    className="block text-sm hover:opacity-70 transition-opacity"
-                    style={{ color: textWhite }}
-                  >
-                    {link.label}
-                  </Link>
-                ) : (
-                  <a
-                    key={link.label}
-                    href={link.href}
-                    className="block text-sm hover:opacity-70 transition-opacity"
-                    style={{ color: textWhite }}
-                  >
-                    {link.label}
-                  </a>
-                )
-              )}
+                { label: "Privacy Policy", href: "/privacy.html" },
+                { label: "Terms of Service", href: "/terms.html" },
+              ].map((link) => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  className="block text-sm hover:opacity-70 transition-opacity"
+                  style={{ color: textWhite }}
+                >
+                  {link.label}
+                </a>
+              ))}
             </div>
           </div>
 

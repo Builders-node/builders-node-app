@@ -3514,3 +3514,36 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .skeleton { animation: none; }
 }
+
+/* ── Settings: panel titles + danger zone ──────────────────────────────────── */
+.panel-title {
+  font-size: 1.05rem;
+  font-weight: 650;
+  margin: 0 0 0.35rem;
+}
+.danger-button {
+  appearance: none;
+  border: 1px solid #e2b4a8;
+  background: transparent;
+  color: #c0392b;
+  font: inherit;
+  font-weight: 600;
+  padding: 0.6rem 1rem;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.danger-button:hover:not(:disabled) { background: #c0392b; color: #fff; }
+.danger-button:disabled { opacity: 0.5; cursor: not-allowed; }
+.danger-confirm {
+  border: 1px solid #eecfc8;
+  background: #fdf3f1;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.danger-confirm__actions { display: flex; gap: 10px; flex-wrap: wrap; }
+:root[data-theme='dark'] .danger-confirm { background: #241614; border-color: #4a2a24; }
+:root[data-theme='dark'] .danger-button { border-color: #5a2f28; color: #ff8a7a; }

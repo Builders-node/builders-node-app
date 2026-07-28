@@ -5,6 +5,7 @@ import { buildCredentialInvitation } from '../auth/invitation';
 import { PrismaService } from '../database/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { createReferralCode } from '../users/referral-code';
+import { purgeUser } from '../users/purge-user';
 import { isUserRole } from '../users/roles';
 import { ProsperaSubClient } from '../subscriptions/prospera-sub.client';
 import {
@@ -939,22 +940,7 @@ export class AdminService {
 
   /** Remove a user and every row owned by it. Runs inside a caller-provided transaction. */
   private async purgeUser(tx: PrismaService, userId: string) {
-    const where = { userId };
-    await tx.auditEvent.updateMany({ where, data: { userId: null } });
-    await tx.mealMenuItem.deleteMany({ where });
-    await tx.cleaningSchedule.deleteMany({ where });
-    await tx.rentalRequest.deleteMany({ where });
-    await tx.supportTicket.deleteMany({ where });
-    await tx.payment.deleteMany({ where });
-    await tx.communityPlanPurchase.deleteMany({ where });
-    await tx.assignedApartment.deleteMany({ where });
-    await tx.subscriptionPlan.deleteMany({ where });
-    await tx.residencyApplication.deleteMany({ where });
-    await tx.emailVerificationToken.deleteMany({ where });
-    await tx.passwordResetToken.deleteMany({ where });
-    await tx.membership.deleteMany({ where });
-    await tx.profile.deleteMany({ where });
-    await tx.user.delete({ where: { id: userId } });
+    return purgeUser(tx, userId);
   }
 
   /** All units with availability status and who (if anyone) is assigned. */
