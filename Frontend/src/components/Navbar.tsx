@@ -95,10 +95,11 @@ const Navbar = () => {
           <div className="ml-2 flex items-center gap-2">
             <button
               onClick={openApply}
-              className="px-5 py-2 text-sm font-medium tracking-wide rounded-full transition-all duration-300 hover:scale-105"
+              className="px-5 py-2 text-sm font-semibold tracking-wide rounded-full transition-all duration-300 hover:scale-105"
               style={{
-                backgroundColor: scrolled ? "hsl(0 0% 10%)" : "hsl(0 0% 100%)",
-                color: scrolled ? "hsl(0 0% 100%)" : "hsl(0 0% 10%)",
+                backgroundColor: "#EA5404",
+                color: "hsl(0 0% 100%)",
+                boxShadow: "0 6px 20px rgba(234, 84, 4, 0.45)",
               }}
             >
               Apply
@@ -156,8 +157,8 @@ const Navbar = () => {
             <div className="mt-auto flex flex-col gap-3">
               <button
                 onClick={() => { openApply(); setMobileOpen(false); }}
-                className="w-full px-5 py-4 text-sm font-medium tracking-wide rounded-full"
-                style={{ backgroundColor: "hsl(0 0% 10%)", color: "hsl(0 0% 100%)" }}
+                className="w-full px-5 py-4 text-sm font-semibold tracking-wide rounded-full"
+                style={{ backgroundColor: "#EA5404", color: "hsl(0 0% 100%)" }}
               >
                 Apply
               </button>
