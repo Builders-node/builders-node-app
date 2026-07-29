@@ -2,16 +2,21 @@
   "name": "Builders Node",
   "short_name": "Builders Node",
   "description": "A startup society in Próspera for builders, founders, and content creators.",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "orientation": "portrait",
+  "background_color": "#FBF6EE",
   "theme_color": "#EA5404",
+  "categories": ["lifestyle", "productivity", "social"],
   "icons": [
-    {
-      "src": "/terminus-logo-small.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
-    }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Home", "url": "/account", "description": "Your Builders Node account" },
+    { "name": "Apply", "url": "/apply", "description": "Apply to Builders Node" }
   ]
 }
