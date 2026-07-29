@@ -541,7 +541,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
                     disabled={isResidencyLoading}
                   >
                     <Upload size={16} />
-                    {isResidencyLoading ? 'Uploading…' : residency?.hasProof ? 'Re-upload proof' : "I've applied — upload proof"}
+                    {isResidencyLoading ? 'Uploading…' : residency?.hasProof ? 'Re-upload proof' : 'I got residency — upload proof'}
                   </button>
                 </>
               ) : null}
