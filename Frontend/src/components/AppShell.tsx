@@ -1,7 +1,8 @@
-import { Bell, LogOut, Menu, Moon, Settings as SettingsIcon, Share2, Sun, X } from 'lucide-react';
+import { Bell, LayoutGrid, LogOut, Menu, Moon, Settings as SettingsIcon, Share2, Sun, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ADMIN_ROLES, allNavItems, navSections, pageForPath, type PageId } from '../data/dashboard';
 import { apiRequest } from '../lib/api';
+import { useEscapeToClose } from '../lib/useModalA11y';
 import { ReferralModal } from './ReferralModal';
 
 type NotificationItem = {
@@ -65,6 +66,13 @@ export function AppShell({
   const [accountOpen, setAccountOpen] = useState(false);
   const [referralOpen, setReferralOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
+
+  // Admin "More" sheet on mobile — secondary functions (Admin, Users, Units)
+  // live behind one grid button so the bottom tab bar stays uncluttered.
+  const [adminSheetOpen, setAdminSheetOpen] = useState(false);
+  useEscapeToClose(adminSheetOpen, () => setAdminSheetOpen(false));
+  const memberItems = navSections.find((section) => section.id === 'members')?.items ?? [];
+  const adminItems = navSections.find((section) => section.id === 'admin')?.items ?? [];
 
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifItems, setNotifItems] = useState<NotificationItem[]>([]);
@@ -291,26 +299,61 @@ export function AppShell({
         <div className="main-content">{children}</div>
       </main>
 
-      {/* Mobile-first bottom tab bar (primary navigation on small screens). */}
+      {/* Mobile-first bottom tab bar (primary navigation on small screens).
+          Member tabs live here; admin tabs are secondary and collapse into a
+          "More" button that opens a grid sheet (ClickUp-style). */}
       <nav className="bottom-nav" aria-label="Primary">
-        {visibleSections
-          .flatMap((section) => section.items)
-          .map((item) => {
-            const Icon = item.icon;
-            const active = activePage === item.id;
-            return (
-              <button
-                key={item.id}
-                className={active ? 'bottom-nav__item bottom-nav__item--active' : 'bottom-nav__item'}
-                onClick={() => go(item.id)}
-                aria-current={active ? 'page' : undefined}
-              >
-                <Icon size={20} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
+        {memberItems.map((item) => {
+          const Icon = item.icon;
+          const active = activePage === item.id;
+          return (
+            <button
+              key={item.id}
+              className={active ? 'bottom-nav__item bottom-nav__item--active' : 'bottom-nav__item'}
+              onClick={() => go(item.id)}
+              aria-current={active ? 'page' : undefined}
+            >
+              <Icon size={20} />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+        {isAdmin && adminItems.length > 0 ? (
+          <button
+            className={adminItems.some((item) => item.id === activePage) ? 'bottom-nav__item bottom-nav__item--active' : 'bottom-nav__item'}
+            onClick={() => setAdminSheetOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={adminSheetOpen}
+          >
+            <LayoutGrid size={20} />
+            <span>More</span>
+          </button>
+        ) : null}
       </nav>
+
+      {adminSheetOpen ? (
+        <div className="admin-sheet-overlay" role="presentation" onClick={() => setAdminSheetOpen(false)}>
+          <div className="admin-sheet" role="dialog" aria-modal="true" aria-label="Admin tools" onClick={(event) => event.stopPropagation()}>
+            <div className="admin-sheet__handle" aria-hidden="true" />
+            <div className="admin-sheet__grid">
+              {adminItems.map((item) => {
+                const Icon = item.icon;
+                const active = activePage === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    className={active ? 'admin-sheet__item admin-sheet__item--active' : 'admin-sheet__item'}
+                    onClick={() => { setAdminSheetOpen(false); go(item.id); }}
+                  >
+                    <span className="admin-sheet__icon"><Icon size={22} /></span>
+                    <span className="admin-sheet__label">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {referralOpen && currentUserId ? (
         <ReferralModal userId={currentUserId} inviteLink={inviteLink} onClose={() => setReferralOpen(false)} />

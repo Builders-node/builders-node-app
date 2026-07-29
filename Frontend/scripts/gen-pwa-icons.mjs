@@ -1,43 +1,32 @@
-// One-shot: generate the PNG icons a PWA / iOS home screen needs from the SVG logo.
+// One-shot: generate PWA / favicon PNGs from public/app-icon-source.png.
 // Run with: node scripts/gen-pwa-icons.mjs
-import { readFile, writeFile } from 'node:fs/promises';
+//
+// The source is expected to already be a square, opaque icon (dark background
+// + centered logo with safe-area), so we just resize — no white padding, no
+// re-composition. This matches the "Avatar dark bg" brand asset.
+import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import sharp from 'sharp';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = resolve(__dirname, '..', 'public');
-const srcSvg = resolve(publicDir, 'terminus-logo-small.svg');
-const brand = '#EA5404';
+const src = await readFile(resolve(publicDir, 'app-icon-source.png'));
 
-const svg = await readFile(srcSvg);
+const outputs = [
+  { name: 'icon-192.png', size: 192 },
+  { name: 'icon-512.png', size: 512 },
+  // Apple touch icon: 180x180 opaque (source is already opaque).
+  { name: 'apple-touch-icon.png', size: 180 },
+  // Maskable: same 512 opaque icon; the safe area is already baked in.
+  { name: 'maskable-512.png', size: 512 },
+  // Favicon PNGs for the browser tab.
+  { name: 'favicon-32.png', size: 32 },
+  { name: 'favicon-16.png', size: 16 },
+];
 
-// Straight renders (transparent background) for browsers/manifests that
-// composite themselves.
-await sharp(svg).resize(192, 192).png().toFile(resolve(publicDir, 'icon-192.png'));
-await sharp(svg).resize(512, 512).png().toFile(resolve(publicDir, 'icon-512.png'));
+for (const { name, size } of outputs) {
+  await sharp(src).resize(size, size).png().toFile(resolve(publicDir, name));
+}
 
-// Apple touch icon: must be opaque + no transparency + no rounded corners
-// (iOS applies its own). White background, 180x180.
-await sharp(svg)
-  .resize(160, 160, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
-  .extend({ top: 10, bottom: 10, left: 10, right: 10, background: { r: 255, g: 255, b: 255, alpha: 1 } })
-  .png()
-  .toFile(resolve(publicDir, 'apple-touch-icon.png'));
-
-// Maskable icon: logo centered with generous padding (Android safe area is
-// the middle 80%), full brand-colour background so any mask shape looks good.
-const size = 512;
-const inner = Math.round(size * 0.6);
-const padded = await sharp(svg)
-  .resize(inner, inner, { fit: 'contain', background: { r: 234, g: 84, b: 4, alpha: 1 } })
-  .png()
-  .toBuffer();
-await sharp({
-  create: { width: size, height: size, channels: 4, background: brand },
-})
-  .composite([{ input: padded, gravity: 'center' }])
-  .png()
-  .toFile(resolve(publicDir, 'maskable-512.png'));
-
-console.log('✓ Generated PWA icons in', publicDir);
+console.log(`✓ Generated ${outputs.length} icons in`, publicDir);
