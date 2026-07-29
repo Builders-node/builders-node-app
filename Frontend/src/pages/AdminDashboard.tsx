@@ -223,8 +223,8 @@ function nextStepFor(status: string, apartmentAvailable?: boolean | null, paymen
   if (status === 'MEETING_APPROVED' && !apartmentAvailable) return 'Confirm apartment availability';
   if ((status === 'MEETING_APPROVED' || status === 'APARTMENT_AVAILABLE') && paymentStatus !== 'PENDING' && paymentStatus !== 'SUCCESS') return 'Send payment link';
   if (status === 'PAYMENT_LINK_SENT') return 'Confirm payment';
-  if (status === 'PAYMENT_CONFIRMED') return 'Send create-password link';
-  if (status === 'CREDENTIALS_SENT') return 'User can create password';
+  if (status === 'PAYMENT_CONFIRMED') return 'Activate membership';
+  if (status === 'CREDENTIALS_SENT') return 'Onboarded — member is active';
   if (status.includes('REJECTED')) return 'Send waitlist/rejection message';
   if (status === 'NO_APARTMENT_AVAILABLE') return 'Propose new apartment date';
   return 'Review';
@@ -778,16 +778,17 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
       };
     }
     if (status === 'PAYMENT_CONFIRMED') {
+      // Applicant already has an account (created during the self-serve apply
+      // flow with a password THEY chose). Finish onboarding by activating their
+      // membership — no more credential emails, so their password is never
+      // silently overwritten.
       return {
-        primary: { key: 'pass', label: 'Send password', icon: <Send size={15} />, run: () => void sendCredentials(app.id) },
+        primary: { key: 'activate', label: 'Complete onboarding', icon: <Check size={15} />, run: run('activate', undefined, 'Member activated.') },
         secondary: [],
       };
     }
     if (status === 'CREDENTIALS_SENT') {
-      return {
-        primary: null,
-        secondary: [{ key: 'resend-pass', label: 'Resend password', icon: <Send size={15} />, tone: 'ghost', run: () => void sendCredentials(app.id) }],
-      };
+      return { primary: null, secondary: [] };
     }
     return { primary: null, secondary: [] };
   }

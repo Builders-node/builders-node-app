@@ -296,6 +296,58 @@ export class AdminService {
     });
   }
 
+  /**
+   * Finish onboarding after a confirmed payment: activate the applicant's
+   * membership. Since apply-flow already creates the user's account with a
+   * password THEY chose, we never touch passwordHash here — that would silently
+   * overwrite the member's password. Idempotent; safe to click twice.
+   */
+  async activateMembership(applicationId: string) {
+    const application = await this.requireApplication(applicationId);
+    if (application.paymentStatus !== 'SUCCESS') {
+      throw new BadRequestException('Confirm payment before activating membership.');
+    }
+
+    const dates = this.defaultMembershipDates();
+    const user = await this.prisma.user.findUnique({ where: { email: application.email }, select: { id: true } });
+
+    if (user) {
+      // Common case: applicant went through the self-serve apply flow — account already exists.
+      await this.prisma.membership.upsert({
+        where: { userId: user.id },
+        create: {
+          userId: user.id,
+          status: 'ACTIVE_MEMBER',
+          approvedAt: new Date(),
+          startingDate: dates.startingDate,
+          dueDate: dates.dueDate,
+          finishDate: dates.finishDate,
+        },
+        update: {
+          status: 'ACTIVE_MEMBER',
+          approvedAt: new Date(),
+          startingDate: dates.startingDate,
+          dueDate: dates.dueDate,
+          finishDate: dates.finishDate,
+        },
+      });
+      await this.notifications.notify(user.id, {
+        type: 'success',
+        title: "You're an active member 🎉",
+        body: 'Welcome to Builders Node — your membership is now active.',
+        link: '/account',
+      });
+    }
+
+    // Mark the application as onboarded (top of the pipeline).
+    await this.prisma.application.update({
+      where: { id: application.id },
+      data: { status: 'CREDENTIALS_SENT', approvedAt: application.approvedAt ?? new Date() },
+    });
+
+    return { activated: true, userExisted: Boolean(user) };
+  }
+
   async sendCredentials(applicationId: string) {
     const application = await this.requireApplication(applicationId);
     if (application.paymentStatus !== 'SUCCESS') {

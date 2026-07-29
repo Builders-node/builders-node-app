@@ -23,6 +23,11 @@ export class AdminController {
     return this.admin.sendCredentials(applicationId);
   }
 
+  @Post('applications/:applicationId/activate')
+  activateMembership(@Param('applicationId') applicationId: string) {
+    return this.admin.activateMembership(applicationId);
+  }
+
   @Post('applications/:applicationId/note')
   setApplicationNote(@Param('applicationId') applicationId: string, @Body() body: { note?: string }) {
     return this.admin.setApplicationNote(applicationId, body.note);
