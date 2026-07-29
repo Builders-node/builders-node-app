@@ -10,7 +10,7 @@ import advGym from "@/assets/gallery-3.jpg";
 import advPool from "@/assets/adv-pool.jpg";
 import advTennis from "@/assets/adv-tennis.jpg";
 
-import advMeals from "@/assets/adv-meals.jpg";
+import advMeals from "@/assets/apply-food.png";
 import advFitness from "@/assets/adv-fitness.jpg";
 import advWorkshops from "@/assets/gallery-5.jpg";
 

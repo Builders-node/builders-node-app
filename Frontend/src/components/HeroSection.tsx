@@ -62,7 +62,8 @@ const HeroSection = () => {
       <div className="absolute bottom-8 left-8 md:bottom-12 md:left-12 z-10 flex items-center gap-3">
         <button
           onClick={openApply}
-          className="text-white text-xs tracking-[0.25em] uppercase hover:opacity-70 transition-opacity px-4 py-2 bg-transparent border-none cursor-pointer"
+          className="text-white text-xs tracking-[0.25em] uppercase font-semibold rounded-full px-6 py-3 transition-all duration-300 hover:scale-105 cursor-pointer border-none"
+          style={{ backgroundColor: "#EA5404", boxShadow: "0 10px 28px rgba(234, 84, 4, 0.5)" }}
         >
           APPLY NOW
         </button>
