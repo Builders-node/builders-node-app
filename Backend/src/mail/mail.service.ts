@@ -27,10 +27,18 @@ export class MailService {
     return this.config.get<string>('MAIL_FROM') ?? 'Builders Node <onboarding@resend.dev>';
   }
 
-  /** First entry of FRONTEND_URL (which may be a comma-separated list), no trailing slash. */
+  /**
+   * The public frontend base URL for links in outbound emails. Prefers the
+   * custom domain over any *.vercel.app in FRONTEND_URL (comma-separated), so
+   * users always click through to the branded domain when it's set.
+   */
   frontendBaseUrl(): string {
-    const raw = (this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').split(',')[0].trim();
-    return raw.replace(/\/+$/, '');
+    const urls = (this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const preferred = urls.find((url) => !/\.vercel\.app(?:\/|$)/.test(url)) ?? urls[0];
+    return preferred.replace(/\/+$/, '');
   }
 
   async send(email: Email): Promise<void> {

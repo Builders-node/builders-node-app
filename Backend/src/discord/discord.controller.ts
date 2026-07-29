@@ -30,7 +30,7 @@ export class DiscordController {
   // OAuth redirect target — links + assigns role, then bounces back to the app.
   @Get('auth/discord/callback')
   async callback(@Query('code') code: string, @Query('state') state: string, @Res() res: Response) {
-    const base = (this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173').split(',')[0].trim().replace(/\/+$/, '');
+    const base = this.resolveFrontendBase();
     try {
       if (!code || !state) throw new Error('missing code/state');
       await this.discord.handleCallback(code, state);
@@ -38,5 +38,20 @@ export class DiscordController {
     } catch {
       res.redirect(`${base}/account?discord=error`);
     }
+  }
+
+  /**
+   * Picks the public frontend base URL. Prefers the custom domain over any
+   * *.vercel.app in FRONTEND_URL (comma-separated), so post-OAuth redirects
+   * always land on the branded domain when it's configured; the vercel URL
+   * remains a backup only if no custom domain is set.
+   */
+  private resolveFrontendBase(): string {
+    const urls = (this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const preferred = urls.find((url) => !/\.vercel\.app(?:\/|$)/.test(url)) ?? urls[0];
+    return preferred.replace(/\/+$/, '');
   }
 }
