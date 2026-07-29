@@ -40,6 +40,42 @@ model User {
   auditEvents           AuditEvent[]
   notifications         Notification[]
   maintenanceRequests   MaintenanceRequest[]
+  vehicleBookings       VehicleBooking[]
+}
+
+// A community vehicle members can book (free of charge). Managed by admins.
+model Vehicle {
+  id            String           @id @default(uuid())
+  name          String
+  description   String?
+  active        Boolean          @default(true)
+  photoFileName String?
+  photoFileType String?
+  photoData     String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  bookings      VehicleBooking[]
+}
+
+// A reservation of a vehicle for a date range (inclusive). Status: ACTIVE |
+// CANCELLED. Overlap checks live in the service, not the DB, so admins can
+// cancel/replace without losing history.
+model VehicleBooking {
+  id        String   @id @default(uuid())
+  vehicleId String
+  userId    String
+  startDate DateTime
+  endDate   DateTime
+  status    String   @default("ACTIVE")
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, startDate, endDate])
+  @@index([userId])
 }
 
 // Knowledge-base article shown in the member Resource Hub. Managed by admins.

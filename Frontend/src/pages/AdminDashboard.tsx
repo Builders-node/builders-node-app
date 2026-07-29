@@ -61,7 +61,26 @@ type DesignationUser = AdminOverview['users'][number];
 type DesignationFilterId = 'all' | 'incomplete' | 'new' | 'members';
 type Applicant = AdminOverview['applications'][number];
 type ApplicantAction = { key: string; label: string; icon: ReactNode; tone?: 'ghost' | 'danger'; run: () => void };
-type AdminTab = 'overview' | 'applicants' | 'residency' | 'designations' | 'maintenance' | 'resources' | 'settings';
+type AdminTab = 'overview' | 'applicants' | 'residency' | 'designations' | 'maintenance' | 'resources' | 'vehicles' | 'settings';
+
+type AdminVehicle = {
+  id: string;
+  name: string;
+  description?: string | null;
+  active: boolean;
+  photoFileName?: string | null;
+  _count?: { bookings: number };
+};
+type AdminVehicleBooking = {
+  id: string;
+  vehicleId: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+  renterName: string;
+  renterEmail: string;
+  vehicle: { id: string; name: string };
+};
 
 type AdminResource = { id: string; title: string; slug: string; category: string; body: string; published: boolean; order: number };
 type AdminMaintenance = {
@@ -406,6 +425,10 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
   const [resources, setResources] = useState<AdminResource[]>([]);
   const [resourceForm, setResourceForm] = useState<{ id?: string; title: string; category: string; body: string; published: boolean } | null>(null);
   useEscapeToClose(Boolean(resourceForm), () => setResourceForm(null));
+  const [vehicles, setVehicles] = useState<AdminVehicle[]>([]);
+  const [vehicleBookings, setVehicleBookings] = useState<AdminVehicleBooking[]>([]);
+  const [vehicleForm, setVehicleForm] = useState<{ id?: string; name: string; description: string; active: boolean; photoBase64?: string; photoFileName?: string; photoFileType?: string } | null>(null);
+  useEscapeToClose(Boolean(vehicleForm), () => setVehicleForm(null));
   const [residencyReviews, setResidencyReviews] = useState<ResidencyReview[]>([]);
   const [residencyRejectDrafts, setResidencyRejectDrafts] = useState<Record<string, string>>({});
   const [proofView, setProofView] = useState<{ review: ResidencyReview; src: string; fileType: string; fileName: string } | null>(null);
@@ -622,6 +645,7 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
     { id: 'residency', label: 'E-Residency', count: residencyPendingCount },
     { id: 'designations', label: 'Designations', count: designationCountFor('incomplete') },
     { id: 'maintenance', label: 'Maintenance', count: maintenance.filter((m) => m.status !== 'RESOLVED').length },
+    { id: 'vehicles', label: 'Vehicles', count: vehicleBookings.filter((b) => b.status !== 'CANCELLED').length },
     { id: 'resources', label: 'Resources' },
     { id: 'settings', label: 'Global settings' },
   ];
@@ -658,9 +682,66 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
     }
   }
 
+  async function loadVehicles() {
+    try {
+      const [vs, bs] = await Promise.all([
+        apiRequest<AdminVehicle[]>('/admin/vehicles'),
+        apiRequest<AdminVehicleBooking[]>('/admin/vehicle-bookings'),
+      ]);
+      setVehicles(vs);
+      setVehicleBookings(bs);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not load vehicles.');
+    }
+  }
+
+  async function saveVehicle() {
+    if (!vehicleForm) return;
+    setError(null);
+    try {
+      const path = vehicleForm.id ? `/admin/vehicles/${vehicleForm.id}` : '/admin/vehicles';
+      await apiRequest(path, {
+        method: vehicleForm.id ? 'PATCH' : 'POST',
+        body: JSON.stringify({
+          name: vehicleForm.name,
+          description: vehicleForm.description,
+          active: vehicleForm.active,
+          ...(vehicleForm.photoBase64
+            ? { photoBase64: vehicleForm.photoBase64, photoFileName: vehicleForm.photoFileName, photoFileType: vehicleForm.photoFileType }
+            : {}),
+        }),
+      });
+      setVehicleForm(null);
+      await loadVehicles();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not save the vehicle.');
+    }
+  }
+
+  async function deleteVehicle(id: string) {
+    if (!confirm('Delete this vehicle? Its bookings will be removed too.')) return;
+    setError(null);
+    try {
+      await apiRequest(`/admin/vehicles/${id}`, { method: 'DELETE' });
+      await loadVehicles();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not delete.');
+    }
+  }
+
+  async function cancelVehicleBooking(id: string) {
+    try {
+      await apiRequest(`/admin/vehicle-bookings/${id}`, { method: 'DELETE' });
+      await loadVehicles();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not cancel booking.');
+    }
+  }
+
   useEffect(() => {
     if (adminTab === 'maintenance') void loadMaintenance();
     if (adminTab === 'resources') void loadResources();
+    if (adminTab === 'vehicles') void loadVehicles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adminTab]);
 
@@ -1548,6 +1629,63 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
         </section>
         ) : null}
 
+        {adminTab === 'vehicles' ? (
+        <>
+        <section className="panel admin-panel">
+          <div className="admin-panel__head">
+            <div>
+              <h2>Vehicles</h2>
+              <p>Community cars members can rent for free.</p>
+            </div>
+            <button className="primary-button compact-button" onClick={() => setVehicleForm({ name: '', description: '', active: true })}>Add vehicle</button>
+          </div>
+          <div className="resource-admin-list">
+            {vehicles.length === 0 ? <div className="empty-state">No vehicles yet. Add one to let members book it.</div> : null}
+            {vehicles.map((v) => (
+              <div className="resource-admin-row" key={v.id}>
+                <div className="resource-admin-row__id">
+                  <strong>{v.name}</strong>
+                  <span>{v.active ? 'Active' : 'Inactive'}{v._count?.bookings ? ` · ${v._count.bookings} booking${v._count.bookings === 1 ? '' : 's'}` : ''}</span>
+                </div>
+                <div className="resource-admin-row__actions">
+                  <button className="ghost-button compact-button" onClick={() => setVehicleForm({ id: v.id, name: v.name, description: v.description ?? '', active: v.active })}>Edit</button>
+                  <button className="compact-button applicant-action--danger" onClick={() => void deleteVehicle(v.id)}>Delete</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="panel admin-panel">
+          <div className="admin-panel__head">
+            <div>
+              <h2>Bookings</h2>
+              <p>All member reservations. Cancel one to free up the dates.</p>
+            </div>
+          </div>
+          <div className="maintenance-admin-list">
+            {vehicleBookings.length === 0 ? <div className="empty-state">No bookings yet.</div> : null}
+            {vehicleBookings.map((b) => (
+              <article className="maintenance-admin-card" key={b.id}>
+                <div className="maintenance-admin-card__top">
+                  <div>
+                    <strong>{b.vehicle.name}</strong>
+                    <span>{b.renterName} ({b.renterEmail}) · {new Date(b.startDate).toLocaleDateString()} → {new Date(b.endDate).toLocaleDateString()}</span>
+                  </div>
+                  <StatusBadge tone={b.status === 'CANCELLED' ? 'neutral' : 'good'}>{b.status}</StatusBadge>
+                </div>
+                {b.status !== 'CANCELLED' ? (
+                  <div className="maintenance-admin-card__row">
+                    <button className="compact-button applicant-action--danger" onClick={() => void cancelVehicleBooking(b.id)}>Cancel booking</button>
+                  </div>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        </section>
+        </>
+        ) : null}
+
         {adminTab === 'settings' ? (
         <section className="panel admin-panel" id="admin-global">
           <div className="admin-panel__head">
@@ -1904,6 +2042,49 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
             </label>
             <button className="primary-button" onClick={() => void saveResource()}>Save article</button>
           </div>
+        </div>
+      ) : null}
+
+      {vehicleForm ? (
+        <div className="modal-overlay" role="presentation" onClick={() => setVehicleForm(null)}>
+          <form
+            className="profile-edit-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Edit vehicle"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={(event) => { event.preventDefault(); void saveVehicle(); }}
+          >
+            <div className="modal-head">
+              <div>
+                <h2>{vehicleForm.id ? 'Edit vehicle' : 'Add vehicle'}</h2>
+                <p>Members can rent this car for free from their Home page.</p>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setVehicleForm(null)} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+            <label>Name<input value={vehicleForm.name} onChange={(event) => setVehicleForm({ ...vehicleForm, name: event.target.value })} placeholder="e.g. Toyota RAV4 (White)" autoFocus /></label>
+            <label>Description<textarea value={vehicleForm.description} onChange={(event) => setVehicleForm({ ...vehicleForm, description: event.target.value })} rows={3} placeholder="Anything members should know — seats, fuel, quirks…" /></label>
+            <label>Photo (optional)
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => setVehicleForm({ ...vehicleForm, photoBase64: String(reader.result), photoFileName: file.name, photoFileType: file.type });
+                  reader.readAsDataURL(file);
+                }}
+              />
+            </label>
+            <label className="checkbox-row">
+              <input type="checkbox" checked={vehicleForm.active} onChange={(event) => setVehicleForm({ ...vehicleForm, active: event.target.checked })} />
+              Active (visible to members)
+            </label>
+            <button className="primary-button" type="submit">Save vehicle</button>
+          </form>
         </div>
       ) : null}
     </div>

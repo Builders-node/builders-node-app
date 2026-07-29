@@ -4016,3 +4016,38 @@ textarea {
   color: #fff;
 }
 .admin-sheet__label { font-size: 0.82rem; font-weight: 500; }
+
+/* ── Cars / vehicle booking ─────────────────────────────────────────────────── */
+.car-picker { display: flex; flex-direction: column; gap: 8px; margin: 0.25rem 0 0.5rem; }
+.car-option {
+  display: grid;
+  grid-template-columns: auto 60px 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #e7e9ee);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.car-option:hover { background: rgba(0, 0, 0, 0.02); }
+.car-option--active { border-color: rgba(229, 84, 31, 0.55); background: rgba(229, 84, 31, 0.05); }
+.car-option img { width: 60px; height: 45px; object-fit: cover; border-radius: 8px; }
+.car-option__thumb {
+  width: 60px; height: 45px; border-radius: 8px;
+  background: linear-gradient(135deg, #ff7a3a, #e5541f);
+  color: #fff; display: inline-flex; align-items: center; justify-content: center;
+}
+.car-option__body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.car-option__body strong { font-size: 0.95rem; }
+.car-option__body span { font-size: 0.8rem; color: var(--text-muted, #6b7280); }
+.car-booked {
+  background: rgba(224, 160, 0, 0.08);
+  border: 1px solid rgba(224, 160, 0, 0.3);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+}
+.car-booked strong { display: block; margin-bottom: 4px; font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; color: #b57a00; }
+.car-booked ul { margin: 0; padding-left: 1.1rem; color: var(--text-muted, #6b7280); }
+:root[data-theme='dark'] .car-option:hover { background: rgba(255, 255, 255, 0.03); }

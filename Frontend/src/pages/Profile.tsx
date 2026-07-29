@@ -6,6 +6,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { apiRequest } from '../lib/api';
 import { useEscapeToClose } from '../lib/useModalA11y';
 import { MaintenanceSection } from '../components/MaintenanceSection';
+import { CarsSection } from '../components/CarsSection';
 
 type ProfileProps = {
   currentUserId: string | null;
@@ -604,6 +605,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
       ) : null}
 
       {showMemberSections && currentUserId ? <MaintenanceSection currentUserId={currentUserId} /> : null}
+      {showMemberSections && currentUserId ? <CarsSection currentUserId={currentUserId} /> : null}
     </div>
   );
 }

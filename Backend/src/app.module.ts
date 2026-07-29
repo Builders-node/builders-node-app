@@ -8,6 +8,7 @@ import { DiscordModule } from './discord/discord.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ResourcesModule } from './resources/resources.module';
 import { MaintenanceModule } from './maintenance/maintenance.module';
+import { VehiclesModule } from './vehicles/vehicles.module';
 import { ApartmentsModule } from './apartments/apartments.module';
 import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
@@ -33,6 +34,7 @@ import { AdminModule } from './admin/admin.module';
     NotificationsModule,
     ResourcesModule,
     MaintenanceModule,
+    VehiclesModule,
     DatabaseModule,
     AdminModule,
     ApplicationsModule,
