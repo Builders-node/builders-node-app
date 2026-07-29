@@ -1,4 +1,3 @@
-import { Mail } from "lucide-react";
 import { useGsapTitle } from "@/hooks/useGsapTitle";
 import { useBatch } from "@/lib/batch";
 import { useApplyNav } from "@/lib/applyNav";
@@ -67,12 +66,6 @@ const HeroSection = () => {
         >
           APPLY NOW
         </button>
-        <a
-          href="#contact"
-          className="w-10 h-10 rounded-full border border-white/40 flex items-center justify-center text-white hover:bg-white/10 transition-colors"
-        >
-          <Mail className="w-4 h-4" />
-        </a>
       </div>
     </section>
   );
