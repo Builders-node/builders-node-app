@@ -59,7 +59,7 @@ export class HomeService {
         status: user.residencyApplication?.status ?? 'NOT_STARTED',
         stage: user.residencyApplication?.stage ?? 'Not started',
         actionLabel: user.residencyApplication?.continueUrl ? 'Continue on Prospera.co' : 'Apply on Prospera.co',
-        actionUrl: user.residencyApplication?.continueUrl ?? 'https://prospera.co/e-residency',
+        actionUrl: user.residencyApplication?.continueUrl ?? 'https://portal.eprospera.com/',
       },
       apartment: user.assignedApartment
         ? {

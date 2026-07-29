@@ -4,7 +4,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 
 // Manual E-Residency: the member applies on prospera.co, then uploads a proof
 // file here. An admin verifies it. No external API integration.
-export const PROSPERA_APPLY_URL = 'https://prospera.co/e-residency';
+export const PROSPERA_APPLY_URL = 'https://portal.eprospera.com/';
 
 // Base64 payload cap (~3.5 MB base64 ≈ ~2.5 MB file) to stay under the
 // serverless request body limit (Vercel Hobby is 4.5 MB).

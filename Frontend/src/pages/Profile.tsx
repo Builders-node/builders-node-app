@@ -519,7 +519,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
             <div className="residency-hero__actions">
               <a
                 className="primary-button link-button residency-hero__cta"
-                href={residency?.applyUrl ?? 'https://prospera.co/e-residency'}
+                href={residency?.applyUrl ?? 'https://portal.eprospera.com/'}
                 target="_blank"
                 rel="noopener noreferrer"
               >
