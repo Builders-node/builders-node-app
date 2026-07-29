@@ -3934,3 +3934,11 @@ textarea {
     font-size: 16px !important;
   }
 }
+
+/* ── Hide "Back to site" in installed PWA ───────────────────────────────────
+   In standalone mode there's no browser chrome to go "back" to — the site is
+   the app. Skip the pill on login/signup/verify inside the installed PWA
+   only; in a normal browser it still shows. */
+@media (display-mode: standalone) {
+  .auth-back { display: none; }
+}
