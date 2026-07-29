@@ -193,14 +193,7 @@ export function AppShell({
               <Menu size={20} />
             </button>
             <div className="breadcrumb">
-              {currentLabel === 'Home' ? (
-                <strong>Home</strong>
-              ) : (
-                <>
-                  <span>Home</span>
-                  <strong>/ {currentLabel}</strong>
-                </>
-              )}
+              <strong>{currentLabel}</strong>
             </div>
           </div>
           <div className="top-menu-actions">
