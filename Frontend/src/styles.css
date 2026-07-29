@@ -3921,3 +3921,16 @@ textarea {
 @media (max-width: 640px) {
   .residency-hero__actions > * { flex: 1 1 100%; justify-content: center; }
 }
+
+/* ── iOS zoom fix ───────────────────────────────────────────────────────────
+   iOS Safari auto-zooms into any focused input/textarea/select whose font-size
+   is < 16px. Enforce 16px on touch devices so the viewport stays put.
+   Only on hover:none + pointer:coarse (real touch), so desktop keeps its
+   normal typography. */
+@media (hover: none) and (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
