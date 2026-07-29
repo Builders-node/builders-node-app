@@ -1,4 +1,4 @@
-import { Check, ExternalLink, Pencil, Send, Upload, X } from 'lucide-react';
+import { Check, ExternalLink, FileCheck2, Pencil, Send, ShieldCheck, Upload, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import type { PageId } from '../data/dashboard';
 import { PageHeader } from '../components/PageHeader';
@@ -436,63 +436,119 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
         </div>
       ) : null}
 
-      {showMemberSections ? (
-      <section className="panel residency-panel">
-        <div className="admin-panel__head">
-          <div>
-            <span className="section-label">Prospera.co</span>
-            <h2>E-Residency</h2>
-            <p>Apply on Prospera.co, then upload your proof for our team to verify.</p>
-          </div>
-          <StatusBadge tone={toneForResidency(residency?.status)}>
-            {RESIDENCY_LABELS[residency?.status ?? 'NOT_STARTED'] ?? residency?.status ?? 'Not started'}
-          </StatusBadge>
-        </div>
-        <div className="next-step-list">
-          <div className="next-step"><strong>1.</strong><span>Apply for E-Residency on Prospera.co.</span></div>
-          <div className="next-step"><strong>2.</strong><span>Upload your confirmation/proof below.</span></div>
-          <div className="next-step"><strong>3.</strong><span>Our team reviews and verifies it.</span></div>
-          {residency?.proofFileName ? (
-            <div className="next-step"><strong>Uploaded</strong><span>{residency.proofFileName}{residency.submittedAt ? ` · ${formatDate(residency.submittedAt)}` : ''}</span></div>
-          ) : null}
-          {residency?.status === 'PENDING_REVIEW' ? (
-            <div className="next-step"><strong>Status</strong><span>Waiting for our team to verify your proof.</span></div>
-          ) : null}
-          {residency?.status === 'VERIFIED' ? (
-            <div className="next-step"><strong>Verified</strong><span>Your E-Residency proof has been approved. ✅</span></div>
-          ) : null}
-          {residency?.status === 'REJECTED' && residency?.reviewNote ? (
-            <div className="next-step"><strong>Needs changes</strong><span>{residency.reviewNote}</span></div>
-          ) : null}
-        </div>
-        <div className="button-row">
-          <a
-            className="primary-button link-button"
-            href={residency?.applyUrl ?? 'https://prospera.co/e-residency'}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Apply on Prospera.co
-            <ExternalLink size={16} />
-          </a>
-          {residency?.status !== 'VERIFIED' ? (
-            <>
-              <input
-                ref={proofInputRef}
-                type="file"
-                accept="image/*,application/pdf"
-                style={{ display: 'none' }}
-                onChange={onProofSelected}
-              />
-              <button className="ghost-button" onClick={() => proofInputRef.current?.click()} disabled={isResidencyLoading}>
-                <Upload size={16} />
-                {isResidencyLoading ? 'Uploading…' : residency?.hasProof ? 'Re-upload proof' : "I've applied — upload proof"}
-              </button>
-            </>
-          ) : null}
-        </div>
-      </section>
-      ) : null}
+      {showMemberSections ? (() => {
+        const rStatus = residency?.status ?? 'NOT_STARTED';
+        // 4 = done; 3 = verifying; 2 = uploading (n/a — no separate applied state); 1 = start
+        const step = rStatus === 'VERIFIED' ? 4 : rStatus === 'PENDING_REVIEW' ? 3 : 1;
+        const steps = [
+          { n: 1, icon: <ExternalLink size={15} />, title: 'Apply on Prospera.co', desc: 'Fill in the official E-Residency application.' },
+          { n: 2, icon: <Upload size={15} />, title: 'Upload your confirmation', desc: 'Attach the approval file — PDF or screenshot.' },
+          { n: 3, icon: <ShieldCheck size={15} />, title: 'Our team verifies it', desc: 'Usually within a few business days.' },
+        ];
+        const hasNote =
+          residency?.proofFileName ||
+          rStatus === 'PENDING_REVIEW' ||
+          rStatus === 'VERIFIED' ||
+          (rStatus === 'REJECTED' && residency?.reviewNote);
+
+        return (
+          <section className="panel residency-hero">
+            <header className="residency-hero__head">
+              <div className="residency-hero__icon" aria-hidden="true">
+                <FileCheck2 size={22} />
+              </div>
+              <div className="residency-hero__title">
+                <span className="section-label">Prospera.co</span>
+                <h2>E-Residency</h2>
+                <p>Apply on Prospera.co, then upload your proof for our team to verify.</p>
+              </div>
+              <StatusBadge tone={toneForResidency(rStatus)}>
+                {RESIDENCY_LABELS[rStatus] ?? rStatus}
+              </StatusBadge>
+            </header>
+
+            <ol className="residency-steps">
+              {steps.map((s) => {
+                const done = step > s.n;
+                const active = step === s.n || (s.n === 2 && step === 1 && !!residency?.hasProof === false);
+                return (
+                  <li
+                    key={s.n}
+                    className={`residency-step${done ? ' residency-step--done' : ''}${active ? ' residency-step--active' : ''}`}
+                  >
+                    <span className="residency-step__num">{done ? <Check size={14} /> : s.n}</span>
+                    <div className="residency-step__body">
+                      <strong>{s.title}</strong>
+                      <span>{s.desc}</span>
+                    </div>
+                    <span className="residency-step__glyph" aria-hidden="true">{s.icon}</span>
+                  </li>
+                );
+              })}
+            </ol>
+
+            {hasNote ? (
+              <div className="residency-notes">
+                {residency?.proofFileName ? (
+                  <p className="residency-note">
+                    <strong>Uploaded</strong>
+                    <span>{residency.proofFileName}{residency.submittedAt ? ` · ${formatDate(residency.submittedAt)}` : ''}</span>
+                  </p>
+                ) : null}
+                {rStatus === 'PENDING_REVIEW' ? (
+                  <p className="residency-note residency-note--pending">
+                    <strong>Under review</strong>
+                    <span>Waiting for our team to verify your proof.</span>
+                  </p>
+                ) : null}
+                {rStatus === 'VERIFIED' ? (
+                  <p className="residency-note residency-note--good">
+                    <strong>Verified</strong>
+                    <span>Your E-Residency proof has been approved.</span>
+                  </p>
+                ) : null}
+                {rStatus === 'REJECTED' && residency?.reviewNote ? (
+                  <p className="residency-note residency-note--danger">
+                    <strong>Needs changes</strong>
+                    <span>{residency.reviewNote}</span>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="residency-hero__actions">
+              <a
+                className="primary-button link-button residency-hero__cta"
+                href={residency?.applyUrl ?? 'https://prospera.co/e-residency'}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Apply on Prospera.co
+                <ExternalLink size={16} />
+              </a>
+              {rStatus !== 'VERIFIED' ? (
+                <>
+                  <input
+                    ref={proofInputRef}
+                    type="file"
+                    accept="image/*,application/pdf"
+                    style={{ display: 'none' }}
+                    onChange={onProofSelected}
+                  />
+                  <button
+                    className="ghost-button residency-hero__upload"
+                    onClick={() => proofInputRef.current?.click()}
+                    disabled={isResidencyLoading}
+                  >
+                    <Upload size={16} />
+                    {isResidencyLoading ? 'Uploading…' : residency?.hasProof ? 'Re-upload proof' : "I've applied — upload proof"}
+                  </button>
+                </>
+              ) : null}
+            </div>
+          </section>
+        );
+      })() : null}
 
       {showMemberSections ? (
       <section className="panel admin-user-list-panel">

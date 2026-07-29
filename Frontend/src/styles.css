@@ -3818,3 +3818,106 @@ textarea {
 .resource-admin-row__actions { display: flex; gap: 6px; flex-shrink: 0; }
 .checkbox-row { display: flex; flex-direction: row; align-items: center; gap: 8px; font-size: 0.9rem; }
 .checkbox-row input { width: auto; }
+
+/* ── E-Residency hero (redesigned, Amie/Yandex-inspired) ────────────────────── */
+.residency-hero { display: flex; flex-direction: column; gap: 20px; }
+.residency-hero__head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: flex-start;
+}
+.residency-hero__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ff7a3a, #e5541f);
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 6px 16px rgba(229, 84, 31, 0.28);
+}
+.residency-hero__title { min-width: 0; }
+.residency-hero__title h2 { margin: 4px 0 4px; font-size: 1.35rem; }
+.residency-hero__title p { margin: 0; color: var(--text-muted, #6b7280); font-size: 0.9rem; max-width: 52ch; }
+
+.residency-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.residency-step {
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--line, #edeef1);
+  background: var(--surface, #fff);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.residency-step__num {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.04);
+  color: #6b7280;
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+.residency-step__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.residency-step__body strong { font-size: 0.95rem; font-weight: 650; }
+.residency-step__body span { font-size: 0.83rem; color: var(--text-muted, #6b7280); }
+.residency-step__glyph {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted, #9aa0ad);
+  background: rgba(0, 0, 0, 0.03);
+  flex-shrink: 0;
+}
+.residency-step--active {
+  border-color: rgba(229, 84, 31, 0.4);
+  background: linear-gradient(180deg, rgba(229, 84, 31, 0.06), rgba(229, 84, 31, 0));
+}
+.residency-step--active .residency-step__num { background: #e5541f; color: #fff; }
+.residency-step--active .residency-step__glyph { color: #e5541f; background: rgba(229, 84, 31, 0.1); }
+.residency-step--done .residency-step__num { background: #2fae66; color: #fff; }
+.residency-step--done .residency-step__body strong { color: var(--text-muted, #6b7280); }
+:root[data-theme='dark'] .residency-step { background: #1a1c22; border-color: #23262c; }
+:root[data-theme='dark'] .residency-step__num { background: rgba(255, 255, 255, 0.06); color: #b3b8c0; }
+:root[data-theme='dark'] .residency-step__glyph { background: rgba(255, 255, 255, 0.05); }
+:root[data-theme='dark'] .residency-step--active { background: linear-gradient(180deg, rgba(229, 84, 31, 0.14), transparent); }
+
+.residency-notes { display: flex; flex-direction: column; gap: 8px; }
+.residency-note {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--line, #edeef1);
+  font-size: 0.86rem;
+}
+.residency-note strong { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #6b7280); }
+.residency-note--pending { background: rgba(224, 160, 0, 0.08); border-color: rgba(224, 160, 0, 0.3); }
+.residency-note--pending strong { color: #b57a00; }
+.residency-note--good { background: rgba(47, 174, 102, 0.08); border-color: rgba(47, 174, 102, 0.3); }
+.residency-note--good strong { color: #2fae66; }
+.residency-note--danger { background: rgba(192, 57, 43, 0.06); border-color: rgba(192, 57, 43, 0.3); }
+.residency-note--danger strong { color: #c0392b; }
+
+.residency-hero__actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.residency-hero__cta { flex: 1 1 240px; justify-content: center; }
+.residency-hero__upload { flex: 0 0 auto; }
+@media (max-width: 640px) {
+  .residency-hero__actions > * { flex: 1 1 100%; justify-content: center; }
+}
