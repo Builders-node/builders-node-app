@@ -1,4 +1,4 @@
-import { Bell, LayoutGrid, LogOut, Menu, Moon, Settings as SettingsIcon, Share2, Sun, X } from 'lucide-react';
+import { Bell, LayoutGrid, LogOut, Menu, Moon, Pencil, Settings as SettingsIcon, Share2, Sun, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ADMIN_ROLES, allNavItems, navSections, pageForPath, type PageId } from '../data/dashboard';
 import { apiRequest } from '../lib/api';
@@ -266,6 +266,18 @@ export function AppShell({
 
                   <div className="account-dropdown__sep" />
 
+                  <button
+                    className="account-dropdown__item"
+                    onClick={() => {
+                      setAccountOpen(false);
+                      // Land on the account page, then ask it to open the edit modal.
+                      go('profile');
+                      setTimeout(() => window.dispatchEvent(new Event('profile:edit')), 30);
+                    }}
+                  >
+                    <Pencil size={16} />
+                    Edit account
+                  </button>
                   <button className="account-dropdown__item" onClick={() => { setAccountOpen(false); go('security'); }}>
                     <SettingsIcon size={16} />
                     Settings

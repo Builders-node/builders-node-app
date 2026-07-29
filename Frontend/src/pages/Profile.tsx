@@ -206,6 +206,13 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // The header account dropdown fires this to open the edit-profile modal.
+  useEffect(() => {
+    const onOpen = () => setIsEditOpen(true);
+    window.addEventListener('profile:edit', onOpen);
+    return () => window.removeEventListener('profile:edit', onOpen);
+  }, []);
+
   async function submitProof(file: File) {
     if (!currentUserId) return;
     setIsResidencyLoading(true);
@@ -286,38 +293,6 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
       {error ? <section className="panel"><p className="form-error">{error}</p></section> : null}
       {profileMessage ? <section className="panel"><p className="form-success">{profileMessage}</p></section> : null}
       {residencyMessage ? <section className="panel"><p className="form-success">{residencyMessage}</p></section> : null}
-      {isLoading ? (
-        <section className="panel form-panel" aria-busy="true">
-          <div className="profile-card-head">
-            <div className="profile-summary">
-              <div className="avatar skeleton skeleton--circle" />
-              <div className="skeleton-lines">
-                <span className="skeleton skeleton--line" style={{ width: '11rem' }} />
-                <span className="skeleton skeleton--line" style={{ width: '14rem' }} />
-                <span className="skeleton skeleton--pill" style={{ width: '7rem' }} />
-              </div>
-            </div>
-          </div>
-        </section>
-      ) : (
-        <section className="panel form-panel">
-          <div className="profile-card-head">
-            <div className="profile-summary">
-              <div className="avatar">{profile?.profile?.fullName?.slice(0, 1) ?? '?'}</div>
-              <div>
-                <h2>{profile?.profile?.fullName ?? 'No name loaded'}</h2>
-                <p>{profile?.email ?? ''}</p>
-                <StatusBadge tone={isStaff ? 'good' : membershipTone(profile?.membership?.status)}>
-                  {isStaff ? (profile?.role?.split('_').join(' ') ?? 'Staff') : (profile?.membership?.status ?? 'No membership')}
-                </StatusBadge>
-              </div>
-            </div>
-            <button className="icon-button profile-edit-button" onClick={() => setIsEditOpen(true)} aria-label="Edit profile">
-              <Pencil size={18} />
-            </button>
-          </div>
-        </section>
-      )}
 
       {showOnboarding ? (
         <section className="panel onboarding-card">

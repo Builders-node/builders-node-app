@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { Wrench } from 'lucide-react';
+import { Wrench, X } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
 import { apiRequest } from '../lib/api';
+import { useEscapeToClose } from '../lib/useModalA11y';
 
 type Request = {
   id: string;
@@ -38,11 +39,15 @@ function fileToBase64(file: File): Promise<string> {
 
 export function MaintenanceSection({ currentUserId }: { currentUserId: string }) {
   const [requests, setRequests] = useState<Request[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
+
+  // Modal state (form lives here — the card itself is CTA-only).
+  const [isOpen, setIsOpen] = useState(false);
+  useEscapeToClose(isOpen, () => setIsOpen(false));
   const [category, setCategory] = useState('General');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [photo, setPhoto] = useState<File | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -61,9 +66,23 @@ export function MaintenanceSection({ currentUserId }: { currentUserId: string })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUserId]);
 
+  function resetForm() {
+    setCategory('General');
+    setTitle('');
+    setDescription('');
+    setPhoto(null);
+    if (fileRef.current) fileRef.current.value = '';
+    setError(null);
+  }
+
+  function openModal() {
+    resetForm();
+    setMessage(null);
+    setIsOpen(true);
+  }
+
   async function submit() {
     setError(null);
-    setMessage(null);
     if (!title.trim() || !description.trim()) {
       setError('Add a title and a description.');
       return;
@@ -77,11 +96,8 @@ export function MaintenanceSection({ currentUserId }: { currentUserId: string })
         payload.photoFileType = photo.type;
       }
       await apiRequest(`/users/${currentUserId}/maintenance`, { method: 'POST', body: JSON.stringify(payload) });
-      setTitle('');
-      setDescription('');
-      setCategory('General');
-      setPhoto(null);
-      if (fileRef.current) fileRef.current.value = '';
+      setIsOpen(false);
+      resetForm();
       setMessage('Request submitted — our team will take a look.');
       await load();
     } catch (caught) {
@@ -92,51 +108,76 @@ export function MaintenanceSection({ currentUserId }: { currentUserId: string })
   }
 
   return (
-    <section className="panel form-panel">
-      <div className="admin-panel__head">
-        <div>
-          <span className="section-label">Your unit</span>
-          <h2>Maintenance</h2>
-          <p className="setup-card-copy">Report an issue with your unit — a broken appliance, plumbing, internet, anything.</p>
+    <>
+      <section className="panel form-panel">
+        <div className="admin-panel__head">
+          <div>
+            <span className="section-label">Your unit</span>
+            <h2>Maintenance</h2>
+            <p className="setup-card-copy">Report an issue with your unit — a broken appliance, plumbing, internet, anything.</p>
+          </div>
+          <Wrench size={20} />
         </div>
-        <Wrench size={20} />
-      </div>
+        {message ? <p className="form-success">{message}</p> : null}
+        <button className="primary-button" onClick={openModal}>Report an issue</button>
 
-      <div className="form-grid">
-        <label>
-          Category
-          <select value={category} onChange={(event) => setCategory(event.target.value)}>
-            {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </label>
-        <label>Title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. AC not cooling" /></label>
-      </div>
-      <label>Description<textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What's wrong, and where in the unit?" rows={3} /></label>
-      <label className="maintenance-photo">
-        Photo (optional)
-        <input ref={fileRef} type="file" accept="image/*" onChange={(event: ChangeEvent<HTMLInputElement>) => setPhoto(event.target.files?.[0] ?? null)} />
-      </label>
-      {message ? <p className="form-success">{message}</p> : null}
-      {error ? <p className="form-error">{error}</p> : null}
-      <button className="primary-button" disabled={submitting} onClick={() => void submit()}>
-        {submitting ? 'Submitting…' : 'Submit request'}
-      </button>
-
-      {requests.length > 0 ? (
-        <div className="maintenance-list">
-          {requests.map((r) => (
-            <div className="maintenance-item" key={r.id}>
-              <div className="maintenance-item__head">
-                <strong>{r.title}</strong>
-                <StatusBadge tone={statusTone(r.status)}>{statusLabel(r.status)}</StatusBadge>
+        {requests.length > 0 ? (
+          <div className="maintenance-list">
+            {requests.map((r) => (
+              <div className="maintenance-item" key={r.id}>
+                <div className="maintenance-item__head">
+                  <strong>{r.title}</strong>
+                  <StatusBadge tone={statusTone(r.status)}>{statusLabel(r.status)}</StatusBadge>
+                </div>
+                <span className="maintenance-item__meta">{r.category} · {new Date(r.createdAt).toLocaleDateString()}</span>
+                <p className="maintenance-item__desc">{r.description}</p>
+                {r.adminNote ? <p className="maintenance-item__note">Team: {r.adminNote}</p> : null}
               </div>
-              <span className="maintenance-item__meta">{r.category} · {new Date(r.createdAt).toLocaleDateString()}</span>
-              <p className="maintenance-item__desc">{r.description}</p>
-              {r.adminNote ? <p className="maintenance-item__note">Team: {r.adminNote}</p> : null}
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      {isOpen ? (
+        <div className="modal-overlay" role="presentation" onClick={() => setIsOpen(false)}>
+          <form
+            className="profile-edit-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Report a maintenance issue"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={(event) => { event.preventDefault(); void submit(); }}
+          >
+            <div className="modal-head">
+              <div>
+                <h2>Report an issue</h2>
+                <p>Tell us what's wrong. We'll get on it.</p>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setIsOpen(false)} aria-label="Close">
+                <X size={18} />
+              </button>
             </div>
-          ))}
+            <div className="form-grid">
+              <label>
+                Category
+                <select value={category} onChange={(event) => setCategory(event.target.value)}>
+                  {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </label>
+              <label>Title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. AC not cooling" autoFocus /></label>
+            </div>
+            <label>Description<textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What's wrong, and where in the unit?" rows={4} /></label>
+            <label className="maintenance-photo">
+              Photo (optional)
+              <input ref={fileRef} type="file" accept="image/*" onChange={(event: ChangeEvent<HTMLInputElement>) => setPhoto(event.target.files?.[0] ?? null)} />
+            </label>
+            {error ? <p className="form-error">{error}</p> : null}
+            <button className="primary-button" type="submit" disabled={submitting}>
+              {submitting ? 'Submitting…' : 'Submit request'}
+            </button>
+          </form>
         </div>
       ) : null}
-    </section>
+    </>
   );
 }
