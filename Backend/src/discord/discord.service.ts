@@ -41,22 +41,6 @@ export class DiscordService {
     );
   }
 
-  /** Which Discord env vars the runtime can see (booleans only — never values). */
-  configStatus() {
-    return {
-      enabled: this.isEnabled(),
-      present: {
-        DISCORD_CLIENT_ID: Boolean(this.cfg('DISCORD_CLIENT_ID')),
-        DISCORD_CLIENT_SECRET: Boolean(this.cfg('DISCORD_CLIENT_SECRET')),
-        DISCORD_BOT_TOKEN: Boolean(this.cfg('DISCORD_BOT_TOKEN')),
-        DISCORD_GUILD_ID: Boolean(this.cfg('DISCORD_GUILD_ID')),
-        DISCORD_REDIRECT_URI: Boolean(this.cfg('DISCORD_REDIRECT_URI')),
-        DISCORD_ROLE_MEMBER: Boolean(this.cfg('DISCORD_ROLE_MEMBER')),
-        DISCORD_ROLE_APPLICANT: Boolean(this.cfg('DISCORD_ROLE_APPLICANT')),
-      },
-    };
-  }
-
   private requireEnabled() {
     if (!this.isEnabled()) {
       throw new BadRequestException('Discord integration is not configured on the server.');

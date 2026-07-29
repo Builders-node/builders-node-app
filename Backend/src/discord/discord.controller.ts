@@ -11,13 +11,6 @@ export class DiscordController {
     private readonly config: ConfigService,
   ) {}
 
-  // Diagnostic: which Discord env vars the API can see (booleans only, no values).
-  @UseGuards(JwtAuthGuard)
-  @Get('discord/config-status')
-  configStatus() {
-    return this.discord.configStatus();
-  }
-
   // Start linking: returns the Discord OAuth URL for the current user.
   @UseGuards(JwtAuthGuard)
   @Get('users/:userId/discord/authorize-url')
