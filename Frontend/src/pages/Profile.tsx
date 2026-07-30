@@ -117,6 +117,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
   const [isResidencyLoading, setIsResidencyLoading] = useState(false);
   const proofInputRef = useRef<HTMLInputElement>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   useEscapeToClose(isEditOpen, () => setIsEditOpen(false));
   const [editFullName, setEditFullName] = useState('');
   const [editPhone, setEditPhone] = useState('');
@@ -298,27 +299,43 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
       {profileMessage ? <section className="panel"><p className="form-success">{profileMessage}</p></section> : null}
       {residencyMessage ? <section className="panel"><p className="form-success">{residencyMessage}</p></section> : null}
 
-      {showOnboarding ? (() => {
-        // Compact onboarding: one primary CTA for the NEXT unfinished step, plus a
-        // slim progress bar. Cuts ~180px vs. the full checklist on mobile.
+      {showOnboarding && !onboardingDismissed ? (() => {
+        // Floating "next step" pill — TikTok-style: progress ring on the left,
+        // heading + next step in the middle, close on the right. Sits fixed
+        // above the bottom nav so it doesn't take flow space.
         const nextStep = onboardingSteps.find((step) => !step.done);
+        const percent = Math.round((onboardingDone / onboardingSteps.length) * 100);
         return (
-          <section className="compact-onboarding">
-            <div className="compact-onboarding__progress" aria-hidden="true">
-              <span style={{ width: `${(onboardingDone / onboardingSteps.length) * 100}%` }} />
-            </div>
-            <div className="compact-onboarding__row">
-              <div className="compact-onboarding__text">
-                <span className="section-label">Get started · {onboardingDone}/{onboardingSteps.length}</span>
+          <div className="onboarding-toast" role="region" aria-label="Onboarding">
+            <button
+              type="button"
+              className="onboarding-toast__main"
+              onClick={() => nextStep?.action?.()}
+              disabled={!nextStep?.action}
+            >
+              <span
+                className="onboarding-toast__ring"
+                style={{ '--progress': percent } as React.CSSProperties}
+                aria-hidden="true"
+              >
+                <span className="onboarding-toast__ring-num">
+                  {onboardingSteps.length - onboardingDone}
+                </span>
+              </span>
+              <span className="onboarding-toast__text">
+                <small>Get started · {onboardingDone}/{onboardingSteps.length}</small>
                 <strong>{nextStep?.label ?? 'All set'}</strong>
-              </div>
-              {nextStep?.action ? (
-                <button className="primary-button compact-button" onClick={nextStep.action}>
-                  {nextStep.actionLabel ?? 'Do it'}
-                </button>
-              ) : null}
-            </div>
-          </section>
+              </span>
+            </button>
+            <button
+              type="button"
+              className="onboarding-toast__close"
+              onClick={() => setOnboardingDismissed(true)}
+              aria-label="Dismiss"
+            >
+              <X size={16} />
+            </button>
+          </div>
         );
       })() : null}
 
