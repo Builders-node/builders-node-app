@@ -4079,84 +4079,89 @@ textarea {
   html, body { overscroll-behavior-y: contain; }
 }
 
-/* ── Apartment iOS-widget tile ──────────────────────────────────────────────── */
+/* ── Apartment / Meals / Cleaning tile — clean white card w/ icon badge ────── */
 .apartment-tile {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  padding: 16px 18px;
+  padding: 16px 18px 18px;
   border-radius: 20px;
-  min-height: 160px;
-  color: #3a3d45;
-  background: linear-gradient(140deg, #f3f4f6 0%, #e6e8ec 100%);
+  min-height: 168px;
+  color: #1c1e24;
+  background: #fff;
+  border: 1px solid #ebedf1;
+  box-shadow: 0 1px 2px rgba(15, 18, 24, 0.04), 0 8px 20px -12px rgba(15, 18, 24, 0.08);
   overflow: hidden;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
-.apartment-tile::after {
-  content: '';
-  position: absolute;
-  inset: -30% -20% auto auto;
-  width: 60%;
-  height: 60%;
-  background: radial-gradient(circle, rgba(0, 0, 0, 0.04), transparent 70%);
-  pointer-events: none;
+.apartment-tile__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(229, 84, 31, 0.1);
+  color: #e5541f;
+  margin-bottom: 4px;
 }
-.apartment-tile__badge { color: rgba(229, 84, 31, 0.9); }
-.apartment-tile__number { color: #e5541f; }
 .apartment-tile__badge {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(58, 61, 69, 0.75);
+  color: rgba(229, 84, 31, 0.9);
 }
 .apartment-tile__number {
-  font-size: clamp(3rem, 12vw, 4.4rem);
+  font-size: clamp(2.6rem, 10vw, 3.6rem);
   font-weight: 800;
   line-height: 0.95;
   letter-spacing: -0.04em;
   margin-top: auto;
   font-variant-numeric: tabular-nums;
+  color: #e5541f;
 }
-.apartment-tile__meta { display: flex; flex-direction: column; gap: 2px; margin-top: auto; }
-.apartment-tile__meta strong { font-size: 1rem; font-weight: 600; }
-.apartment-tile__meta span { font-size: 0.85rem; color: rgba(58, 61, 69, 0.7); }
+.apartment-tile__meta { display: flex; flex-direction: column; gap: 2px; }
+.apartment-tile__meta strong { font-size: 1rem; font-weight: 600; color: #1c1e24; }
+.apartment-tile__meta span { font-size: 0.85rem; color: #6b7280; }
 .apartment-tile--empty {
-  min-height: 120px;
+  min-height: 140px;
   justify-content: space-between;
 }
-.apartment-tile--empty .apartment-tile__badge { color: rgba(58, 61, 69, 0.7); }
-.apartment-tile__empty { font-size: 1.35rem; font-weight: 700; }
+.apartment-tile--empty .apartment-tile__badge { color: rgba(107, 114, 128, 0.85); }
+.apartment-tile--empty .apartment-tile__icon { background: rgba(107, 114, 128, 0.08); color: #6b7280; }
+.apartment-tile__empty { font-size: 1.15rem; font-weight: 700; margin-top: auto; }
 
-/* Meals-variant of the apartment tile — light grey with an orange glow. */
-.apartment-tile--meals {
-  background: linear-gradient(140deg, #f3f4f6 0%, #e6e8ec 100%);
-}
-.apartment-tile--meals::after {
-  background: radial-gradient(circle, rgba(229, 84, 31, 0.12), transparent 70%);
-}
-.apartment-tile--meals .apartment-tile__badge { color: rgba(229, 84, 31, 0.9); }
-.apartment-tile--meals .apartment-tile__number { color: #e5541f; }
 .apartment-tile__number--with-unit em {
   font-style: normal;
   font-size: 0.55em;
   font-weight: 600;
-  margin-left: 0.08em;
-  color: rgba(58, 61, 69, 0.5);
+  margin-left: 0.1em;
+  color: rgba(28, 30, 36, 0.35);
   vertical-align: 0.3em;
 }
-.apartment-tile--meals.apartment-tile--empty .apartment-tile__badge { color: rgba(229, 84, 31, 0.7); }
 
-/* Cleaning-variant of the apartment tile — light grey with a cool blue glow. */
-.apartment-tile--cleaning {
-  background: linear-gradient(140deg, #f3f4f6 0%, #e6e8ec 100%);
-}
-.apartment-tile--cleaning::after {
-  background: radial-gradient(circle, rgba(80, 140, 220, 0.14), transparent 70%);
-}
+/* Meals variant — same shell, orange-tinted icon + number (kept). */
+.apartment-tile--meals .apartment-tile__icon { background: rgba(229, 84, 31, 0.1); color: #e5541f; }
+.apartment-tile--meals .apartment-tile__badge { color: rgba(229, 84, 31, 0.9); }
+.apartment-tile--meals .apartment-tile__number { color: #e5541f; }
+
+/* Cleaning variant — cool blue icon + number. */
+.apartment-tile--cleaning .apartment-tile__icon { background: rgba(58, 128, 212, 0.1); color: #3a80d4; }
 .apartment-tile--cleaning .apartment-tile__badge { color: rgba(46, 110, 190, 0.9); }
 .apartment-tile--cleaning .apartment-tile__number { color: #3a80d4; }
-.apartment-tile--cleaning.apartment-tile--empty .apartment-tile__badge { color: rgba(46, 110, 190, 0.7); }
+.apartment-tile--cleaning.apartment-tile--empty .apartment-tile__badge { color: rgba(107, 114, 128, 0.85); }
+.apartment-tile--cleaning.apartment-tile--empty .apartment-tile__icon { background: rgba(107, 114, 128, 0.08); color: #6b7280; }
+
+:root[data-theme='dark'] .apartment-tile {
+  background: #1a1c22;
+  border-color: #23262c;
+  color: #f4f5f7;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+:root[data-theme='dark'] .apartment-tile__meta strong { color: #f4f5f7; }
+:root[data-theme='dark'] .apartment-tile__meta span { color: #9ea3ad; }
 
 /* 3-column tile row for Apartment / Meals / Cleaning on Home. */
 .tile-grid {
@@ -4287,8 +4292,9 @@ textarea {
   .tile-grid > :first-child { grid-column: 1 / -1; }
   /* Smaller tiles on mobile — meals/cleaning stay short in the second row */
   .tile-grid > :not(:first-child) .apartment-tile__number { font-size: clamp(2.4rem, 12vw, 3.4rem); }
-  .apartment-tile { min-height: 140px; padding: 14px 16px; }
-  .apartment-tile > :first-child { font-size: 0.65rem; }
+  .apartment-tile { min-height: 148px; padding: 14px 16px; }
+  .apartment-tile__badge { font-size: 0.65rem; }
+  .apartment-tile__icon { width: 36px; height: 36px; border-radius: 10px; }
 }
 
 /* ── TikTok-style floating onboarding pill (fixed above bottom nav) ────────── */

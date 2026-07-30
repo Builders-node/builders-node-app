@@ -1,4 +1,4 @@
-import { Check, ChevronRight, ExternalLink, FileCheck2, Pencil, Send, Upload, Waves, X } from 'lucide-react';
+import { Bed, Check, ChevronRight, ExternalLink, FileCheck2, Pencil, Send, Sparkles, Upload, Utensils, Waves, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import type { PageId } from '../data/dashboard';
 import { PageHeader } from '../components/PageHeader';
@@ -589,6 +589,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
             : home.apartment.name;
           return (
             <article className="apartment-tile">
+              <span className="apartment-tile__icon" aria-hidden="true"><Bed size={18} /></span>
               <span className="apartment-tile__badge">{home.apartment.status}</span>
               {unitNumber ? (
                 <span className="apartment-tile__number">{unitNumber}</span>
@@ -603,6 +604,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
           );
         })() : (
           <article className="apartment-tile apartment-tile--empty">
+            <span className="apartment-tile__icon" aria-hidden="true"><Bed size={18} /></span>
             <span className="apartment-tile__badge">Apartment</span>
             <span className="apartment-tile__empty">Not assigned yet</span>
           </article>
@@ -620,6 +622,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
           if (!first) {
             return (
               <article className="apartment-tile apartment-tile--meals apartment-tile--empty">
+                <span className="apartment-tile__icon" aria-hidden="true"><Utensils size={18} /></span>
                 <span className="apartment-tile__badge">Meals plan</span>
                 <span className="apartment-tile__empty">Not set yet</span>
               </article>
@@ -628,6 +631,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
 
           return (
             <article className="apartment-tile apartment-tile--meals">
+              <span className="apartment-tile__icon" aria-hidden="true"><Utensils size={18} /></span>
               <span className="apartment-tile__badge">Meals plan</span>
               {number ? (
                 <span className="apartment-tile__number apartment-tile__number--with-unit">
@@ -657,6 +661,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
         if (!freq && !nextDate) {
           return (
             <article className="apartment-tile apartment-tile--cleaning apartment-tile--empty">
+              <span className="apartment-tile__icon" aria-hidden="true"><Sparkles size={18} /></span>
               <span className="apartment-tile__badge">Cleaning</span>
               <span className="apartment-tile__empty">Not scheduled</span>
             </article>
@@ -665,6 +670,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
 
         return (
           <article className="apartment-tile apartment-tile--cleaning">
+            <span className="apartment-tile__icon" aria-hidden="true"><Sparkles size={18} /></span>
             <span className="apartment-tile__badge">Cleaning</span>
             {number ? (
               <span className="apartment-tile__number apartment-tile__number--with-unit">
