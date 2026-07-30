@@ -1,4 +1,4 @@
-import { Check, ExternalLink, FileCheck2, Pencil, Send, ShieldCheck, Upload, X } from 'lucide-react';
+import { Check, ChevronRight, ExternalLink, FileCheck2, Pencil, Send, ShieldCheck, Upload, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import type { PageId } from '../data/dashboard';
 import { PageHeader } from '../components/PageHeader';
@@ -117,7 +117,8 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
   const [isResidencyLoading, setIsResidencyLoading] = useState(false);
   const proofInputRef = useRef<HTMLInputElement>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
+  const [onboardingModalOpen, setOnboardingModalOpen] = useState(false);
+  useEscapeToClose(onboardingModalOpen, () => setOnboardingModalOpen(false));
   useEscapeToClose(isEditOpen, () => setIsEditOpen(false));
   const [editFullName, setEditFullName] = useState('');
   const [editPhone, setEditPhone] = useState('');
@@ -301,10 +302,11 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
 
       {showOnboarding && !onboardingDismissed ? (() => {
         // Floating "next step" pill — TikTok-style: progress ring on the left,
-        // heading + next step in the middle, close on the right. Sits fixed
-        // above the bottom nav so it doesn't take flow space.
+        // heading + next step in the middle, chevron on the right that opens
+        // the full checklist in a modal.
         const nextStep = onboardingSteps.find((step) => !step.done);
         const percent = Math.round((onboardingDone / onboardingSteps.length) * 100);
+        const currentIndex = nextStep ? onboardingSteps.indexOf(nextStep) + 1 : onboardingSteps.length;
         return (
           <div className="onboarding-toast" role="region" aria-label="Onboarding">
             <button
@@ -319,25 +321,66 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
                 aria-hidden="true"
               >
                 <span className="onboarding-toast__ring-num">
-                  {onboardingSteps.length - onboardingDone}
+                  {currentIndex}<em>/{onboardingSteps.length}</em>
                 </span>
               </span>
               <span className="onboarding-toast__text">
-                <small>Get started · {onboardingDone}/{onboardingSteps.length}</small>
+                <small>Get started</small>
                 <strong>{nextStep?.label ?? 'All set'}</strong>
               </span>
             </button>
             <button
               type="button"
               className="onboarding-toast__close"
-              onClick={() => setOnboardingDismissed(true)}
-              aria-label="Dismiss"
+              onClick={() => setOnboardingModalOpen(true)}
+              aria-label="See all steps"
             >
-              <X size={16} />
+              <ChevronRight size={18} />
             </button>
           </div>
         );
       })() : null}
+
+      {onboardingModalOpen ? (
+        <div className="modal-overlay" role="presentation" onClick={() => setOnboardingModalOpen(false)}>
+          <div
+            className="profile-edit-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Set up your account"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-head">
+              <div>
+                <h2>Set up your account</h2>
+                <p>{onboardingDone} of {onboardingSteps.length} steps done.</p>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setOnboardingModalOpen(false)} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="onboarding-progress">
+              <span style={{ width: `${(onboardingDone / onboardingSteps.length) * 100}%` }} />
+            </div>
+            <ul className="onboarding-steps">
+              {onboardingSteps.map((step) => (
+                <li key={step.key} className={step.done ? 'onboarding-step onboarding-step--done' : 'onboarding-step'}>
+                  <span className="onboarding-step__check">{step.done ? <Check size={13} /> : null}</span>
+                  <span className="onboarding-step__label">{step.label}</span>
+                  {!step.done && step.action ? (
+                    <button
+                      className="onboarding-step__action"
+                      onClick={() => { setOnboardingModalOpen(false); step.action?.(); }}
+                    >
+                      {step.actionLabel}
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : null}
 
       {/* Discord: the "connect" CTA lives in the compact onboarding above. Once
           linked, only a slim confirmation row remains — no more big blue block. */}
