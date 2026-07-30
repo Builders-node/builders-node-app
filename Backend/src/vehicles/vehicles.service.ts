@@ -22,13 +22,15 @@ type BookingInput = {
 };
 
 /**
- * Parse a YYYY-MM-DD (or ISO) string as a UTC midnight so bookings compare
- * cleanly regardless of the server timezone.
+ * Accept either a YYYY-MM-DD date (treated as UTC midnight — full-day booking)
+ * or a full ISO datetime string (hourly booking). Sub-day bookings need a
+ * timezone so `Date` can resolve them unambiguously; a bare date is fine.
  */
-function parseDay(value: string | undefined, label: string): Date {
+function parseBookingInstant(value: string | undefined, label: string): Date {
   if (!value) throw new BadRequestException(`${label} is required.`);
-  const trimmed = String(value).slice(0, 10);
-  const date = new Date(`${trimmed}T00:00:00.000Z`);
+  const trimmed = String(value).trim();
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(trimmed);
+  const date = dateOnly ? new Date(`${trimmed}T00:00:00.000Z`) : new Date(trimmed);
   if (Number.isNaN(date.getTime())) throw new BadRequestException(`${label} is not a valid date.`);
   return date;
 }
@@ -106,18 +108,22 @@ export class VehiclesService {
   async book(userId: string, input: BookingInput) {
     const vehicleId = input.vehicleId?.trim();
     if (!vehicleId) throw new BadRequestException('Pick a vehicle.');
-    const start = parseDay(input.startDate, 'Start date');
-    const end = parseDay(input.endDate, 'End date');
-    if (end.getTime() < start.getTime()) {
-      throw new BadRequestException('End date must be on or after the start date.');
+    const start = parseBookingInstant(input.startDate, 'Start');
+    // A bare YYYY-MM-DD end date means "through the end of that day", so bump
+    // it to 23:59:59.999 UTC — this keeps single-day bookings valid (end > start).
+    const endIsDateOnly = typeof input.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input.endDate.trim());
+    const end = parseBookingInstant(input.endDate, 'End');
+    if (endIsDateOnly) end.setUTCHours(23, 59, 59, 999);
+    if (end.getTime() <= start.getTime()) {
+      throw new BadRequestException('End must be after the start.');
     }
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-    if (start.getTime() < today.getTime()) {
-      throw new BadRequestException('Start date cannot be in the past.');
+    // Allow up to 5 min of clock skew so a "book from now" click doesn't fail.
+    const nowMinusSkew = Date.now() - 5 * 60 * 1000;
+    if (start.getTime() < nowMinusSkew) {
+      throw new BadRequestException('Start cannot be in the past.');
     }
-    const days = Math.round((end.getTime() - start.getTime()) / (24 * 3600 * 1000)) + 1;
-    if (days > MAX_BOOKING_DAYS) {
+    const spanDays = (end.getTime() - start.getTime()) / (24 * 3600 * 1000);
+    if (spanDays > MAX_BOOKING_DAYS) {
       throw new BadRequestException(`Bookings can span at most ${MAX_BOOKING_DAYS} days.`);
     }
 
@@ -148,7 +154,7 @@ export class VehiclesService {
     await this.notifications.notifyAdmins({
       type: 'info',
       title: 'New vehicle booking',
-      body: `${label} booked ${vehicle.name} (${start.toISOString().slice(0, 10)} → ${end.toISOString().slice(0, 10)}).`,
+      body: `${label} booked ${vehicle.name} (${start.toISOString().slice(0, 16).replace('T', ' ')} → ${end.toISOString().slice(0, 16).replace('T', ' ')} UTC).`,
       link: '/admin',
     });
 
