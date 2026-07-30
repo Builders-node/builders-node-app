@@ -4366,3 +4366,43 @@ textarea {
   cursor: pointer;
 }
 .onboarding-toast__close:hover { background: rgba(255, 255, 255, 0.16); color: #fff; }
+
+/* ── E-Residency loud orange alert bar (replaces the old hero panel) ───────── */
+.residency-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ff7a3a 0%, #e5541f 55%, #b93b0d 100%);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(229, 84, 31, 0.28);
+}
+.residency-alert__icon { flex-shrink: 0; }
+.residency-alert__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.residency-alert__body strong { font-size: 0.95rem; font-weight: 700; }
+.residency-alert__body span { font-size: 0.82rem; color: rgba(255, 255, 255, 0.9); }
+.residency-alert__cta,
+.residency-alert__upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 0.1s ease, background 0.15s ease;
+}
+.residency-alert__cta { background: #fff; color: #b93b0d; }
+.residency-alert__cta:hover { transform: translateY(-1px); }
+.residency-alert__upload { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.residency-alert__upload:hover { background: rgba(255, 255, 255, 0.22); }
+.residency-alert__upload:disabled { opacity: 0.6; cursor: default; }
+@media (max-width: 600px) {
+  .residency-alert__upload span { display: none; }
+  .residency-alert__upload { padding: 7px 9px; }
+}

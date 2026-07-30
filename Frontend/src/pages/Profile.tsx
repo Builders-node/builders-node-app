@@ -1,4 +1,4 @@
-import { Check, ChevronRight, ExternalLink, FileCheck2, Pencil, Send, ShieldCheck, Upload, X } from 'lucide-react';
+import { Check, ChevronRight, ExternalLink, FileCheck2, Pencil, Send, Upload, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import type { PageId } from '../data/dashboard';
 import { PageHeader } from '../components/PageHeader';
@@ -490,79 +490,43 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
           );
         }
 
-        // 4 = done; 3 = verifying; 2 = uploading (n/a — no separate applied state); 1 = start
-        const step = 1;
-        const steps = [
-          { n: 1, icon: <ExternalLink size={15} />, title: 'Apply on Próspera portal', desc: 'Fill in the official E-Residency application.' },
-          { n: 2, icon: <Upload size={15} />, title: 'Upload your confirmation', desc: 'Attach the approval file — PDF or screenshot.' },
-          { n: 3, icon: <ShieldCheck size={15} />, title: 'Our team verifies it', desc: 'Usually within a few business days.' },
-        ];
-
-        // Only reached when rStatus === 'NOT_STARTED' (the collapsed status-row
-        // handles every other status above), so no notes / verified branches here.
+        // Only reached when rStatus === 'NOT_STARTED' — surface it as a loud
+        // orange alert bar, not a card in flow. The heavy visual weight signals
+        // "action needed" much better than a neutral panel of 3 steps.
         return (
-          <section className="panel residency-hero">
-            <header className="residency-hero__head">
-              <div className="residency-hero__icon" aria-hidden="true">
-                <FileCheck2 size={22} />
-              </div>
-              <div className="residency-hero__title">
-                <span className="section-label">Próspera</span>
-                <h2>E-Residency</h2>
-                <p>Apply on the Próspera portal, then upload your proof for our team to verify.</p>
-              </div>
-              <StatusBadge tone={toneForResidency(rStatus)}>
-                {RESIDENCY_LABELS[rStatus] ?? rStatus}
-              </StatusBadge>
-            </header>
-
-            <ol className="residency-steps">
-              {steps.map((s) => {
-                const done = step > s.n;
-                const active = step === s.n;
-                return (
-                  <li
-                    key={s.n}
-                    className={`residency-step${done ? ' residency-step--done' : ''}${active ? ' residency-step--active' : ''}`}
-                  >
-                    <span className="residency-step__num">{done ? <Check size={14} /> : s.n}</span>
-                    <div className="residency-step__body">
-                      <strong>{s.title}</strong>
-                      <span>{s.desc}</span>
-                    </div>
-                    <span className="residency-step__glyph" aria-hidden="true">{s.icon}</span>
-                  </li>
-                );
-              })}
-            </ol>
-
-            <div className="residency-hero__actions">
-              <a
-                className="primary-button link-button residency-hero__cta"
-                href={residency?.applyUrl ?? 'https://portal.eprospera.com/'}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Apply on Próspera portal
-                <ExternalLink size={16} />
-              </a>
-              <input
-                ref={proofInputRef}
-                type="file"
-                accept="image/*,application/pdf"
-                style={{ display: 'none' }}
-                onChange={onProofSelected}
-              />
-              <button
-                className="ghost-button residency-hero__upload"
-                onClick={() => proofInputRef.current?.click()}
-                disabled={isResidencyLoading}
-              >
-                <Upload size={16} />
-                {isResidencyLoading ? 'Uploading…' : 'I got residency — upload proof'}
-              </button>
+          <div className="residency-alert" role="alert">
+            <FileCheck2 size={18} className="residency-alert__icon" aria-hidden="true" />
+            <div className="residency-alert__body">
+              <strong>E-Residency — action needed</strong>
+              <span>Apply on the Próspera portal, then upload your proof.</span>
             </div>
-          </section>
+            <a
+              className="residency-alert__cta"
+              href={residency?.applyUrl ?? 'https://portal.eprospera.com/'}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Apply
+              <ExternalLink size={14} />
+            </a>
+            <input
+              ref={proofInputRef}
+              type="file"
+              accept="image/*,application/pdf"
+              style={{ display: 'none' }}
+              onChange={onProofSelected}
+            />
+            <button
+              className="residency-alert__upload"
+              onClick={() => proofInputRef.current?.click()}
+              disabled={isResidencyLoading}
+              aria-label={isResidencyLoading ? 'Uploading…' : 'I got residency — upload proof'}
+              title="I got residency — upload proof"
+            >
+              <Upload size={14} />
+              <span>{isResidencyLoading ? 'Uploading…' : 'I got it'}</span>
+            </button>
+          </div>
         );
       })() : null}
 
