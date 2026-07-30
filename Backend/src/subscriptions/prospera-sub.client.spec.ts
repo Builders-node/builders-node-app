@@ -79,7 +79,7 @@ describe('ProsperaSubClient (official api.prosperasub.com)', () => {
   it('skips provisioning (PENDING) when BUILDERS_NODE_API_SECRET is not set', async () => {
     const client = makeClient(liveEnv); // no BUILDERS_NODE_API_SECRET
     const fetchMock = jest.spyOn(global, 'fetch');
-    const result = await client.provisionMember({ userId: 'u1', email: 'a@b.test', mealPlanId: 'plan1' });
+    const result = await client.provisionMember({ userId: 'u1', email: 'a@b.test', mealPlanId: '11111111-1111-4111-8111-111111111111' });
     expect(result.status).toBe('PENDING');
     expect(result.message).toMatch(/BUILDERS_NODE_API_SECRET/);
     expect(fetchMock).not.toHaveBeenCalled();
@@ -111,9 +111,9 @@ describe('ProsperaSubClient (official api.prosperasub.com)', () => {
       email: 'JANE@Example.test',
       fullName: 'Jane Doe',
       phone: '+50412345678',
-      mealPlanId: 'plan1',
+      mealPlanId: '11111111-1111-4111-8111-111111111111',
       mealPlanName: 'Standard Plan - 3 Times',
-      cleaningPlanId: 'pkg1',
+      cleaningPlanId: '22222222-2222-4222-8222-222222222222',
       cleaningPlanName: 'Studio Weekly',
       deliveryAddress: 'Duna 407',
       residence: 'Duna Residences',
@@ -128,13 +128,13 @@ describe('ProsperaSubClient (official api.prosperasub.com)', () => {
     expect(JSON.parse(String(init?.body))).toEqual({
       customer: { email: 'jane@example.test', name: 'Jane Doe', whatsapp: '+50412345678' },
       food: {
-        meal_plan_id: 'plan1',
+        meal_plan_id: '11111111-1111-4111-8111-111111111111',
         weeks: 4,
         started_at: '2026-08-01',
         delivery_address: 'Duna 407',
         residence: 'Duna Residences',
       },
-      cleaning: { package_id: 'pkg1', months: 1, apartment_note: 'Unit Duna 407' },
+      cleaning: { package_id: '22222222-2222-4222-8222-222222222222', months: 1, apartment_note: 'Unit Duna 407' },
       external_ref: 'builders-node:member-123',
     });
 
@@ -156,21 +156,46 @@ describe('ProsperaSubClient (official api.prosperasub.com)', () => {
         user_id: 'psub_user_1',
         food_subscription_id: 'food_9',
         cleaning_subscription_id: null,
-        warnings: ['Cleaning package not found for id pkg-missing.'],
+        warnings: ['Cleaning package not found.'],
       }),
     } as Response);
 
     const result = await client.provisionMember({
       userId: 'u1',
       email: 'a@b.test',
-      mealPlanId: 'plan1',
-      cleaningPlanId: 'pkg-missing',
+      mealPlanId: '11111111-1111-4111-8111-111111111111',
+      cleaningPlanId: '33333333-3333-4333-8333-333333333333',
     });
 
     expect(result.status).toBe('PARTIAL');
     expect(result.externalFoodSubscriptionId).toBe('food_9');
     expect(result.externalCleaningSubscriptionId).toBeNull();
-    expect(result.warnings).toEqual(['Cleaning package not found for id pkg-missing.']);
+    expect(result.warnings).toEqual(['Cleaning package not found.']);
+  });
+
+  it('drops non-UUID plan ids with a warning instead of sending them to be rejected', async () => {
+    const client = makeClient({ ...liveEnv, BUILDERS_NODE_API_SECRET: 'bn_secret' });
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ user_id: 'psub_user_1', food_subscription_id: 'food_9', cleaning_subscription_id: null, warnings: [] }),
+    } as Response);
+
+    const result = await client.provisionMember({
+      userId: 'u1',
+      email: 'a@b.test',
+      mealPlanId: '11111111-1111-4111-8111-111111111111',
+      cleaningPlanId: 'pkg-standard', // malformed on ProsperaSub's side
+    });
+
+    // The cleaning leg is stripped before the call — endpoint receives food only.
+    const [, init] = fetchMock.mock.calls[0];
+    const sent = JSON.parse(String(init?.body));
+    expect(sent.food).toBeDefined();
+    expect(sent.cleaning).toBeUndefined();
+
+    expect(result.warnings[0]).toMatch(/pkg-standard.*not a UUID/);
+    expect(result.externalFoodSubscriptionId).toBe('food_9');
   });
 
   it('returns PENDING with the error body when the integration endpoint 4xxs', async () => {
@@ -181,7 +206,7 @@ describe('ProsperaSubClient (official api.prosperasub.com)', () => {
       text: async () => 'invalid bearer',
     } as Response);
 
-    const result = await client.provisionMember({ userId: 'u1', email: 'a@b.test', mealPlanId: 'plan1' });
+    const result = await client.provisionMember({ userId: 'u1', email: 'a@b.test', mealPlanId: '11111111-1111-4111-8111-111111111111' });
     expect(result.status).toBe('PENDING');
     expect(result.message).toMatch(/401/);
     expect(result.message).toMatch(/invalid bearer/);

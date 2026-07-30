@@ -311,13 +311,31 @@ export class ProsperaSubClient {
       return base;
     }
 
-    const wantsFood = Boolean(input.mealPlanId);
-    const wantsCleaning = Boolean(input.cleaningPlanId);
+    // ProsperaSub's integration endpoint validates meal_plan_id / package_id
+    // as UUIDs and rejects the WHOLE request on the first bad id — so we
+    // drop non-UUID ids here (with a warning) rather than sending a payload
+    // that's guaranteed to 400 and lose the good leg too.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    let mealPlanId = input.mealPlanId ?? null;
+    let cleaningPlanId = input.cleaningPlanId ?? null;
+    if (mealPlanId && !UUID_RE.test(mealPlanId)) {
+      base.warnings.push(`Skipped food mirror — mealPlanId "${mealPlanId}" is not a UUID (ProsperaSub catalog entry looks malformed).`);
+      mealPlanId = null;
+    }
+    if (cleaningPlanId && !UUID_RE.test(cleaningPlanId)) {
+      base.warnings.push(`Skipped cleaning mirror — cleaningPlanId "${cleaningPlanId}" is not a UUID (ProsperaSub catalog entry looks malformed).`);
+      cleaningPlanId = null;
+    }
+
+    const wantsFood = Boolean(mealPlanId);
+    const wantsCleaning = Boolean(cleaningPlanId);
     if (!wantsFood && !wantsCleaning) {
       // Nothing to bill for — no reason to call. Local grant may still have
       // written a plan-name-only meal item; that's fine, just not mirrorable.
       base.status = 'ACTIVE';
-      base.message = 'Nothing to mirror — no ProsperaSub plan ids in the grant.';
+      base.message = base.warnings.length
+        ? 'Nothing to mirror — both plan ids were rejected as non-UUIDs (see warnings).'
+        : 'Nothing to mirror — no ProsperaSub plan ids in the grant.';
       return base;
     }
 
@@ -332,7 +350,7 @@ export class ProsperaSubClient {
     };
     if (wantsFood) {
       payload.food = {
-        meal_plan_id: input.mealPlanId,
+        meal_plan_id: mealPlanId,
         weeks: input.weeks ?? 4,
         started_at: startedAt,
         delivery_address: input.deliveryAddress ?? undefined,
@@ -341,7 +359,7 @@ export class ProsperaSubClient {
     }
     if (wantsCleaning) {
       payload.cleaning = {
-        package_id: input.cleaningPlanId,
+        package_id: cleaningPlanId,
         months: input.months ?? 1,
         apartment_note: input.apartmentNote ?? undefined,
       };
@@ -377,7 +395,9 @@ export class ProsperaSubClient {
       base.externalAccountId = base.externalMemberId;
       base.externalFoodSubscriptionId = data.food_subscription_id ?? null;
       base.externalCleaningSubscriptionId = data.cleaning_subscription_id ?? null;
-      base.warnings = Array.isArray(data.warnings) ? data.warnings : [];
+      // Append endpoint-reported warnings to any pre-flight ones we already
+      // pushed (e.g. non-UUID plan ids we stripped before sending).
+      if (Array.isArray(data.warnings)) base.warnings.push(...data.warnings);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown ProsperaSub error.';
       this.logger.error(`ProsperaSub integration call failed for ${input.email}: ${msg}`);
