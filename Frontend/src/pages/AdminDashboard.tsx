@@ -1955,9 +1955,11 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
                   <button className="ghost-button" onClick={() => void viewResidencyProof(review)} disabled={!review.proofFileName}>
                     View proof
                   </button>
-                  <button className="primary-button" onClick={() => void reviewResidency(review.userId, 'VERIFIED')} disabled={review.status === 'VERIFIED'}>
-                    Verify
-                  </button>
+                  {review.status !== 'VERIFIED' ? (
+                    <button className="primary-button" onClick={() => void reviewResidency(review.userId, 'VERIFIED')}>
+                      Verify
+                    </button>
+                  ) : null}
                 </div>
                 {review.status !== 'VERIFIED' ? (
                   <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
