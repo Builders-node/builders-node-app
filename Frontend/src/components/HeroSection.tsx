@@ -12,7 +12,7 @@ const HeroSection = () => {
   return (
     <section
       id="home"
-      className="relative min-h-screen flex items-end overflow-hidden"
+      className="relative min-h-screen flex items-center justify-center overflow-hidden"
     >
       {/* Background poster fallback (shown until video plays / when video unsupported) */}
       <div
@@ -43,9 +43,9 @@ const HeroSection = () => {
       {/* Dark overlay */}
       <div className="absolute inset-0 bg-black/50" />
 
-      {/* Main content — bottom-left */}
-      <div className="relative z-10 w-full px-8 md:px-12 pb-28 md:pb-32 flex flex-col gap-6">
-        <span className="inline-flex items-center gap-2 self-start text-[10px] md:text-xs tracking-[0.25em] uppercase text-white px-3 py-1.5 rounded-full border border-white/40 backdrop-blur-sm bg-white/5">
+      {/* Main content — centered */}
+      <div className="relative z-10 w-full px-6 md:px-12 flex flex-col items-center text-center gap-6">
+        <span className="inline-flex items-center gap-2 text-[10px] md:text-xs tracking-[0.25em] uppercase text-white px-3 py-1.5 rounded-full border border-white/40 backdrop-blur-sm bg-white/5">
           <span className="w-1.5 h-1.5 rounded-full bg-[hsl(15_85%_55%)] animate-pulse" />
           {badgeText}
         </span>
@@ -55,13 +55,9 @@ const HeroSection = () => {
         <p className="text-base md:text-lg text-white/70 max-w-xl leading-relaxed">
           First arrivals from {arrivalText} — $1,950/mo including accommodation, gym, food, co-working, and more.
         </p>
-      </div>
-
-      {/* Bottom-right CTA */}
-      <div className="absolute bottom-8 left-8 md:bottom-12 md:left-12 z-10 flex items-center gap-3">
         <button
           onClick={openApply}
-          className="text-white text-xs tracking-[0.25em] uppercase font-semibold rounded-full px-6 py-3 transition-all duration-300 hover:scale-105 cursor-pointer border-none"
+          className="mt-2 text-white text-xs tracking-[0.25em] uppercase font-semibold rounded-full px-6 py-3 transition-all duration-300 hover:scale-105 cursor-pointer border-none"
           style={{ backgroundColor: "#EA5404", boxShadow: "0 10px 28px rgba(234, 84, 4, 0.5)" }}
         >
           APPLY NOW
