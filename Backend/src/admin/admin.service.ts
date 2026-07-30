@@ -521,16 +521,32 @@ export class AdminService {
       localCleaningRowId = row.id;
     }
 
+    // Pull the extra context ProsperaSub wants for delivery / cleaning routing.
+    // All optional — the endpoint accepts them omitted.
+    const details = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      include: {
+        profile: { select: { phone: true } },
+        assignedApartment: { include: { apartment: { select: { name: true } } } },
+      },
+    });
+    const apartmentName = details?.assignedApartment?.apartment?.name ?? null;
+
     // Mirror to ProsperaSub. Failures are logged + audited but never bubble.
     let result;
     try {
       result = await this.prosperaSub.provisionMember({
+        userId: user.id,
         email: user.email,
         fullName: user.fullName,
+        phone: details?.profile?.phone ?? null,
         mealPlanId: mealPlan?.id ?? null,
         mealPlanName: mealPlan?.name ?? null,
         cleaningPlanId: cleaningPlan?.id ?? null,
         cleaningPlanName: cleaningPlan?.name ?? null,
+        deliveryAddress: apartmentName,
+        residence: apartmentName,
+        apartmentNote: apartmentName ? `Unit ${apartmentName}` : null,
       });
     } catch (error) {
       result = {

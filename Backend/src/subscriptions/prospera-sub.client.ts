@@ -47,12 +47,26 @@ export interface CleaningPackage {
 }
 
 export interface ProvisionMemberInput {
+  /** Local Builders Node userId — used for the external_ref idempotency key. */
+  userId: string;
   email: string;
   fullName?: string | null;
+  /** E.164 phone / WhatsApp number, if we have it on the profile. */
+  phone?: string | null;
   mealPlanId?: string | null;
   mealPlanName?: string | null;
+  /** How many weeks of meals to bill for. Defaults to 4 (one month). */
+  weeks?: number | null;
+  /** Optional delivery address for the food subscription. */
+  deliveryAddress?: string | null;
+  /** Optional residence / building name — helps their kitchen route deliveries. */
+  residence?: string | null;
   cleaningPlanId?: string | null;
   cleaningPlanName?: string | null;
+  /** How many months of cleaning to bill for. Defaults to 1. */
+  months?: number | null;
+  /** Optional note for the cleaners about the apartment (pets, door code, …). */
+  apartmentNote?: string | null;
   /** ISO date the subscription becomes active (defaults to today). */
   startDate?: Date;
 }
@@ -105,15 +119,14 @@ export class ProsperaSubClient {
     return this.config.get<string>('PROSPERA_SUB_SITE_URL') ?? 'https://prosperasub.com';
   }
 
-  /** Builders Node's food provider row id on ProsperaSub (food_providers.id). */
-  private get foodProviderId(): string | undefined {
-    const v = this.config.get<string>('PROSPERA_SUB_FOOD_PROVIDER_ID');
-    return v && v.length > 0 ? v : undefined;
-  }
-
-  /** Builders Node's cleaning provider row id on ProsperaSub. */
-  private get cleaningProviderId(): string | undefined {
-    const v = this.config.get<string>('PROSPERA_SUB_CLEANING_PROVIDER_ID');
+  /**
+   * Shared-secret bearer for the ProsperaSub /integrations/builders-node/*
+   * endpoints. Distinct from PROSPERA_SUB_API_KEY (which is for their public
+   * PostgREST data reads) — this one authenticates the Builders Node ↔
+   * ProsperaSub back-channel and must be rotated together on both sides.
+   */
+  private get buildersNodeSecret(): string | undefined {
+    const v = this.config.get<string>('BUILDERS_NODE_API_SECRET');
     return v && v.length > 0 ? v : undefined;
   }
 
@@ -269,92 +282,16 @@ export class ProsperaSubClient {
   }
 
   /**
-   * Find a ProsperaSub member by email or create one if missing. Uses the
-   * PostgREST-style /v1/data/users endpoint that mirrors the read pattern used
-   * elsewhere in this client. Returns the ProsperaSub user_id.
-   *
-   * The exact user table shape isn't public — if ProsperaSub uses different
-   * column names (e.g. `member_id` instead of `id`, or `full_name` vs `name`)
-   * this call will surface a clear 4xx error which the caller records as an
-   * audit event without breaking the local grant.
-   */
-  async findOrCreateMember(email: string, fullName?: string | null): Promise<string> {
-    if (!this.configured) throw new Error('ProsperaSub API key is not configured.');
-    const encodedEmail = encodeURIComponent(email.toLowerCase().trim());
-    const existing = await this.request<Array<{ id?: string }>>(
-      'GET',
-      `/v1/data/users?select=id&email=eq.${encodedEmail}&limit=1`,
-    );
-    if (existing?.[0]?.id) return String(existing[0].id);
-
-    const created = await this.request<{ id?: string } | Array<{ id?: string }>>(
-      'POST',
-      '/v1/data/users',
-      { email: email.toLowerCase().trim(), full_name: fullName ?? null, source: 'builders-node' },
-    );
-    const created0 = Array.isArray(created) ? created[0] : created;
-    if (!created0?.id) throw new Error('ProsperaSub user creation did not return an id.');
-    return String(created0.id);
-  }
-
-  /** Create a food_subscriptions row on ProsperaSub. Returns the row id. */
-  async createFoodSubscription(input: {
-    memberId: string;
-    providerId: string;
-    planId?: string | null;
-    planName?: string | null;
-    startDate?: Date;
-  }): Promise<string> {
-    if (!this.configured) throw new Error('ProsperaSub API key is not configured.');
-    const body = {
-      user_id: input.memberId,
-      provider_id: input.providerId,
-      plan_id: input.planId ?? null,
-      plan_name: input.planName ?? null,
-      status: 'active',
-      start_date: (input.startDate ?? new Date()).toISOString().slice(0, 10),
-      source: 'builders-node',
-    };
-    const created = await this.request<{ id?: string } | Array<{ id?: string }>>('POST', '/v1/data/food_subscriptions', body);
-    const created0 = Array.isArray(created) ? created[0] : created;
-    if (!created0?.id) throw new Error('ProsperaSub food_subscriptions create did not return an id.');
-    return String(created0.id);
-  }
-
-  /** Create a cleaning_subscriptions row on ProsperaSub. Returns the row id. */
-  async createCleaningSubscription(input: {
-    memberId: string;
-    providerId: string;
-    planId?: string | null;
-    planName?: string | null;
-    startDate?: Date;
-  }): Promise<string> {
-    if (!this.configured) throw new Error('ProsperaSub API key is not configured.');
-    const body = {
-      user_id: input.memberId,
-      provider_id: input.providerId,
-      plan_id: input.planId ?? null,
-      plan_name: input.planName ?? null,
-      status: 'active',
-      start_date: (input.startDate ?? new Date()).toISOString().slice(0, 10),
-      source: 'builders-node',
-    };
-    const created = await this.request<{ id?: string } | Array<{ id?: string }>>('POST', '/v1/data/cleaning_subscriptions', body);
-    const created0 = Array.isArray(created) ? created[0] : created;
-    if (!created0?.id) throw new Error('ProsperaSub cleaning_subscriptions create did not return an id.');
-    return String(created0.id);
-  }
-
-  /**
    * Mirror an approved / designated member's plans onto ProsperaSub so the
-   * provider sees the subscription on their side. Orchestrates:
-   *   1. findOrCreateMember → gets/creates the ProsperaSub user_id
-   *   2. createFoodSubscription (if a meal plan is assigned + provider configured)
-   *   3. createCleaningSubscription (same, for cleaning)
+   * provider sees the subscription on their side.
    *
-   * Each step degrades gracefully — a partial success returns PARTIAL and the
-   * caller can persist whichever ids came back. The local grant is never
-   * blocked by a ProsperaSub failure (the caller wraps in try/catch + audit).
+   * Single POST to the ProsperaSub integration endpoint — ProsperaSub owns
+   * user upsert, plan lookup, and provider derivation. Idempotent on
+   * `external_ref`, so repeated calls with the same userId return the
+   * existing subscription ids rather than creating duplicates.
+   *
+   * Never throws — a ProsperaSub failure is returned as PENDING with a
+   * message, so the caller's local grant + audit still complete.
    */
   async provisionMember(input: ProvisionMemberInput): Promise<ProvisionMemberResult> {
     const base: ProvisionMemberResult = {
@@ -367,71 +304,91 @@ export class ProsperaSubClient {
       message: '',
     };
 
-    if (!this.configured) {
-      base.message = 'Queued — ProsperaSub API key is not configured.';
-      this.logger.warn(`ProsperaSub provisioning skipped for ${input.email}: PROSPERA_SUB_API_KEY not set.`);
+    const secret = this.buildersNodeSecret;
+    if (!secret) {
+      base.message = 'Queued — BUILDERS_NODE_API_SECRET is not configured.';
+      this.logger.warn(`ProsperaSub provisioning skipped for ${input.email}: BUILDERS_NODE_API_SECRET not set.`);
       return base;
     }
 
-    // 1. Member mapping.
+    const wantsFood = Boolean(input.mealPlanId);
+    const wantsCleaning = Boolean(input.cleaningPlanId);
+    if (!wantsFood && !wantsCleaning) {
+      // Nothing to bill for — no reason to call. Local grant may still have
+      // written a plan-name-only meal item; that's fine, just not mirrorable.
+      base.status = 'ACTIVE';
+      base.message = 'Nothing to mirror — no ProsperaSub plan ids in the grant.';
+      return base;
+    }
+
+    const startedAt = (input.startDate ?? new Date()).toISOString().slice(0, 10);
+    const payload: Record<string, unknown> = {
+      customer: {
+        email: input.email.toLowerCase().trim(),
+        name: input.fullName ?? undefined,
+        whatsapp: input.phone ?? undefined,
+      },
+      external_ref: `builders-node:${input.userId}`,
+    };
+    if (wantsFood) {
+      payload.food = {
+        meal_plan_id: input.mealPlanId,
+        weeks: input.weeks ?? 4,
+        started_at: startedAt,
+        delivery_address: input.deliveryAddress ?? undefined,
+        residence: input.residence ?? undefined,
+      };
+    }
+    if (wantsCleaning) {
+      payload.cleaning = {
+        package_id: input.cleaningPlanId,
+        months: input.months ?? 1,
+        apartment_note: input.apartmentNote ?? undefined,
+      };
+    }
+
     try {
-      base.externalMemberId = await this.findOrCreateMember(input.email, input.fullName);
+      const response = await fetch(`${this.baseUrl}/integrations/builders-node/subscription`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${secret}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        const msg = `ProsperaSub integration responded ${response.status}: ${text.slice(0, 200)}`;
+        this.logger.error(msg);
+        base.message = msg;
+        return base;
+      }
+
+      const data = (await response.json()) as {
+        user_id?: string;
+        food_subscription_id?: string | null;
+        cleaning_subscription_id?: string | null;
+        warnings?: string[];
+      };
+
+      base.externalMemberId = data.user_id ?? null;
       base.externalAccountId = base.externalMemberId;
+      base.externalFoodSubscriptionId = data.food_subscription_id ?? null;
+      base.externalCleaningSubscriptionId = data.cleaning_subscription_id ?? null;
+      base.warnings = Array.isArray(data.warnings) ? data.warnings : [];
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown ProsperaSub error.';
-      this.logger.error(`ProsperaSub member lookup/create failed for ${input.email}: ${msg}`);
-      base.message = `Member could not be mirrored on ProsperaSub: ${msg}`;
+      this.logger.error(`ProsperaSub integration call failed for ${input.email}: ${msg}`);
+      base.message = `ProsperaSub call failed: ${msg}`;
       return base;
-    }
-
-    // 2. Food subscription (only if we have both a plan and a provider id).
-    if (input.mealPlanId || input.mealPlanName) {
-      if (!this.foodProviderId) {
-        base.warnings.push('PROSPERA_SUB_FOOD_PROVIDER_ID not set — skipped food subscription mirror.');
-      } else {
-        try {
-          base.externalFoodSubscriptionId = await this.createFoodSubscription({
-            memberId: base.externalMemberId,
-            providerId: this.foodProviderId,
-            planId: input.mealPlanId,
-            planName: input.mealPlanName,
-            startDate: input.startDate,
-          });
-        } catch (error) {
-          const msg = error instanceof Error ? error.message : 'Unknown ProsperaSub error.';
-          this.logger.error(`ProsperaSub food subscription failed for ${input.email}: ${msg}`);
-          base.warnings.push(`Food subscription mirror failed: ${msg}`);
-        }
-      }
-    }
-
-    // 3. Cleaning subscription.
-    if (input.cleaningPlanId || input.cleaningPlanName) {
-      if (!this.cleaningProviderId) {
-        base.warnings.push('PROSPERA_SUB_CLEANING_PROVIDER_ID not set — skipped cleaning subscription mirror.');
-      } else {
-        try {
-          base.externalCleaningSubscriptionId = await this.createCleaningSubscription({
-            memberId: base.externalMemberId,
-            providerId: this.cleaningProviderId,
-            planId: input.cleaningPlanId,
-            planName: input.cleaningPlanName,
-            startDate: input.startDate,
-          });
-        } catch (error) {
-          const msg = error instanceof Error ? error.message : 'Unknown ProsperaSub error.';
-          this.logger.error(`ProsperaSub cleaning subscription failed for ${input.email}: ${msg}`);
-          base.warnings.push(`Cleaning subscription mirror failed: ${msg}`);
-        }
-      }
     }
 
     const gotFood = Boolean(base.externalFoodSubscriptionId);
     const gotCleaning = Boolean(base.externalCleaningSubscriptionId);
-    const wantedFood = Boolean(input.mealPlanId || input.mealPlanName);
-    const wantedCleaning = Boolean(input.cleaningPlanId || input.cleaningPlanName);
-    const foodOk = !wantedFood || gotFood;
-    const cleaningOk = !wantedCleaning || gotCleaning;
+    const foodOk = !wantsFood || gotFood;
+    const cleaningOk = !wantsCleaning || gotCleaning;
 
     if (foodOk && cleaningOk) {
       base.status = 'ACTIVE';
