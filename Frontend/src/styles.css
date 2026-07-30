@@ -99,7 +99,33 @@ button {
   background: transparent;
   color: var(--muted);
   padding: 10px;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
 }
+
+/* Close (X) button used in every modal head. Neutral circle, dark icon —
+   avoids the iOS PWA fallback to system blue. */
+.icon-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(15, 18, 24, 0.06);
+  color: #1c1e24;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease, color 0.15s ease;
+  cursor: pointer;
+}
+.icon-button:hover { background: rgba(15, 18, 24, 0.1); }
+.icon-button:active { background: rgba(15, 18, 24, 0.14); }
+:root[data-theme='dark'] .icon-button {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f4f5f7;
+}
+:root[data-theme='dark'] .icon-button:hover { background: rgba(255, 255, 255, 0.14); }
 
 .link-button {
   width: 100%;
@@ -4450,6 +4476,8 @@ textarea {
   z-index: 55;
   animation: onboarding-toast-in 0.35s cubic-bezier(0.2, 0.9, 0.3, 1);
 }
+/* Hide the pill whenever ANY modal is open so it stops overlapping the sheet. */
+body:has(.modal-overlay) .onboarding-toast { display: none; }
 @keyframes onboarding-toast-in {
   from { opacity: 0; transform: translate(-50%, 12px); }
   to { opacity: 1; transform: translate(-50%, 0); }
