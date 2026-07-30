@@ -4234,6 +4234,11 @@ textarea {
 .status-row--pending_review { background: rgba(224, 160, 0, 0.06); border-color: rgba(224, 160, 0, 0.28); }
 .status-row--verified { background: rgba(47, 174, 102, 0.06); border-color: rgba(47, 174, 102, 0.28); }
 .status-row--rejected { background: rgba(192, 57, 43, 0.06); border-color: rgba(192, 57, 43, 0.28); }
+.status-row--beach .status-row__icon {
+  background: linear-gradient(135deg, #4ea6ff, #1f7ce0);
+}
+.status-row--muted { opacity: 0.75; }
+.status-row--muted .status-row__icon { filter: grayscale(0.35); }
 :root[data-theme='dark'] .status-row { background: #1a1c22; border-color: #23262c; }
 
 /* ── Home: compact section (Maintenance / Cars — collapsible row) ──────────── */

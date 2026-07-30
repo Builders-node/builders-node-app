@@ -1,4 +1,4 @@
-import { Check, ChevronRight, ExternalLink, FileCheck2, Pencil, Send, Upload, X } from 'lucide-react';
+import { Check, ChevronRight, ExternalLink, FileCheck2, Pencil, Send, Upload, Waves, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import type { PageId } from '../data/dashboard';
 import { PageHeader } from '../components/PageHeader';
@@ -530,6 +530,37 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
         );
       })() : null}
 
+      {showMemberSections ? (() => {
+        // Beach Club — a perk that comes bundled with the Próspera membership.
+        // Once residency is verified, surface it as an available amenity; before
+        // that, show it as an unlockable ("comes with your E-Residency").
+        const rStatus = residency?.status ?? 'NOT_STARTED';
+        const unlocked = rStatus === 'VERIFIED';
+        return (
+          <div className={`status-row status-row--beach${unlocked ? '' : ' status-row--muted'}`}>
+            <span className="status-row__icon" aria-hidden="true"><Waves size={16} /></span>
+            <span className="status-row__body">
+              <strong>Beach Club</strong>
+              <span>
+                {unlocked
+                  ? 'Included with your Próspera membership — show your residency ID at the door.'
+                  : 'Unlocks once your E-Residency is verified.'}
+              </span>
+            </span>
+            {unlocked ? (
+              <a
+                className="text-button"
+                href="https://portal.eprospera.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Visit
+                <ExternalLink size={13} style={{ marginLeft: 4 }} />
+              </a>
+            ) : null}
+          </div>
+        );
+      })() : null}
 
       {showMemberSections ? (
       <div className="tile-grid">
