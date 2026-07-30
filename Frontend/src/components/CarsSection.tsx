@@ -50,6 +50,7 @@ export function CarsSection({ currentUserId }: { currentUserId: string }) {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [message, setMessage] = useState<string | null>(null);
+  const [showList, setShowList] = useState(false);
 
   const [isOpen, setIsOpen] = useState(false);
   useEscapeToClose(isOpen, () => setIsOpen(false));
@@ -123,24 +124,30 @@ export function CarsSection({ currentUserId }: { currentUserId: string }) {
     }
   }
 
+  const activeCount = bookings.filter((b) => b.status !== 'CANCELLED').length;
+  const noCars = vehicles.length === 0;
+
   return (
     <>
-      <section className="panel form-panel">
-        <div className="admin-panel__head">
-          <div>
-            <span className="section-label">Community</span>
-            <h2>Cars</h2>
-            <p className="setup-card-copy">Rent a community car for a day or a week — free for members.</p>
-          </div>
-          <Car size={20} />
-        </div>
-        {message ? <p className="form-success">{message}</p> : null}
-        <button className="primary-button" onClick={openModal} disabled={vehicles.length === 0}>
-          {vehicles.length === 0 ? 'No cars available yet' : 'Rent a car'}
+      <section className="compact-section">
+        <button className="compact-section__head" onClick={() => setShowList((s) => !s)} aria-expanded={showList}>
+          <span className="compact-section__icon"><Car size={16} /></span>
+          <span className="compact-section__title">Cars</span>
+          {activeCount > 0 ? <span className="compact-section__count">{activeCount}</span> : null}
+          <span
+            className={`primary-button compact-button compact-section__cta${noCars ? ' compact-section__cta--disabled' : ''}`}
+            onClick={(event) => { if (noCars) return; event.stopPropagation(); openModal(); }}
+            role="button"
+            tabIndex={noCars ? -1 : 0}
+            aria-disabled={noCars}
+            onKeyDown={(event) => { if (!noCars && (event.key === 'Enter' || event.key === ' ')) { event.stopPropagation(); openModal(); } }}
+          >
+            {noCars ? 'None yet' : 'Rent'}
+          </span>
         </button>
-
-        {bookings.length > 0 ? (
-          <div className="maintenance-list">
+        {message ? <p className="form-success compact-section__msg">{message}</p> : null}
+        {showList && bookings.length > 0 ? (
+          <div className="maintenance-list compact-section__body">
             {bookings.map((b) => (
               <div className="maintenance-item" key={b.id}>
                 <div className="maintenance-item__head">

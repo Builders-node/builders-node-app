@@ -4180,3 +4180,88 @@ textarea {
 @media (max-width: 900px) {
   .tile-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Home: compact onboarding (single next-step CTA) ───────────────────────── */
+.compact-onboarding {
+  background: var(--surface, #fff);
+  border: 1px solid var(--line, #edeef1);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.compact-onboarding__progress { height: 3px; background: var(--line, #edeef1); }
+.compact-onboarding__progress > span { display: block; height: 100%; background: #e5541f; transition: width 0.35s ease; }
+.compact-onboarding__row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+.compact-onboarding__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.compact-onboarding__text strong { font-size: 0.95rem; }
+:root[data-theme='dark'] .compact-onboarding { background: #1a1c22; border-color: #23262c; }
+
+/* ── Home: slim status row (Discord connected, E-Residency pending etc) ────── */
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--line, #edeef1);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  font-size: 0.9rem;
+}
+.status-row__icon {
+  width: 30px; height: 30px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #ff7a3a, #e5541f); color: #fff; flex-shrink: 0;
+}
+.status-row__dot { width: 8px; height: 8px; border-radius: 999px; background: #2fae66; flex-shrink: 0; }
+.status-row__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.status-row__body strong { font-size: 0.9rem; }
+.status-row__body span { font-size: 0.78rem; color: var(--text-muted, #6b7280); }
+.status-row--pending_review { background: rgba(224, 160, 0, 0.06); border-color: rgba(224, 160, 0, 0.28); }
+.status-row--verified { background: rgba(47, 174, 102, 0.06); border-color: rgba(47, 174, 102, 0.28); }
+.status-row--rejected { background: rgba(192, 57, 43, 0.06); border-color: rgba(192, 57, 43, 0.28); }
+:root[data-theme='dark'] .status-row { background: #1a1c22; border-color: #23262c; }
+
+/* ── Home: compact section (Maintenance / Cars — collapsible row) ──────────── */
+.compact-section {
+  border: 1px solid var(--line, #edeef1);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+  overflow: hidden;
+}
+.compact-section__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+.compact-section__icon {
+  width: 30px; height: 30px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #ff7a3a, #e5541f); color: #fff; flex-shrink: 0;
+}
+.compact-section__title { flex: 1; font-weight: 600; font-size: 0.95rem; }
+.compact-section__count {
+  min-width: 22px; height: 22px; padding: 0 8px;
+  border-radius: 999px; background: rgba(229, 84, 31, 0.12); color: #e5541f;
+  font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;
+}
+.compact-section__cta { flex-shrink: 0; }
+.compact-section__cta--disabled { opacity: 0.5; pointer-events: none; }
+.compact-section__body { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.compact-section__msg { padding: 0 14px 10px; margin: 0; }
+:root[data-theme='dark'] .compact-section { background: #1a1c22; border-color: #23262c; }
+
+/* ── Home: bento tile-grid — 2 columns on mobile with apartment full-width ── */
+@media (max-width: 900px) {
+  .tile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .tile-grid > :first-child { grid-column: 1 / -1; }
+  /* Smaller tiles on mobile — meals/cleaning stay short in the second row */
+  .tile-grid > :not(:first-child) .apartment-tile__number { font-size: clamp(2.4rem, 12vw, 3.4rem); }
+  .apartment-tile { min-height: 140px; padding: 14px 16px; }
+  .apartment-tile > :first-child { font-size: 0.65rem; }
+}

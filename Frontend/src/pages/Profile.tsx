@@ -298,59 +298,41 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
       {profileMessage ? <section className="panel"><p className="form-success">{profileMessage}</p></section> : null}
       {residencyMessage ? <section className="panel"><p className="form-success">{residencyMessage}</p></section> : null}
 
-      {showOnboarding ? (
-        <section className="panel onboarding-card">
-          <div className="onboarding-card__head">
-            <div>
-              <span className="section-label">Get started</span>
-              <h2>Set up your account</h2>
+      {showOnboarding ? (() => {
+        // Compact onboarding: one primary CTA for the NEXT unfinished step, plus a
+        // slim progress bar. Cuts ~180px vs. the full checklist on mobile.
+        const nextStep = onboardingSteps.find((step) => !step.done);
+        return (
+          <section className="compact-onboarding">
+            <div className="compact-onboarding__progress" aria-hidden="true">
+              <span style={{ width: `${(onboardingDone / onboardingSteps.length) * 100}%` }} />
             </div>
-            <span className="onboarding-card__count">{onboardingDone}/{onboardingSteps.length}</span>
-          </div>
-          <div className="onboarding-progress">
-            <span style={{ width: `${(onboardingDone / onboardingSteps.length) * 100}%` }} />
-          </div>
-          <ul className="onboarding-steps">
-            {onboardingSteps.map((step) => (
-              <li key={step.key} className={step.done ? 'onboarding-step onboarding-step--done' : 'onboarding-step'}>
-                <span className="onboarding-step__check">{step.done ? <Check size={13} /> : null}</span>
-                <span className="onboarding-step__label">{step.label}</span>
-                {!step.done && step.action ? (
-                  <button className="onboarding-step__action" onClick={step.action}>{step.actionLabel}</button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+            <div className="compact-onboarding__row">
+              <div className="compact-onboarding__text">
+                <span className="section-label">Get started · {onboardingDone}/{onboardingSteps.length}</span>
+                <strong>{nextStep?.label ?? 'All set'}</strong>
+              </div>
+              {nextStep?.action ? (
+                <button className="primary-button compact-button" onClick={nextStep.action}>
+                  {nextStep.actionLabel ?? 'Do it'}
+                </button>
+              ) : null}
+            </div>
+          </section>
+        );
+      })() : null}
 
-      {profile?.discordEnabled ? (
-        <section className="panel form-panel discord-card">
-          <div className="discord-card__head">
-            <div>
-              <span className="section-label">Community</span>
-              <h2>Discord</h2>
-              <p className="discord-card__copy">
-                {profile.discordId
-                  ? 'Your Discord is verified — your member role is active on the server.'
-                  : 'Connect your Discord to verify your membership and get your role on the server automatically.'}
-              </p>
-            </div>
-          </div>
-          {profile.discordId ? (
-            <div className="discord-card__connected">
-              <span className="discord-card__badge">Connected{profile.discordUsername ? ` · @${profile.discordUsername}` : ''}</span>
-              <button className="ghost-button" onClick={() => void disconnectDiscord()}>Disconnect</button>
-            </div>
-          ) : (
-            <button className="primary-button discord-card__connect" onClick={() => void connectDiscord()}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.24.5c1.66.4 2.9 1 4.06 1.8a14 14 0 0 0-9.44 0c1.16-.8 2.4-1.4 4.06-1.8L13.6 3A19.8 19.8 0 0 0 8.7 4.4C5.6 9 4.8 13.5 5.2 17.9a20 20 0 0 0 5.1 2.6l.66-1.1c-.6-.22-1.15-.5-1.66-.83l.4-.3a14 14 0 0 0 11 0l.4.3c-.5.33-1.06.6-1.66.83l.66 1.1a20 20 0 0 0 5.1-2.6c.5-5.1-.85-9.55-4.6-13.5ZM9.9 15.3c-.98 0-1.78-.9-1.78-2s.78-2 1.78-2 1.8.9 1.78 2c0 1.1-.8 2-1.78 2Zm4.2 0c-.98 0-1.78-.9-1.78-2s.78-2 1.78-2 1.8.9 1.78 2c0 1.1-.8 2-1.78 2Z" />
-              </svg>
-              Connect Discord
-            </button>
-          )}
-        </section>
+      {/* Discord: the "connect" CTA lives in the compact onboarding above. Once
+          linked, only a slim confirmation row remains — no more big blue block. */}
+      {profile?.discordEnabled && profile?.discordId ? (
+        <div className="status-row status-row--discord">
+          <span className="status-row__dot" />
+          <span className="status-row__body">
+            <strong>Discord connected</strong>
+            {profile.discordUsername ? <span>@{profile.discordUsername}</span> : null}
+          </span>
+          <button className="text-button" onClick={() => void disconnectDiscord()}>Disconnect</button>
+        </div>
       ) : null}
 
       {showApplyPrompt ? (
@@ -417,19 +399,47 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
 
       {showMemberSections ? (() => {
         const rStatus = residency?.status ?? 'NOT_STARTED';
+
+        // Once the member has moved past NOT_STARTED the 3-step hero is
+        // redundant — collapse it into a single status row with an inline action.
+        if (rStatus !== 'NOT_STARTED') {
+          return (
+            <div className={`status-row status-row--residency status-row--${rStatus.toLowerCase()}`}>
+              <span className="status-row__icon" aria-hidden="true"><FileCheck2 size={16} /></span>
+              <span className="status-row__body">
+                <strong>E-Residency</strong>
+                <span>{RESIDENCY_LABELS[rStatus] ?? rStatus}
+                  {rStatus === 'REJECTED' && residency?.reviewNote ? ` · ${residency.reviewNote}` : ''}
+                </span>
+              </span>
+              {rStatus !== 'VERIFIED' ? (
+                <>
+                  <input
+                    ref={proofInputRef}
+                    type="file"
+                    accept="image/*,application/pdf"
+                    style={{ display: 'none' }}
+                    onChange={onProofSelected}
+                  />
+                  <button className="text-button" onClick={() => proofInputRef.current?.click()} disabled={isResidencyLoading}>
+                    {isResidencyLoading ? 'Uploading…' : residency?.hasProof ? 'Re-upload' : 'Upload proof'}
+                  </button>
+                </>
+              ) : null}
+            </div>
+          );
+        }
+
         // 4 = done; 3 = verifying; 2 = uploading (n/a — no separate applied state); 1 = start
-        const step = rStatus === 'VERIFIED' ? 4 : rStatus === 'PENDING_REVIEW' ? 3 : 1;
+        const step = 1;
         const steps = [
           { n: 1, icon: <ExternalLink size={15} />, title: 'Apply on Prospera.co', desc: 'Fill in the official E-Residency application.' },
           { n: 2, icon: <Upload size={15} />, title: 'Upload your confirmation', desc: 'Attach the approval file — PDF or screenshot.' },
           { n: 3, icon: <ShieldCheck size={15} />, title: 'Our team verifies it', desc: 'Usually within a few business days.' },
         ];
-        const hasNote =
-          residency?.proofFileName ||
-          rStatus === 'PENDING_REVIEW' ||
-          rStatus === 'VERIFIED' ||
-          (rStatus === 'REJECTED' && residency?.reviewNote);
 
+        // Only reached when rStatus === 'NOT_STARTED' (the collapsed status-row
+        // handles every other status above), so no notes / verified branches here.
         return (
           <section className="panel residency-hero">
             <header className="residency-hero__head">
@@ -449,7 +459,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
             <ol className="residency-steps">
               {steps.map((s) => {
                 const done = step > s.n;
-                const active = step === s.n || (s.n === 2 && step === 1 && !!residency?.hasProof === false);
+                const active = step === s.n;
                 return (
                   <li
                     key={s.n}
@@ -466,35 +476,6 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
               })}
             </ol>
 
-            {hasNote ? (
-              <div className="residency-notes">
-                {residency?.proofFileName ? (
-                  <p className="residency-note">
-                    <strong>Uploaded</strong>
-                    <span>{residency.proofFileName}{residency.submittedAt ? ` · ${formatDate(residency.submittedAt)}` : ''}</span>
-                  </p>
-                ) : null}
-                {rStatus === 'PENDING_REVIEW' ? (
-                  <p className="residency-note residency-note--pending">
-                    <strong>Under review</strong>
-                    <span>Waiting for our team to verify your proof.</span>
-                  </p>
-                ) : null}
-                {rStatus === 'VERIFIED' ? (
-                  <p className="residency-note residency-note--good">
-                    <strong>Verified</strong>
-                    <span>Your E-Residency proof has been approved.</span>
-                  </p>
-                ) : null}
-                {rStatus === 'REJECTED' && residency?.reviewNote ? (
-                  <p className="residency-note residency-note--danger">
-                    <strong>Needs changes</strong>
-                    <span>{residency.reviewNote}</span>
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-
             <div className="residency-hero__actions">
               <a
                 className="primary-button link-button residency-hero__cta"
@@ -505,25 +486,21 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
                 Apply on Prospera.co
                 <ExternalLink size={16} />
               </a>
-              {rStatus !== 'VERIFIED' ? (
-                <>
-                  <input
-                    ref={proofInputRef}
-                    type="file"
-                    accept="image/*,application/pdf"
-                    style={{ display: 'none' }}
-                    onChange={onProofSelected}
-                  />
-                  <button
-                    className="ghost-button residency-hero__upload"
-                    onClick={() => proofInputRef.current?.click()}
-                    disabled={isResidencyLoading}
-                  >
-                    <Upload size={16} />
-                    {isResidencyLoading ? 'Uploading…' : residency?.hasProof ? 'Re-upload proof' : 'I got residency — upload proof'}
-                  </button>
-                </>
-              ) : null}
+              <input
+                ref={proofInputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                style={{ display: 'none' }}
+                onChange={onProofSelected}
+              />
+              <button
+                className="ghost-button residency-hero__upload"
+                onClick={() => proofInputRef.current?.click()}
+                disabled={isResidencyLoading}
+              >
+                <Upload size={16} />
+                {isResidencyLoading ? 'Uploading…' : 'I got residency — upload proof'}
+              </button>
             </div>
           </section>
         );

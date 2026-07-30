@@ -40,6 +40,7 @@ function fileToBase64(file: File): Promise<string> {
 export function MaintenanceSection({ currentUserId }: { currentUserId: string }) {
   const [requests, setRequests] = useState<Request[]>([]);
   const [message, setMessage] = useState<string | null>(null);
+  const [showList, setShowList] = useState(false);
 
   // Modal state (form lives here — the card itself is CTA-only).
   const [isOpen, setIsOpen] = useState(false);
@@ -107,22 +108,28 @@ export function MaintenanceSection({ currentUserId }: { currentUserId: string })
     }
   }
 
+  const openCount = requests.filter((r) => r.status !== 'RESOLVED').length;
+
   return (
     <>
-      <section className="panel form-panel">
-        <div className="admin-panel__head">
-          <div>
-            <span className="section-label">Your unit</span>
-            <h2>Maintenance</h2>
-            <p className="setup-card-copy">Report an issue with your unit — a broken appliance, plumbing, internet, anything.</p>
-          </div>
-          <Wrench size={20} />
-        </div>
-        {message ? <p className="form-success">{message}</p> : null}
-        <button className="primary-button" onClick={openModal}>Report an issue</button>
-
-        {requests.length > 0 ? (
-          <div className="maintenance-list">
+      <section className="compact-section">
+        <button className="compact-section__head" onClick={() => setShowList((s) => !s)} aria-expanded={showList}>
+          <span className="compact-section__icon"><Wrench size={16} /></span>
+          <span className="compact-section__title">Maintenance</span>
+          {openCount > 0 ? <span className="compact-section__count">{openCount}</span> : null}
+          <span
+            className="primary-button compact-button compact-section__cta"
+            onClick={(event) => { event.stopPropagation(); openModal(); }}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.stopPropagation(); openModal(); } }}
+          >
+            Report
+          </span>
+        </button>
+        {message ? <p className="form-success compact-section__msg">{message}</p> : null}
+        {showList && requests.length > 0 ? (
+          <div className="maintenance-list compact-section__body">
             {requests.map((r) => (
               <div className="maintenance-item" key={r.id}>
                 <div className="maintenance-item__head">
