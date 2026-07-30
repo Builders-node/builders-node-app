@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from './components/AppShell';
 import { AuthPanel } from './components/AuthPanel';
+import { PullToRefresh } from './components/PullToRefresh';
 import { pageForPath, pathForPage, type PageId } from './data/dashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminLogin } from './pages/AdminLogin';
@@ -258,7 +259,12 @@ function App() {
     AUTH_PAGES.includes(activePage) ||
     (!currentUserId && PROTECTED_PAGES.includes(activePage))
   ) {
-    return page;
+    return (
+      <>
+        <PullToRefresh />
+        {page}
+      </>
+    );
   }
 
   return (
@@ -282,6 +288,7 @@ function App() {
       }}
     >
       {page}
+      <PullToRefresh />
     </AppShell>
   );
 }

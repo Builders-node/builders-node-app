@@ -553,21 +553,31 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
 
       {showMemberSections ? (
       <div className="two-column">
-        {home?.apartment ? (
-          <article className="panel apartment-home-panel">
-            <div className="apartment-placeholder" />
-            <div>
-              <span className="section-label">{home.apartment.status}</span>
-              <h2>{home.apartment.name}</h2>
-              <p>{home.apartment.details}</p>
-              {home.apartment.moveInDate ? <strong>Move-in: {new Date(home.apartment.moveInDate).toLocaleDateString()}</strong> : null}
-            </div>
-          </article>
-        ) : (
-          <article className="panel">
-            <span className="section-label">Apartment</span>
-            <h2>Not assigned</h2>
-            <p className="empty-state">No apartment assignment is saved yet.</p>
+        {home?.apartment ? (() => {
+          // Split "Studio Apartment 604" into "Studio Apartment" + "604".
+          const nums = home.apartment.name.match(/\d+/g) ?? [];
+          const unitNumber = nums.length ? nums[nums.length - 1] : null;
+          const unitType = unitNumber
+            ? home.apartment.name.replace(new RegExp(`\\s*#?\\s*${unitNumber}\\s*$`), '').trim() || 'Apartment'
+            : home.apartment.name;
+          return (
+            <article className="apartment-tile">
+              <span className="apartment-tile__badge">{home.apartment.status}</span>
+              {unitNumber ? (
+                <span className="apartment-tile__number">{unitNumber}</span>
+              ) : null}
+              <div className="apartment-tile__meta">
+                <strong>{unitType}</strong>
+                {home.apartment.moveInDate ? (
+                  <span>Move-in {new Date(home.apartment.moveInDate).toLocaleDateString()}</span>
+                ) : null}
+              </div>
+            </article>
+          );
+        })() : (
+          <article className="apartment-tile apartment-tile--empty">
+            <span className="apartment-tile__badge">Apartment</span>
+            <span className="apartment-tile__empty">Not assigned yet</span>
           </article>
         )}
 
