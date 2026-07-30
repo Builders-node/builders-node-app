@@ -3715,7 +3715,7 @@ textarea {
 .attention-card span { font-size: 0.82rem; color: var(--text-muted, #6b7280); }
 .attention-card--active { border-color: rgba(229, 84, 31, 0.4); background: rgba(229, 84, 31, 0.05); }
 .attention-card--active strong { color: #e5541f; }
-.attention-card:not(.attention-card--static):hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08); border-color: rgba(229, 84, 31, 0.55); }
+.attention-card:not(.attention-card--static):hover { transform: translateY(-1px); border-color: rgba(229, 84, 31, 0.55); }
 .attention-card--static { cursor: default; }
 .attention-card:disabled { opacity: 1; }
 :root[data-theme='dark'] .attention-card--active { background: rgba(229, 84, 31, 0.12); }
@@ -4091,9 +4091,8 @@ textarea {
   color: #1c1e24;
   background: #fff;
   border: 1px solid #ebedf1;
-  box-shadow: 0 1px 2px rgba(15, 18, 24, 0.04);
   overflow: hidden;
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  transition: transform 0.15s ease;
 }
 .apartment-tile__icon {
   display: inline-flex;
@@ -4158,7 +4157,6 @@ textarea {
   background: #1a1c22;
   border-color: #23262c;
   color: #f4f5f7;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 :root[data-theme='dark'] .apartment-tile__meta strong { color: #f4f5f7; }
 :root[data-theme='dark'] .apartment-tile__meta span { color: #9ea3ad; }
@@ -4205,7 +4203,6 @@ textarea {
   border: 1px solid #ebedf1;
   border-radius: 14px;
   padding: 14px 16px;
-  box-shadow: 0 1px 2px rgba(15, 18, 24, 0.04);
   min-height: 138px;
   color: #1c1e24;
 }
