@@ -4422,6 +4422,29 @@ textarea {
 .residency-alert__upload:hover { background: rgba(255, 255, 255, 0.22); }
 .residency-alert__upload:disabled { opacity: 0.6; cursor: default; }
 @media (max-width: 600px) {
+  .residency-alert {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "icon body   body"
+      "cta  cta    upload";
+    align-items: start;
+    gap: 10px 12px;
+    padding: 14px;
+  }
+  .residency-alert__icon  { grid-area: icon; margin-top: 2px; }
+  .residency-alert__body  { grid-area: body; }
+  .residency-alert__body strong { font-size: 1rem; line-height: 1.2; }
+  .residency-alert__body span   { font-size: 0.82rem; line-height: 1.35; }
+  .residency-alert__cta {
+    grid-area: cta;
+    justify-content: center;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+  }
+  .residency-alert__upload {
+    grid-area: upload;
+    padding: 10px 12px;
+  }
   .residency-alert__upload span { display: none; }
-  .residency-alert__upload { padding: 7px 9px; }
 }
