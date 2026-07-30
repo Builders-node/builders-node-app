@@ -287,7 +287,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
     },
   ].filter((step) => step.show);
   const onboardingDone = onboardingSteps.filter((step) => step.done).length;
-  const showOnboarding = Boolean(profile) && onboardingDone < onboardingSteps.length;
+  const showOnboarding = Boolean(profile) && onboardingDone < onboardingSteps.length && !onboardingModalOpen;
 
   return (
     <div className="page-stack">
