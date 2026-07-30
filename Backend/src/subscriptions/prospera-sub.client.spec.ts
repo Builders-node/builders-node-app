@@ -212,6 +212,36 @@ describe('ProsperaSubClient (official api.prosperasub.com)', () => {
     expect(result.message).toMatch(/invalid bearer/);
   });
 
+  it('cancels a subscription via DELETE with the Bearer secret', async () => {
+    const client = makeClient({ ...liveEnv, BUILDERS_NODE_API_SECRET: 'bn_secret' });
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true, status: 204 } as Response);
+    const result = await client.cancelSubscription('sub_food_9');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.prosperasub.com/integrations/builders-node/subscription/sub_food_9');
+    expect(init?.method).toBe('DELETE');
+    expect((init?.headers as Record<string, string>).Authorization).toBe('Bearer bn_secret');
+    expect(result).toEqual({ ok: true, status: 204, message: 'Cancelled on ProsperaSub.' });
+  });
+
+  it('returns ok:false + the error body when cancel 4xxs', async () => {
+    const client = makeClient({ ...liveEnv, BUILDERS_NODE_API_SECRET: 'bn_secret' });
+    jest.spyOn(global, 'fetch').mockResolvedValue({ ok: false, status: 404, text: async () => 'subscription not found' } as Response);
+    const result = await client.cancelSubscription('sub_missing');
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe(404);
+    expect(result.message).toMatch(/404/);
+    expect(result.message).toMatch(/subscription not found/);
+  });
+
+  it('skips cancel (ok:false) when BUILDERS_NODE_API_SECRET is not set', async () => {
+    const client = makeClient(liveEnv);
+    const fetchMock = jest.spyOn(global, 'fetch');
+    const result = await client.cancelSubscription('sub_food_9');
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/BUILDERS_NODE_API_SECRET/);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('builds a stable activation link', async () => {
     const client = makeClient(liveEnv);
     const activation = await client.activationLink('user-42');

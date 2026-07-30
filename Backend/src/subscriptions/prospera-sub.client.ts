@@ -282,6 +282,44 @@ export class ProsperaSubClient {
   }
 
   /**
+   * Cancel a previously-mirrored subscription on ProsperaSub. Called when the
+   * admin removes a meal / cleaning plan from a member on our side so the
+   * provider stops billing / preparing meals.
+   *
+   * DELETE /integrations/builders-node/subscription/:subscription_id — Bearer auth.
+   * Never throws; returns { ok, status, message } for the caller to audit.
+   */
+  async cancelSubscription(subscriptionId: string): Promise<{ ok: boolean; status?: number; message: string }> {
+    const secret = this.buildersNodeSecret;
+    if (!secret) {
+      this.logger.warn(`ProsperaSub cancel skipped for ${subscriptionId}: BUILDERS_NODE_API_SECRET not set.`);
+      return { ok: false, message: 'BUILDERS_NODE_API_SECRET is not configured.' };
+    }
+    if (!subscriptionId) return { ok: false, message: 'No subscription id — nothing to cancel.' };
+
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/integrations/builders-node/subscription/${encodeURIComponent(subscriptionId)}`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${secret}`, Accept: 'application/json' },
+        },
+      );
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        const msg = `ProsperaSub cancel responded ${response.status}: ${text.slice(0, 200)}`;
+        this.logger.error(msg);
+        return { ok: false, status: response.status, message: msg };
+      }
+      return { ok: true, status: response.status, message: 'Cancelled on ProsperaSub.' };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Unknown ProsperaSub error.';
+      this.logger.error(`ProsperaSub cancel failed for ${subscriptionId}: ${msg}`);
+      return { ok: false, message: msg };
+    }
+  }
+
+  /**
    * Mirror an approved / designated member's plans onto ProsperaSub so the
    * provider sees the subscription on their side.
    *

@@ -596,6 +596,46 @@ export class AdminService {
     return result;
   }
 
+  /**
+   * Remove a member's meal or cleaning plan locally AND cancel the mirrored
+   * subscription on ProsperaSub so the provider stops billing. Local delete
+   * always happens; the cancel result is recorded as an audit event and never
+   * bubbles as an error — if ProsperaSub is down or the id is stale, the
+   * local row is still gone and we can retry the cancel out of band later.
+   */
+  private async removeAssignedPlan(userId: string, kind: 'meal' | 'cleaning') {
+    const row = kind === 'meal'
+      ? await this.prisma.mealMenuItem.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' } })
+      : await this.prisma.cleaningSchedule.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' } });
+    if (!row) return; // Nothing to remove — silent no-op.
+
+    // Delete local row first so member sees the change even if the cancel call fails.
+    if (kind === 'meal') {
+      await this.prisma.mealMenuItem.delete({ where: { id: row.id } });
+    } else {
+      await this.prisma.cleaningSchedule.delete({ where: { id: row.id } });
+    }
+
+    // Cancel on ProsperaSub only if we ever mirrored — otherwise nothing to cancel.
+    const subscriptionId = (row as { externalSubscriptionId: string | null }).externalSubscriptionId;
+    if (subscriptionId) {
+      const cancel = await this.prosperaSub.cancelSubscription(subscriptionId);
+      await this.prisma.auditEvent.create({
+        data: {
+          userId,
+          action: 'prospera_sub_cancel',
+          metadataJson: JSON.stringify({
+            kind,
+            subscriptionId,
+            ok: cancel.ok,
+            status: cancel.status ?? null,
+            message: cancel.message,
+          }),
+        },
+      });
+    }
+  }
+
   async designateUser(
     userId: string,
     body: {
@@ -619,9 +659,13 @@ export class AdminService {
     const mealPlanId = body.mealPlanId?.trim() || null;
     const cleaningPlan = body.cleaningPlan?.trim();
     const cleaningPlanId = body.cleaningPlanId?.trim() || null;
+    // "Field present but empty" is the signal to REMOVE (admin cleared the
+    // dropdown). Distinct from "field absent" which means no change.
+    const removeMeal = body.mealPlan !== undefined && !mealPlan;
+    const removeCleaning = body.cleaningPlan !== undefined && !cleaningPlan;
 
-    if (!apartmentName && !mealPlan && !cleaningPlan) {
-      throw new BadRequestException('Add an apartment, meal plan, or cleaning plan.');
+    if (!apartmentName && !mealPlan && !cleaningPlan && !removeMeal && !removeCleaning) {
+      throw new BadRequestException('Add or remove an apartment, meal plan, or cleaning plan.');
     }
 
     // Apartment is a pure local concern; keep it in one atomic step.
@@ -654,6 +698,11 @@ export class AdminService {
         });
       });
     }
+
+    // Removals — delete the local plan row AND cancel on ProsperaSub using
+    // the stored external subscription id (so the provider stops billing).
+    if (removeMeal) await this.removeAssignedPlan(user.id, 'meal');
+    if (removeCleaning) await this.removeAssignedPlan(user.id, 'cleaning');
 
     // Meal / cleaning grants go through the shared helper so they also mirror
     // onto ProsperaSub for the same provider. Runs outside the transaction —
