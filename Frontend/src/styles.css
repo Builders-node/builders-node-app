@@ -4170,3 +4170,13 @@ textarea {
   color: #24466f;
 }
 .apartment-tile--cleaning.apartment-tile--empty .apartment-tile__badge { color: rgba(36, 70, 111, 0.7); }
+
+/* 3-column tile row for Apartment / Meals / Cleaning on Home. */
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+@media (max-width: 900px) {
+  .tile-grid { grid-template-columns: 1fr; }
+}

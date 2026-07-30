@@ -531,7 +531,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
 
 
       {showMemberSections ? (
-      <div className="two-column">
+      <div className="tile-grid">
         {home?.apartment ? (() => {
           // Split "Studio Apartment 604" into "Studio Apartment" + "604".
           const nums = home.apartment.name.match(/\d+/g) ?? [];
@@ -593,11 +593,9 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
             </article>
           );
         })()}
-      </div>
-      ) : null}
 
-      {showMemberSections ? (() => {
-        const freq = home?.cleaning?.frequency ?? '';
+        {(() => {
+          const freq = home?.cleaning?.frequency ?? '';
         const nums = freq.match(/\d+/g) ?? [];
         const number = nums.length ? nums[nums.length - 1] : null;
         // "4x per month" → "per month" (drop the number + trailing 'x/×/times')
@@ -631,7 +629,9 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
             </div>
           </article>
         );
-      })() : null}
+      })()}
+      </div>
+      ) : null}
 
       {showMemberSections && currentUserId ? <MaintenanceSection currentUserId={currentUserId} /> : null}
       {showMemberSections && currentUserId ? <CarsSection currentUserId={currentUserId} /> : null}
