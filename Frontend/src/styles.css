@@ -4084,14 +4084,14 @@ textarea {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 16px 18px 18px;
-  border-radius: 20px;
-  min-height: 168px;
+  gap: 0.35rem;
+  padding: 12px 14px 14px;
+  border-radius: 14px;
+  min-height: 118px;
   color: #1c1e24;
   background: #fff;
   border: 1px solid #ebedf1;
-  box-shadow: 0 1px 2px rgba(15, 18, 24, 0.04), 0 8px 20px -12px rgba(15, 18, 24, 0.08);
+  box-shadow: 0 1px 2px rgba(15, 18, 24, 0.04);
   overflow: hidden;
   transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
@@ -4099,34 +4099,34 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
   background: rgba(229, 84, 31, 0.1);
   color: #e5541f;
-  margin-bottom: 4px;
 }
+.apartment-tile__icon svg { width: 15px; height: 15px; }
 .apartment-tile__badge {
-  font-size: 0.7rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: rgba(229, 84, 31, 0.9);
 }
 .apartment-tile__number {
-  font-size: clamp(2.6rem, 10vw, 3.6rem);
+  font-size: clamp(1.9rem, 6vw, 2.4rem);
   font-weight: 800;
   line-height: 0.95;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
   margin-top: auto;
   font-variant-numeric: tabular-nums;
   color: #e5541f;
 }
-.apartment-tile__meta { display: flex; flex-direction: column; gap: 2px; }
-.apartment-tile__meta strong { font-size: 1rem; font-weight: 600; color: #1c1e24; }
-.apartment-tile__meta span { font-size: 0.85rem; color: #6b7280; }
+.apartment-tile__meta { display: flex; flex-direction: column; gap: 1px; }
+.apartment-tile__meta strong { font-size: 0.88rem; font-weight: 600; color: #1c1e24; }
+.apartment-tile__meta span { font-size: 0.75rem; color: #6b7280; }
 .apartment-tile--empty {
-  min-height: 140px;
+  min-height: 100px;
   justify-content: space-between;
 }
 .apartment-tile--empty .apartment-tile__badge { color: rgba(107, 114, 128, 0.85); }
@@ -4288,13 +4288,13 @@ textarea {
 
 /* ── Home: bento tile-grid — 2 columns on mobile with apartment full-width ── */
 @media (max-width: 900px) {
-  .tile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .tile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .tile-grid > :first-child { grid-column: 1 / -1; }
-  /* Smaller tiles on mobile — meals/cleaning stay short in the second row */
-  .tile-grid > :not(:first-child) .apartment-tile__number { font-size: clamp(2.4rem, 12vw, 3.4rem); }
-  .apartment-tile { min-height: 148px; padding: 14px 16px; }
-  .apartment-tile__badge { font-size: 0.65rem; }
-  .apartment-tile__icon { width: 36px; height: 36px; border-radius: 10px; }
+  .apartment-tile { min-height: 108px; padding: 12px 14px; }
+  .apartment-tile__number { font-size: clamp(1.8rem, 8vw, 2.4rem); }
+  .apartment-tile__badge { font-size: 0.6rem; }
+  .apartment-tile__icon { width: 28px; height: 28px; border-radius: 8px; }
+  .apartment-tile__icon svg { width: 14px; height: 14px; }
 }
 
 /* ── TikTok-style floating onboarding pill (fixed above bottom nav) ────────── */
