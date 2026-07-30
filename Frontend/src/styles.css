@@ -4173,6 +4173,139 @@ textarea {
   .tile-grid { grid-template-columns: 1fr; }
 }
 
+/* ── Home sections (Your stay / Perks / Support) ───────────────────────────── */
+.home-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.home-section__title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7280);
+  margin: 4px 0 2px;
+}
+
+/* Two-column stay row: apartment (wider) + meals (narrower). */
+.stay-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+@media (max-width: 720px) {
+  .stay-grid { grid-template-columns: 1fr; }
+}
+.stay-card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #ebedf1;
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 2px rgba(15, 18, 24, 0.04);
+  min-height: 138px;
+  color: #1c1e24;
+}
+.stay-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stay-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: rgba(229, 84, 31, 0.1);
+  color: #e5541f;
+}
+.stay-card__icon--meals { background: rgba(229, 84, 31, 0.1); color: #e5541f; }
+.stay-card__label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(229, 84, 31, 0.9);
+}
+.stay-card__status {
+  margin-left: auto;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(107, 114, 128, 0.1);
+  color: #6b7280;
+}
+.stay-card__body {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  justify-content: flex-end;
+}
+.stay-card__value {
+  font-size: clamp(2rem, 6vw, 2.6rem);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  color: #e5541f;
+  font-variant-numeric: tabular-nums;
+}
+.stay-card__value em {
+  font-style: normal;
+  font-size: 0.4em;
+  font-weight: 600;
+  margin-left: 0.25em;
+  color: rgba(28, 30, 36, 0.55);
+  letter-spacing: 0;
+  vertical-align: 0.25em;
+}
+.stay-card__meta { display: flex; flex-direction: column; gap: 1px; }
+.stay-card__meta strong { font-size: 0.9rem; font-weight: 600; color: #1c1e24; }
+.stay-card__meta span { font-size: 0.78rem; color: #6b7280; }
+.stay-card__empty { font-size: 1rem; font-weight: 600; color: #6b7280; margin-top: auto; }
+
+/* Cleaning strip inside the apartment card. */
+.stay-card__strip {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed #ebedf1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.stay-card__strip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px; height: 26px;
+  border-radius: 8px;
+  background: rgba(58, 128, 212, 0.12);
+  color: #3a80d4;
+  flex-shrink: 0;
+}
+.stay-card__strip-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.stay-card__strip-body strong { font-size: 0.82rem; font-weight: 600; color: #1c1e24; }
+.stay-card__strip-body span { font-size: 0.75rem; color: #6b7280; }
+
+:root[data-theme='dark'] .stay-card {
+  background: #1a1c22;
+  border-color: #23262c;
+  color: #f4f5f7;
+}
+:root[data-theme='dark'] .stay-card__meta strong,
+:root[data-theme='dark'] .stay-card__strip-body strong { color: #f4f5f7; }
+:root[data-theme='dark'] .stay-card__meta span,
+:root[data-theme='dark'] .stay-card__strip-body span { color: #9ea3ad; }
+:root[data-theme='dark'] .stay-card__strip { border-top-color: #23262c; }
+
 /* ── Segmented control (used in the Rent-a-car modal) ──────────────────────── */
 .segmented {
   display: inline-flex;

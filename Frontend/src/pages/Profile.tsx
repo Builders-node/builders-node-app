@@ -123,6 +123,39 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
   const [editFullName, setEditFullName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editLocation, setEditLocation] = useState('');
+  const [cleaningModalOpen, setCleaningModalOpen] = useState(false);
+  useEscapeToClose(cleaningModalOpen, () => setCleaningModalOpen(false));
+  const [cleaningReschedule, setCleaningReschedule] = useState('');
+  const [cleaningSubmitting, setCleaningSubmitting] = useState(false);
+  const [cleaningError, setCleaningError] = useState<string | null>(null);
+
+  async function submitCleaningReschedule() {
+    if (!currentUserId) return;
+    const description = cleaningReschedule.trim();
+    if (!description) {
+      setCleaningError('Tell us your preferred day/time so we can adjust.');
+      return;
+    }
+    setCleaningSubmitting(true);
+    setCleaningError(null);
+    try {
+      await apiRequest(`/users/${currentUserId}/maintenance`, {
+        method: 'POST',
+        body: JSON.stringify({
+          category: 'Cleaning',
+          title: 'Cleaning reschedule request',
+          description,
+        }),
+      });
+      setCleaningReschedule('');
+      setCleaningModalOpen(false);
+      setResidencyMessage('Reschedule request sent — the team will confirm shortly.');
+    } catch (caught) {
+      setCleaningError(caught instanceof Error ? caught.message : 'Could not send the request.');
+    } finally {
+      setCleaningSubmitting(false);
+    }
+  }
 
   async function loadResidency(userId: string) {
     const data = await apiRequest<ResidencyData>(`/users/${userId}/residency`);
@@ -546,149 +579,192 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
         );
       })() : null}
 
+      {showMemberSections ? (
+        <section className="home-section">
+          <h3 className="home-section__title">Your stay</h3>
+          <div className="stay-grid">
+            {(() => {
+              // Split "Studio Apartment 604" into "Studio Apartment" + "604".
+              const apt = home?.apartment;
+              const nums = apt?.name.match(/\d+/g) ?? [];
+              const unitNumber = nums.length ? nums[nums.length - 1] : null;
+              const unitType = apt && unitNumber
+                ? apt.name.replace(new RegExp(`\\s*#?\\s*${unitNumber}\\s*$`), '').trim() || 'Apartment'
+                : apt?.name;
+
+              // Cleaning info — pulled from home.cleaning; falls back to global.
+              const freq = home?.cleaning?.frequency ?? '';
+              const freqNums = freq.match(/\d+/g) ?? [];
+              const cleaningCount = freqNums.length ? freqNums[freqNums.length - 1] : null;
+              const cleaningUnit = cleaningCount
+                ? freq.replace(/\d+/g, '').replace(/^\s*[x×]\s*/i, '').replace(/^\s*times?\s*/i, '').trim()
+                : freq;
+              const nextDate = home?.cleaning?.nextCleaning
+                ? new Date(home.cleaning.nextCleaning).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                : null;
+              const hasCleaning = Boolean(freq || nextDate);
+
+              return (
+                <article className="stay-card stay-card--apartment">
+                  <header className="stay-card__head">
+                    <span className="stay-card__icon" aria-hidden="true"><Bed size={16} /></span>
+                    <span className="stay-card__label">Apartment</span>
+                    {apt ? <span className="stay-card__status">{apt.status}</span> : null}
+                  </header>
+                  {apt ? (
+                    <div className="stay-card__body">
+                      <span className="stay-card__value">{unitNumber ?? unitType}</span>
+                      <div className="stay-card__meta">
+                        <strong>{unitType}</strong>
+                        {apt.moveInDate ? (
+                          <span>Move-in {new Date(apt.moveInDate).toLocaleDateString()}</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="stay-card__body">
+                      <span className="stay-card__empty">Not assigned yet</span>
+                    </div>
+                  )}
+                  {apt ? (
+                    <div className="stay-card__strip">
+                      <span className="stay-card__strip-icon" aria-hidden="true"><Sparkles size={14} /></span>
+                      <div className="stay-card__strip-body">
+                        <strong>Cleaning</strong>
+                        <span>
+                          {hasCleaning
+                            ? [
+                                cleaningCount ? `${cleaningCount}× ${cleaningUnit || 'per month'}` : cleaningUnit || 'Scheduled',
+                                nextDate ? `Next ${nextDate}` : null,
+                              ].filter(Boolean).join(' · ')
+                            : 'Not scheduled yet'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="text-button"
+                        onClick={() => setCleaningModalOpen(true)}
+                      >
+                        Reschedule
+                      </button>
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })()}
+
+            {(() => {
+              const first = home?.meals?.items?.[0]?.meal ?? '';
+              const nums = first.match(/\d+/g) ?? [];
+              const number = nums.length ? nums[nums.length - 1] : null;
+              const planName = number
+                ? first.replace(/[-–—]?\s*\d+\s*times?\s*$/i, '').replace(/plan$/i, 'plan').trim()
+                : first;
+
+              return (
+                <article className="stay-card stay-card--meals">
+                  <header className="stay-card__head">
+                    <span className="stay-card__icon stay-card__icon--meals" aria-hidden="true"><Utensils size={16} /></span>
+                    <span className="stay-card__label">Meals</span>
+                  </header>
+                  {first ? (
+                    <div className="stay-card__body">
+                      <span className="stay-card__value">
+                        {number ? <>{number}<em>× a day</em></> : planName}
+                      </span>
+                      <div className="stay-card__meta">
+                        <strong>{planName || 'Meals plan'}</strong>
+                        <span>Included with your membership</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="stay-card__body">
+                      <span className="stay-card__empty">Not set yet</span>
+                    </div>
+                  )}
+                </article>
+              );
+            })()}
+          </div>
+        </section>
+      ) : null}
+
       {showMemberSections ? (() => {
-        // Beach Club — a perk that comes bundled with the Próspera membership.
-        // Once residency is verified, surface it as an available amenity; before
-        // that, show it as an unlockable ("comes with your E-Residency").
+        // Perks section — starts with Beach Club (comes with Próspera).
         const rStatus = residency?.status ?? 'NOT_STARTED';
         const unlocked = rStatus === 'VERIFIED';
         return (
-          <div className={`status-row status-row--beach${unlocked ? '' : ' status-row--muted'}`}>
-            <span className="status-row__icon" aria-hidden="true"><Waves size={16} /></span>
-            <span className="status-row__body">
-              <strong>Beach Club</strong>
-              <span>
-                {unlocked
-                  ? 'Included with your Próspera membership — show your residency ID at the door.'
-                  : 'Unlocks once your E-Residency is verified.'}
+          <section className="home-section">
+            <h3 className="home-section__title">Perks</h3>
+            <div className={`status-row status-row--beach${unlocked ? '' : ' status-row--muted'}`}>
+              <span className="status-row__icon" aria-hidden="true"><Waves size={16} /></span>
+              <span className="status-row__body">
+                <strong>Beach Club</strong>
+                <span>
+                  {unlocked
+                    ? 'Included with your Próspera membership — show your residency ID at the door.'
+                    : 'Unlocks once your E-Residency is verified.'}
+                </span>
               </span>
-            </span>
-            {unlocked ? (
-              <a
-                className="text-button"
-                href="https://portal.eprospera.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Visit
-                <ExternalLink size={13} style={{ marginLeft: 4 }} />
-              </a>
-            ) : null}
-          </div>
+              {unlocked ? (
+                <a
+                  className="text-button"
+                  href="https://portal.eprospera.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Visit
+                  <ExternalLink size={13} style={{ marginLeft: 4 }} />
+                </a>
+              ) : null}
+            </div>
+          </section>
         );
       })() : null}
 
-      {showMemberSections ? (
-      <div className="tile-grid">
-        {home?.apartment ? (() => {
-          // Split "Studio Apartment 604" into "Studio Apartment" + "604".
-          const nums = home.apartment.name.match(/\d+/g) ?? [];
-          const unitNumber = nums.length ? nums[nums.length - 1] : null;
-          const unitType = unitNumber
-            ? home.apartment.name.replace(new RegExp(`\\s*#?\\s*${unitNumber}\\s*$`), '').trim() || 'Apartment'
-            : home.apartment.name;
-          return (
-            <article className="apartment-tile">
-              <span className="apartment-tile__icon" aria-hidden="true"><Bed size={18} /></span>
-              <span className="apartment-tile__badge">{home.apartment.status}</span>
-              {unitNumber ? (
-                <span className="apartment-tile__number">{unitNumber}</span>
-              ) : null}
-              <div className="apartment-tile__meta">
-                <strong>{unitType}</strong>
-                {home.apartment.moveInDate ? (
-                  <span>Move-in {new Date(home.apartment.moveInDate).toLocaleDateString()}</span>
-                ) : null}
-              </div>
-            </article>
-          );
-        })() : (
-          <article className="apartment-tile apartment-tile--empty">
-            <span className="apartment-tile__icon" aria-hidden="true"><Bed size={18} /></span>
-            <span className="apartment-tile__badge">Apartment</span>
-            <span className="apartment-tile__empty">Not assigned yet</span>
-          </article>
-        )}
-
-        {(() => {
-          const first = home?.meals?.items?.[0]?.meal ?? '';
-          // Extract "3" from "Standard Plan - 3 Times" and the remaining plan name.
-          const nums = first.match(/\d+/g) ?? [];
-          const number = nums.length ? nums[nums.length - 1] : null;
-          const planName = number
-            ? first.replace(/[-–—]?\s*\d+\s*times?\s*$/i, '').replace(/plan$/i, 'plan').trim()
-            : first;
-
-          if (!first) {
-            return (
-              <article className="apartment-tile apartment-tile--meals apartment-tile--empty">
-                <span className="apartment-tile__icon" aria-hidden="true"><Utensils size={18} /></span>
-                <span className="apartment-tile__badge">Meals plan</span>
-                <span className="apartment-tile__empty">Not set yet</span>
-              </article>
-            );
-          }
-
-          return (
-            <article className="apartment-tile apartment-tile--meals">
-              <span className="apartment-tile__icon" aria-hidden="true"><Utensils size={18} /></span>
-              <span className="apartment-tile__badge">Meals plan</span>
-              {number ? (
-                <span className="apartment-tile__number apartment-tile__number--with-unit">
-                  {number}<em>×</em>
-                </span>
-              ) : null}
-              <div className="apartment-tile__meta">
-                <strong>{planName || 'Meals plan'}</strong>
-                {number ? <span>per day</span> : null}
-              </div>
-            </article>
-          );
-        })()}
-
-        {(() => {
-          const freq = home?.cleaning?.frequency ?? '';
-        const nums = freq.match(/\d+/g) ?? [];
-        const number = nums.length ? nums[nums.length - 1] : null;
-        // "4x per month" → "per month" (drop the number + trailing 'x/×/times')
-        const unit = number
-          ? freq.replace(/\d+/g, '').replace(/^\s*[x×]\s*/i, '').replace(/^\s*times?\s*/i, '').trim()
-          : freq;
-        const nextDate = home?.cleaning?.nextCleaning
-          ? new Date(home.cleaning.nextCleaning).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-          : null;
-
-        if (!freq && !nextDate) {
-          return (
-            <article className="apartment-tile apartment-tile--cleaning apartment-tile--empty">
-              <span className="apartment-tile__icon" aria-hidden="true"><Sparkles size={18} /></span>
-              <span className="apartment-tile__badge">Cleaning</span>
-              <span className="apartment-tile__empty">Not scheduled</span>
-            </article>
-          );
-        }
-
-        return (
-          <article className="apartment-tile apartment-tile--cleaning">
-            <span className="apartment-tile__icon" aria-hidden="true"><Sparkles size={18} /></span>
-            <span className="apartment-tile__badge">Cleaning</span>
-            {number ? (
-              <span className="apartment-tile__number apartment-tile__number--with-unit">
-                {number}<em>×</em>
-              </span>
-            ) : null}
-            <div className="apartment-tile__meta">
-              <strong>{unit || 'Scheduled'}</strong>
-              {nextDate ? <span>Next: {nextDate}</span> : null}
-            </div>
-          </article>
-        );
-      })()}
-      </div>
+      {showMemberSections && currentUserId ? (
+        <section className="home-section">
+          <h3 className="home-section__title">Support</h3>
+          <MaintenanceSection currentUserId={currentUserId} />
+          <CarsSection currentUserId={currentUserId} />
+        </section>
       ) : null}
 
-      {showMemberSections && currentUserId ? <MaintenanceSection currentUserId={currentUserId} /> : null}
-      {showMemberSections && currentUserId ? <CarsSection currentUserId={currentUserId} /> : null}
+      {cleaningModalOpen ? (
+        <div className="modal-overlay" role="presentation" onClick={() => setCleaningModalOpen(false)}>
+          <form
+            className="profile-edit-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Request cleaning reschedule"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={(event) => { event.preventDefault(); void submitCleaningReschedule(); }}
+          >
+            <div className="modal-head">
+              <div>
+                <h2>Reschedule cleaning</h2>
+                <p>Tell us the day and time that works best — the team will confirm.</p>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setCleaningModalOpen(false)} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+            <label>
+              Preferred day / time
+              <textarea
+                value={cleaningReschedule}
+                onChange={(event) => setCleaningReschedule(event.target.value)}
+                rows={3}
+                placeholder="e.g. Fridays after 3 pm, or skip this week"
+              />
+            </label>
+            {cleaningError ? <p className="form-error">{cleaningError}</p> : null}
+            <button className="primary-button" type="submit" disabled={cleaningSubmitting}>
+              {cleaningSubmitting ? 'Sending…' : 'Send request'}
+            </button>
+          </form>
+        </div>
+      ) : null}
     </div>
   );
 }
