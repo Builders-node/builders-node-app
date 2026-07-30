@@ -493,7 +493,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
         // 4 = done; 3 = verifying; 2 = uploading (n/a — no separate applied state); 1 = start
         const step = 1;
         const steps = [
-          { n: 1, icon: <ExternalLink size={15} />, title: 'Apply on Prospera.co', desc: 'Fill in the official E-Residency application.' },
+          { n: 1, icon: <ExternalLink size={15} />, title: 'Apply on Próspera portal', desc: 'Fill in the official E-Residency application.' },
           { n: 2, icon: <Upload size={15} />, title: 'Upload your confirmation', desc: 'Attach the approval file — PDF or screenshot.' },
           { n: 3, icon: <ShieldCheck size={15} />, title: 'Our team verifies it', desc: 'Usually within a few business days.' },
         ];
@@ -507,9 +507,9 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
                 <FileCheck2 size={22} />
               </div>
               <div className="residency-hero__title">
-                <span className="section-label">Prospera.co</span>
+                <span className="section-label">Próspera</span>
                 <h2>E-Residency</h2>
-                <p>Apply on Prospera.co, then upload your proof for our team to verify.</p>
+                <p>Apply on the Próspera portal, then upload your proof for our team to verify.</p>
               </div>
               <StatusBadge tone={toneForResidency(rStatus)}>
                 {RESIDENCY_LABELS[rStatus] ?? rStatus}
@@ -543,7 +543,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Apply on Prospera.co
+                Apply on Próspera portal
                 <ExternalLink size={16} />
               </a>
               <input
