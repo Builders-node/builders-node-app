@@ -43,11 +43,11 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
           <div className="landing-root min-h-screen" style={{ backgroundColor: 'hsl(30 30% 93%)', color: 'hsl(0 0% 10%)' }}>
             <Navbar />
             <HeroSection />
+            <AboutSection />
             <MissionSection />
             <GallerySection />
             <AdvantagesSection />
             <PartnersSection />
-            <AboutSection />
             <TwitterSection />
             <SpeakersSection />
             <EventsSection />
