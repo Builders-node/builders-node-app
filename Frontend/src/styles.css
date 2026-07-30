@@ -4237,6 +4237,10 @@ textarea {
 .status-row--beach .status-row__icon {
   background: linear-gradient(135deg, #4ea6ff, #1f7ce0);
 }
+.status-row__icon--discord {
+  background: linear-gradient(135deg, #7289da, #5865f2);
+}
+.status-row--action { border-color: rgba(88, 101, 242, 0.35); background: rgba(88, 101, 242, 0.05); }
 .status-row--muted { opacity: 0.75; }
 .status-row--muted .status-row__icon { filter: grayscale(0.35); }
 :root[data-theme='dark'] .status-row { background: #1a1c22; border-color: #23262c; }
