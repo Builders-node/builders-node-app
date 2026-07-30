@@ -4398,6 +4398,10 @@ textarea {
   cursor: pointer;
   text-align: left;
   font: inherit;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  appearance: none;
 }
 .compact-section__icon {
   width: 30px; height: 30px; border-radius: 8px;
