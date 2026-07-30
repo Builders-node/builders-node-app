@@ -289,7 +289,10 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
 
   return (
     <div className="page-stack">
-      <PageHeader title="Home" description="Your Builders Node account, E-Residency, and residence." />
+      <PageHeader
+        title={`Hello ${(profile?.profile?.fullName?.split(' ')[0]) ?? (profile?.email?.split('@')[0]) ?? 'there'}`}
+        description="Your Builders Node account, E-Residency, and residence."
+      />
       {!currentUserId ? <section className="panel empty-state">Log in to load account details.</section> : null}
       {error ? <section className="panel"><p className="form-error">{error}</p></section> : null}
       {profileMessage ? <section className="panel"><p className="form-success">{profileMessage}</p></section> : null}
