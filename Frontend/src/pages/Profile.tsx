@@ -300,7 +300,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
       {profileMessage ? <section className="panel"><p className="form-success">{profileMessage}</p></section> : null}
       {residencyMessage ? <section className="panel"><p className="form-success">{residencyMessage}</p></section> : null}
 
-      {showOnboarding && !onboardingDismissed ? (() => {
+      {showOnboarding ? (() => {
         // Floating "next step" pill — TikTok-style: progress ring on the left,
         // heading + next step in the middle, chevron on the right that opens
         // the full checklist in a modal.
