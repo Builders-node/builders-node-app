@@ -4089,7 +4089,7 @@ textarea {
   border-radius: 20px;
   min-height: 160px;
   color: #fff;
-  background: linear-gradient(140deg, #ff7a3a 0%, #e5541f 55%, #b93b0d 100%);
+  background: linear-gradient(140deg, #2b2d33 0%, #1e2025 100%);
   overflow: hidden;
 }
 .apartment-tile::after {
@@ -4098,9 +4098,11 @@ textarea {
   inset: -30% -20% auto auto;
   width: 60%;
   height: 60%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.16), transparent 70%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.06), transparent 70%);
   pointer-events: none;
 }
+.apartment-tile__badge { color: rgba(229, 84, 31, 0.85); }
+.apartment-tile__number { color: #e5541f; }
 .apartment-tile__badge {
   font-size: 0.72rem;
   font-weight: 700;
@@ -4122,18 +4124,18 @@ textarea {
 .apartment-tile--empty {
   min-height: 120px;
   justify-content: space-between;
-  background: linear-gradient(140deg, #fbe3d3 0%, #f6cbb0 100%);
-  color: #6b2f10;
+  background: linear-gradient(140deg, #f3f4f6 0%, #e6e8ec 100%);
+  color: #3a3d45;
 }
-.apartment-tile--empty .apartment-tile__badge { color: rgba(107, 47, 16, 0.7); }
+.apartment-tile--empty .apartment-tile__badge { color: rgba(58, 61, 69, 0.7); }
 .apartment-tile__empty { font-size: 1.35rem; font-weight: 700; }
 
 /* Meals-variant of the apartment tile — dark charcoal with an orange glow. */
 .apartment-tile--meals {
-  background: linear-gradient(140deg, #1c1e24 0%, #26221d 55%, #3a2515 100%);
+  background: linear-gradient(140deg, #2b2d33 0%, #1e2025 100%);
 }
 .apartment-tile--meals::after {
-  background: radial-gradient(circle, rgba(229, 84, 31, 0.35), transparent 70%);
+  background: radial-gradient(circle, rgba(229, 84, 31, 0.14), transparent 70%);
 }
 .apartment-tile--meals .apartment-tile__badge { color: rgba(229, 84, 31, 0.85); }
 .apartment-tile--meals .apartment-tile__number { color: #e5541f; }
@@ -4146,23 +4148,23 @@ textarea {
   vertical-align: 0.3em;
 }
 .apartment-tile--meals.apartment-tile--empty {
-  background: linear-gradient(140deg, #26221d 0%, #1c1e24 100%);
-  color: #e5541f;
+  background: linear-gradient(140deg, #f3f4f6 0%, #e6e8ec 100%);
+  color: #3a3d45;
 }
 .apartment-tile--meals.apartment-tile--empty .apartment-tile__badge { color: rgba(229, 84, 31, 0.7); }
 
 /* Cleaning-variant of the apartment tile — cool teal/steel + soft glow. */
 .apartment-tile--cleaning {
-  background: linear-gradient(140deg, #0e1420 0%, #142333 55%, #1d3550 100%);
+  background: linear-gradient(140deg, #2b2d33 0%, #1e2025 100%);
 }
 .apartment-tile--cleaning::after {
-  background: radial-gradient(circle, rgba(120, 180, 255, 0.35), transparent 70%);
+  background: radial-gradient(circle, rgba(120, 180, 255, 0.14), transparent 70%);
 }
 .apartment-tile--cleaning .apartment-tile__badge { color: rgba(150, 200, 255, 0.85); }
 .apartment-tile--cleaning .apartment-tile__number { color: #7bb4ff; }
 .apartment-tile--cleaning.apartment-tile--empty {
-  background: linear-gradient(140deg, #eef4fb 0%, #dae7f4 100%);
-  color: #24466f;
+  background: linear-gradient(140deg, #f3f4f6 0%, #e6e8ec 100%);
+  color: #3a3d45;
 }
 .apartment-tile--cleaning.apartment-tile--empty .apartment-tile__badge { color: rgba(36, 70, 111, 0.7); }
 
