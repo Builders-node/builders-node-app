@@ -4125,7 +4125,6 @@ textarea {
   justify-content: space-between;
   background: linear-gradient(140deg, #fbe3d3 0%, #f6cbb0 100%);
   color: #6b2f10;
-  box-shadow: 0 12px 28px rgba(229, 84, 31, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 .apartment-tile--empty .apartment-tile__badge { color: rgba(107, 47, 16, 0.7); }
 .apartment-tile__empty { font-size: 1.35rem; font-weight: 700; }
@@ -4133,7 +4132,6 @@ textarea {
 /* Meals-variant of the apartment tile — dark charcoal with an orange glow. */
 .apartment-tile--meals {
   background: linear-gradient(140deg, #1c1e24 0%, #26221d 55%, #3a2515 100%);
-  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 .apartment-tile--meals::after {
   background: radial-gradient(circle, rgba(229, 84, 31, 0.35), transparent 70%);
@@ -4157,7 +4155,6 @@ textarea {
 /* Cleaning-variant of the apartment tile — cool teal/steel + soft glow. */
 .apartment-tile--cleaning {
   background: linear-gradient(140deg, #0e1420 0%, #142333 55%, #1d3550 100%);
-  box-shadow: 0 20px 44px rgba(20, 45, 80, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 .apartment-tile--cleaning::after {
   background: radial-gradient(circle, rgba(120, 180, 255, 0.35), transparent 70%);
