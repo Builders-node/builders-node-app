@@ -44,9 +44,9 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
             <Navbar />
             <HeroSection />
             <AboutSection />
-            <MissionSection />
             <GallerySection />
             <AdvantagesSection />
+            <MissionSection />
             <PartnersSection />
             <TwitterSection />
             <SpeakersSection />
