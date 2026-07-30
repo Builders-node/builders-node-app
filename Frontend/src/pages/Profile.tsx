@@ -529,30 +529,6 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
         );
       })() : null}
 
-      {showMemberSections ? (
-      <section className="panel admin-user-list-panel">
-        <div className="admin-panel__head">
-          <div>
-            <span className="section-label">ProsperaSub.com</span>
-            <h2>Community plans</h2>
-            <p>Every Builders Node community plan connected to this account.</p>
-          </div>
-          <StatusBadge tone={profile?.communityPlans?.length ? 'good' : 'neutral'}>
-            {String(profile?.communityPlans?.length ?? 0)}
-          </StatusBadge>
-        </div>
-        {profile?.communityPlans?.length ? null : <div className="empty-state">No community plans purchased yet.</div>}
-        {profile?.communityPlans?.map((plan) => (
-          <div className="admin-user-list-row" key={plan.id}>
-            <div>
-              <strong>{plan.planName}</strong>
-              <span>{plan.source} · Purchased {formatDate(plan.purchasedAt)} · {formatMoney(plan.amountCents, plan.currency)}</span>
-            </div>
-            <StatusBadge tone={plan.status === 'ACTIVE' ? 'good' : plan.status === 'OVERDUE' ? 'danger' : 'attention'}>{plan.status}</StatusBadge>
-          </div>
-        ))}
-      </section>
-      ) : null}
 
       {showMemberSections ? (
       <div className="two-column">
