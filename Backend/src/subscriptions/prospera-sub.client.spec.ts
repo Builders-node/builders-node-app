@@ -76,12 +76,63 @@ describe('ProsperaSubClient (official api.prosperasub.com)', () => {
     await expect(client.getMealsMenu('user-1')).rejects.toThrow('ProsperaSub API responded 401.');
   });
 
-  it('queues provisioning (PENDING) until member→ProsperaSub mapping is defined', async () => {
-    const client = makeClient(liveEnv);
+  it('skips provisioning (PENDING) when the API key is not set', async () => {
+    const client = makeClient({ PROSPERA_SUB_API_BASE_URL: liveEnv.PROSPERA_SUB_API_BASE_URL });
     const fetchMock = jest.spyOn(global, 'fetch');
-    const result = await client.provisionMember({ email: 'new@member.test', fullName: 'New Member' });
+    const result = await client.provisionMember({ email: 'a@b.test' });
     expect(result.status).toBe('PENDING');
+    expect(result.message).toMatch(/not configured/i);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('creates a member on ProsperaSub when the email is not found', async () => {
+    const client = makeClient(liveEnv);
+    const fetchMock = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [] } as Response) // lookup: empty
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ id: 'psub_user_1' }) } as Response); // create
+    const result = await client.provisionMember({ email: 'NEW@Member.test', fullName: 'New Member' });
+
+    const [lookupUrl] = fetchMock.mock.calls[0];
+    expect(lookupUrl).toBe('https://api.prosperasub.com/v1/data/users?select=id&email=eq.new%40member.test&limit=1');
+    const [createUrl, createInit] = fetchMock.mock.calls[1];
+    expect(createUrl).toBe('https://api.prosperasub.com/v1/data/users');
+    expect(createInit?.method).toBe('POST');
+    expect(JSON.parse(String(createInit?.body))).toEqual({ email: 'new@member.test', full_name: 'New Member', source: 'builders-node' });
+
+    expect(result.externalMemberId).toBe('psub_user_1');
+    expect(result.status).toBe('ACTIVE'); // no plans requested → member-only mirror still counts as ACTIVE
+  });
+
+  it('mirrors a food subscription against the configured provider', async () => {
+    const client = makeClient({ ...liveEnv, PROSPERA_SUB_FOOD_PROVIDER_ID: 'prov_food_bn' });
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [{ id: 'psub_user_1' }] } as Response) // lookup
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ id: 'food_sub_9' }) } as Response); // food sub
+
+    const result = await client.provisionMember({
+      email: 'a@b.test',
+      mealPlanId: 'plan1',
+      mealPlanName: 'Standard Plan - 3 Times',
+      startDate: new Date('2026-08-01T00:00:00Z'),
+    });
+
+    expect(result.status).toBe('ACTIVE');
+    expect(result.externalFoodSubscriptionId).toBe('food_sub_9');
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('returns PARTIAL + a warning when a provider id is missing', async () => {
+    const client = makeClient(liveEnv); // no PROSPERA_SUB_FOOD_PROVIDER_ID
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [{ id: 'psub_user_1' }] } as Response);
+
+    const result = await client.provisionMember({ email: 'a@b.test', mealPlanName: 'Standard Plan - 3 Times' });
+    expect(result.status).toBe('PENDING');
+    expect(result.externalFoodSubscriptionId).toBeNull();
+    expect(result.warnings[0]).toMatch(/PROSPERA_SUB_FOOD_PROVIDER_ID/);
   });
 
   it('builds a stable activation link', async () => {

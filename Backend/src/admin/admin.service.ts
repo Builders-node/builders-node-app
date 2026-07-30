@@ -471,29 +471,58 @@ export class AdminService {
     const mealPlan = parseGlobalMealPlan(globalMealRow?.value);
     const cleaningPlan = parseGlobalCleaningPlan(globalCleaningRow?.value);
 
-    // Issue the food locally so the member sees their paid meal plan immediately.
+    const result = await this.mirrorPlansToProsperaSub({
+      user,
+      mealPlan: mealPlan ? { id: mealPlan.id, name: mealPlan.name } : null,
+      cleaningPlan: cleaningPlan ? { id: cleaningPlan.id, name: cleaningPlan.name, frequency: cleaningPlan.serviceFrequency } : null,
+    });
+
+    return { ...result, mealPlan, cleaningPlan };
+  }
+
+  /**
+   * Shared helper: issue a member's meal / cleaning plan locally AND mirror
+   * both onto ProsperaSub for the configured provider so it shows up on the
+   * provider's side. Persists returned ProsperaSub ids on the local rows so
+   * we can update / cancel them later.
+   *
+   * Never throws — a ProsperaSub failure is recorded as an audit event and
+   * the local grant still happens (member sees their plan immediately).
+   */
+  private async mirrorPlansToProsperaSub(input: {
+    user: { id: string; email: string; fullName?: string | null };
+    mealPlan: { id?: string | null; name: string } | null;
+    cleaningPlan: { id?: string | null; name: string; frequency?: string | null } | null;
+  }) {
+    const { user, mealPlan, cleaningPlan } = input;
+
+    // Local grant — do this first so the member sees their plan even if the
+    // ProsperaSub call fails.
+    let localMealRowId: string | null = null;
     if (mealPlan) {
       await this.prisma.mealMenuItem.deleteMany({ where: { userId: user.id } });
-      await this.prisma.mealMenuItem.create({
+      const row = await this.prisma.mealMenuItem.create({
         data: { userId: user.id, day: 'Plan', meal: mealPlan.name, source: 'ProsperaSub.com' },
       });
+      localMealRowId = row.id;
     }
-
-    // Issue the cleaning plan locally as well.
+    let localCleaningRowId: string | null = null;
     if (cleaningPlan) {
       await this.prisma.cleaningSchedule.deleteMany({ where: { userId: user.id } });
-      await this.prisma.cleaningSchedule.create({
+      const row = await this.prisma.cleaningSchedule.create({
         data: {
           userId: user.id,
-          frequency: cleaningPlan.serviceFrequency ?? 'Designated',
+          frequency: cleaningPlan.frequency ?? 'Designated',
           nextCleaning: new Date(),
           notes: cleaningPlan.name,
           source: 'ProsperaSub.com',
         },
       });
+      localCleaningRowId = row.id;
     }
 
-    let result: { status: string; externalAccountId: string | null; message: string };
+    // Mirror to ProsperaSub. Failures are logged + audited but never bubble.
+    let result;
     try {
       result = await this.prosperaSub.provisionMember({
         email: user.email,
@@ -505,28 +534,60 @@ export class AdminService {
       });
     } catch (error) {
       result = {
-        status: 'FAILED',
+        status: 'FAILED' as const,
+        externalMemberId: null,
+        externalFoodSubscriptionId: null,
+        externalCleaningSubscriptionId: null,
         externalAccountId: null,
+        warnings: [] as string[],
         message: error instanceof Error ? error.message : 'ProsperaSub.com provisioning failed.',
       };
+    }
+
+    // Persist whichever external ids came back — even on PARTIAL, so a retry
+    // later can pick up only what's missing without duplicating rows.
+    if (result.externalMemberId) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { externalMemberId: result.externalMemberId },
+      }).catch(() => { /* another concurrent update may have set it — ignore */ });
+    }
+    if (localMealRowId && result.externalFoodSubscriptionId) {
+      await this.prisma.mealMenuItem.update({
+        where: { id: localMealRowId },
+        data: { externalSubscriptionId: result.externalFoodSubscriptionId },
+      });
+    }
+    if (localCleaningRowId && result.externalCleaningSubscriptionId) {
+      await this.prisma.cleaningSchedule.update({
+        where: { id: localCleaningRowId },
+        data: { externalSubscriptionId: result.externalCleaningSubscriptionId },
+      });
     }
 
     await this.prisma.auditEvent.create({
       data: {
         userId: user.id,
         action: 'prospera_sub_provision',
-        metadataJson: JSON.stringify({ ...result, mealPlanId: mealPlan?.id ?? null, cleaningPlanId: cleaningPlan?.id ?? null }),
+        metadataJson: JSON.stringify({
+          ...result,
+          mealPlanId: mealPlan?.id ?? null,
+          cleaningPlanId: cleaningPlan?.id ?? null,
+        }),
       },
     });
 
-    return { ...result, mealPlan, cleaningPlan };
+    return result;
   }
 
   async designateUser(
     userId: string,
     body: { apartmentName?: string; mealPlan?: string; cleaningPlan?: string },
   ) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { profile: true },
+    });
     if (!user) {
       throw new NotFoundException('User not found.');
     }
@@ -539,11 +600,10 @@ export class AdminService {
       throw new BadRequestException('Add an apartment, meal plan, or cleaning plan.');
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      let apartment = null;
-
-      if (apartmentName) {
-        apartment = await tx.apartment.findFirst({ where: { name: apartmentName } });
+    // Apartment is a pure local concern; keep it in one atomic step.
+    if (apartmentName) {
+      await this.prisma.$transaction(async (tx) => {
+        let apartment = await tx.apartment.findFirst({ where: { name: apartmentName } });
         apartment ??= await tx.apartment.create({
           data: {
             name: apartmentName,
@@ -568,42 +628,28 @@ export class AdminService {
             notes: 'Updated from admin dashboard.',
           },
         });
-      }
-
-      if (mealPlan) {
-        await tx.mealMenuItem.deleteMany({ where: { userId } });
-        await tx.mealMenuItem.create({
-          data: {
-            userId,
-            day: 'Plan',
-            meal: mealPlan,
-            source: 'ProsperaSub.com',
-          },
-        });
-      }
-
-      if (cleaningPlan) {
-        await tx.cleaningSchedule.deleteMany({ where: { userId } });
-        await tx.cleaningSchedule.create({
-          data: {
-            userId,
-            frequency: 'Designated',
-            nextCleaning: new Date(),
-            notes: cleaningPlan,
-            source: 'ProsperaSub.com',
-          },
-        });
-      }
-
-      return tx.user.findUnique({
-        where: { id: userId },
-        include: {
-          profile: true,
-          assignedApartment: { include: { apartment: true } },
-          mealMenuItems: true,
-          cleaningSchedules: true,
-        },
       });
+    }
+
+    // Meal / cleaning grants go through the shared helper so they also mirror
+    // onto ProsperaSub for the same provider. Runs outside the transaction —
+    // the external call must not hold a DB row lock.
+    if (mealPlan || cleaningPlan) {
+      await this.mirrorPlansToProsperaSub({
+        user: { id: user.id, email: user.email, fullName: user.profile?.fullName ?? null },
+        mealPlan: mealPlan ? { name: mealPlan } : null,
+        cleaningPlan: cleaningPlan ? { name: cleaningPlan } : null,
+      });
+    }
+
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        profile: true,
+        assignedApartment: { include: { apartment: true } },
+        mealMenuItems: true,
+        cleaningSchedules: true,
+      },
     });
   }
 
