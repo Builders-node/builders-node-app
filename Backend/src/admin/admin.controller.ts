@@ -160,7 +160,13 @@ export class AdminController {
   @Post('users/:userId/designations')
   designateUser(
     @Param('userId') userId: string,
-    @Body() body: { apartmentName?: string; mealPlan?: string; cleaningPlan?: string },
+    @Body() body: {
+      apartmentName?: string;
+      mealPlan?: string;
+      mealPlanId?: string;
+      cleaningPlan?: string;
+      cleaningPlanId?: string;
+    },
   ) {
     return this.admin.designateUser(userId, body);
   }

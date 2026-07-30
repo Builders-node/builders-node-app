@@ -890,10 +890,18 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
     const draft = designationDrafts[userId] ?? { apartmentName: '', mealPlan: '', cleaningPlan: '' };
     setError(null);
     setCredentialMessage(null);
+    // Match the picked plan name back to its ProsperaSub id from the loaded
+    // catalog so the backend can mirror the subscription with a real plan_id.
+    const mealPlanId = draft.mealPlan
+      ? globalSettings?.mealOptions.find((o) => o.name === draft.mealPlan)?.id ?? ''
+      : '';
+    const cleaningPlanId = draft.cleaningPlan
+      ? globalSettings?.cleaningOptions.find((o) => o.name === draft.cleaningPlan)?.id ?? ''
+      : '';
     try {
       await apiRequest(`/admin/users/${userId}/designations`, {
         method: 'POST',
-        body: JSON.stringify(draft),
+        body: JSON.stringify({ ...draft, mealPlanId, cleaningPlanId }),
       });
       setCredentialMessage('Designations saved for user.');
       await refreshOverview();

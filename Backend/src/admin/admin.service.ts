@@ -598,7 +598,13 @@ export class AdminService {
 
   async designateUser(
     userId: string,
-    body: { apartmentName?: string; mealPlan?: string; cleaningPlan?: string },
+    body: {
+      apartmentName?: string;
+      mealPlan?: string;
+      mealPlanId?: string;
+      cleaningPlan?: string;
+      cleaningPlanId?: string;
+    },
   ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -610,7 +616,9 @@ export class AdminService {
 
     const apartmentName = body.apartmentName?.trim();
     const mealPlan = body.mealPlan?.trim();
+    const mealPlanId = body.mealPlanId?.trim() || null;
     const cleaningPlan = body.cleaningPlan?.trim();
+    const cleaningPlanId = body.cleaningPlanId?.trim() || null;
 
     if (!apartmentName && !mealPlan && !cleaningPlan) {
       throw new BadRequestException('Add an apartment, meal plan, or cleaning plan.');
@@ -651,10 +659,30 @@ export class AdminService {
     // onto ProsperaSub for the same provider. Runs outside the transaction —
     // the external call must not hold a DB row lock.
     if (mealPlan || cleaningPlan) {
+      // If the admin picked from the ProsperaSub catalog dropdown, the UI
+      // sends the plan id straight through. If not (old free-text designation,
+      // or an id was lost somewhere) try to recover it by matching the name
+      // against the live ProsperaSub catalog — otherwise the mirror short-
+      // circuits with "no plan ids" and nothing lands on ProsperaSub's side.
+      let resolvedMealId = mealPlanId;
+      let resolvedCleaningId = cleaningPlanId;
+      if (mealPlan && !resolvedMealId) {
+        try {
+          const menu = await this.prosperaSub.getMealsMenu('admin');
+          resolvedMealId = menu.find((p) => p.name === mealPlan)?.id ?? null;
+        } catch { /* catalog unreachable — mirror will still run without id */ }
+      }
+      if (cleaningPlan && !resolvedCleaningId) {
+        try {
+          const packages = await this.prosperaSub.getCleaningSchedule('admin');
+          resolvedCleaningId = packages.find((p) => p.name === cleaningPlan)?.id ?? null;
+        } catch { /* same fallback */ }
+      }
+
       await this.mirrorPlansToProsperaSub({
         user: { id: user.id, email: user.email, fullName: user.profile?.fullName ?? null },
-        mealPlan: mealPlan ? { name: mealPlan } : null,
-        cleaningPlan: cleaningPlan ? { name: cleaningPlan } : null,
+        mealPlan: mealPlan ? { id: resolvedMealId, name: mealPlan } : null,
+        cleaningPlan: cleaningPlan ? { id: resolvedCleaningId, name: cleaningPlan } : null,
       });
     }
 
