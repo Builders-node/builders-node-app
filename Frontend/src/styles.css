@@ -4154,3 +4154,19 @@ textarea {
   color: #e5541f;
 }
 .apartment-tile--meals.apartment-tile--empty .apartment-tile__badge { color: rgba(229, 84, 31, 0.7); }
+
+/* Cleaning-variant of the apartment tile — cool teal/steel + soft glow. */
+.apartment-tile--cleaning {
+  background: linear-gradient(140deg, #0e1420 0%, #142333 55%, #1d3550 100%);
+  box-shadow: 0 20px 44px rgba(20, 45, 80, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.apartment-tile--cleaning::after {
+  background: radial-gradient(circle, rgba(120, 180, 255, 0.35), transparent 70%);
+}
+.apartment-tile--cleaning .apartment-tile__badge { color: rgba(150, 200, 255, 0.85); }
+.apartment-tile--cleaning .apartment-tile__number { color: #7bb4ff; }
+.apartment-tile--cleaning.apartment-tile--empty {
+  background: linear-gradient(140deg, #eef4fb 0%, #dae7f4 100%);
+  color: #24466f;
+}
+.apartment-tile--cleaning.apartment-tile--empty .apartment-tile__badge { color: rgba(36, 70, 111, 0.7); }

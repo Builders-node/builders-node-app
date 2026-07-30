@@ -596,19 +596,42 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
       </div>
       ) : null}
 
-      {showMemberSections ? (
-      <section className="panel split-panel">
-        <div>
-          <span className="section-label">Cleaning</span>
-          <h2>{home?.cleaning?.nextCleaning ? new Date(home.cleaning.nextCleaning).toLocaleDateString() : 'Not scheduled'}</h2>
-          <p>{home?.cleaning?.notes ?? 'No cleaning information is saved yet.'}</p>
-        </div>
-        <div className="detail-box">
-          <div><span>Source</span><strong>ProsperaSub.com</strong></div>
-          <div><span>Frequency</span><strong>{home?.cleaning?.frequency ?? '-'}</strong></div>
-        </div>
-      </section>
-      ) : null}
+      {showMemberSections ? (() => {
+        const freq = home?.cleaning?.frequency ?? '';
+        const nums = freq.match(/\d+/g) ?? [];
+        const number = nums.length ? nums[nums.length - 1] : null;
+        // "4x per month" → "per month" (drop the number + trailing 'x/×/times')
+        const unit = number
+          ? freq.replace(/\d+/g, '').replace(/^\s*[x×]\s*/i, '').replace(/^\s*times?\s*/i, '').trim()
+          : freq;
+        const nextDate = home?.cleaning?.nextCleaning
+          ? new Date(home.cleaning.nextCleaning).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+          : null;
+
+        if (!freq && !nextDate) {
+          return (
+            <article className="apartment-tile apartment-tile--cleaning apartment-tile--empty">
+              <span className="apartment-tile__badge">Cleaning</span>
+              <span className="apartment-tile__empty">Not scheduled</span>
+            </article>
+          );
+        }
+
+        return (
+          <article className="apartment-tile apartment-tile--cleaning">
+            <span className="apartment-tile__badge">Cleaning</span>
+            {number ? (
+              <span className="apartment-tile__number apartment-tile__number--with-unit">
+                {number}<em>×</em>
+              </span>
+            ) : null}
+            <div className="apartment-tile__meta">
+              <strong>{unit || 'Scheduled'}</strong>
+              {nextDate ? <span>Next: {nextDate}</span> : null}
+            </div>
+          </article>
+        );
+      })() : null}
 
       {showMemberSections && currentUserId ? <MaintenanceSection currentUserId={currentUserId} /> : null}
       {showMemberSections && currentUserId ? <CarsSection currentUserId={currentUserId} /> : null}
