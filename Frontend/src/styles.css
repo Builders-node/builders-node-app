@@ -4130,3 +4130,27 @@ textarea {
 }
 .apartment-tile--empty .apartment-tile__badge { color: rgba(107, 47, 16, 0.7); }
 .apartment-tile__empty { font-size: 1.35rem; font-weight: 700; }
+
+/* Meals-variant of the apartment tile — dark charcoal with an orange glow. */
+.apartment-tile--meals {
+  background: linear-gradient(140deg, #1c1e24 0%, #26221d 55%, #3a2515 100%);
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.apartment-tile--meals::after {
+  background: radial-gradient(circle, rgba(229, 84, 31, 0.35), transparent 70%);
+}
+.apartment-tile--meals .apartment-tile__badge { color: rgba(229, 84, 31, 0.85); }
+.apartment-tile--meals .apartment-tile__number { color: #e5541f; }
+.apartment-tile__number--with-unit em {
+  font-style: normal;
+  font-size: 0.55em;
+  font-weight: 600;
+  margin-left: 0.08em;
+  color: rgba(255, 255, 255, 0.55);
+  vertical-align: 0.3em;
+}
+.apartment-tile--meals.apartment-tile--empty {
+  background: linear-gradient(140deg, #26221d 0%, #1c1e24 100%);
+  color: #e5541f;
+}
+.apartment-tile--meals.apartment-tile--empty .apartment-tile__badge { color: rgba(229, 84, 31, 0.7); }

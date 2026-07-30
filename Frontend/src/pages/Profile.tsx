@@ -581,22 +581,39 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
           </article>
         )}
 
-        <article className="panel">
-          <span className="section-label">ProsperaSub.com</span>
-          <h2>Meals menu</h2>
-          <div className="next-step-list">
-            {home?.meals?.items?.length ? (
-              home.meals.items.map((item) => (
-                <div className="next-step" key={item.id ?? item.day}>
-                  <strong>{item.day}</strong>
-                  <span>{item.meal}</span>
-                </div>
-              ))
-            ) : (
-              <div className="empty-state">No meals are saved yet.</div>
-            )}
-          </div>
-        </article>
+        {(() => {
+          const first = home?.meals?.items?.[0]?.meal ?? '';
+          // Extract "3" from "Standard Plan - 3 Times" and the remaining plan name.
+          const nums = first.match(/\d+/g) ?? [];
+          const number = nums.length ? nums[nums.length - 1] : null;
+          const planName = number
+            ? first.replace(/[-–—]?\s*\d+\s*times?\s*$/i, '').replace(/plan$/i, 'plan').trim()
+            : first;
+
+          if (!first) {
+            return (
+              <article className="apartment-tile apartment-tile--meals apartment-tile--empty">
+                <span className="apartment-tile__badge">Meals plan</span>
+                <span className="apartment-tile__empty">Not set yet</span>
+              </article>
+            );
+          }
+
+          return (
+            <article className="apartment-tile apartment-tile--meals">
+              <span className="apartment-tile__badge">Meals plan</span>
+              {number ? (
+                <span className="apartment-tile__number apartment-tile__number--with-unit">
+                  {number}<em>×</em>
+                </span>
+              ) : null}
+              <div className="apartment-tile__meta">
+                <strong>{planName || 'Meals plan'}</strong>
+                {number ? <span>per day</span> : null}
+              </div>
+            </article>
+          );
+        })()}
       </div>
       ) : null}
 
