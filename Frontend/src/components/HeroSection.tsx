@@ -7,7 +7,6 @@ const HeroSection = () => {
   const titleRef = useGsapTitle<HTMLHeadingElement>();
   const batch = useBatch();
   const badgeText = batch.label ?? `First Batch · Starting ${batch.longDate ?? "September 1, 2026"}`;
-  const arrivalText = batch.monthDay ?? "September 1";
 
   return (
     <section
@@ -53,7 +52,7 @@ const HeroSection = () => {
           Come to build. <br />Stay for the people
         </h1>
         <p className="text-base md:text-lg text-white/70 max-w-xl leading-relaxed">
-          First arrivals from {arrivalText} — $1,950/mo including accommodation, gym, food, co-working, and more.
+          $1,950/month and includes private accommodation, nutritious meals, coworking, gym, pool and more.
         </p>
         <button
           onClick={openApply}
