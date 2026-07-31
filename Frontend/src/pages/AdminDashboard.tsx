@@ -2,7 +2,7 @@ import { ArrowLeft, Check, FileText, Home, Link as LinkIcon, Search, Send, Shiel
 import { useEffect, useState, type ReactNode } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
-import type { PageId, StatusTone } from '../data/dashboard';
+import { ADMIN_PAGE_TO_TAB, type PageId, type StatusTone } from '../data/dashboard';
 import { apiRequest } from '../lib/api';
 import { useEscapeToClose } from '../lib/useModalA11y';
 
@@ -219,6 +219,12 @@ type GlobalSettings = {
 type AdminDashboardProps = {
   currentUserRole: string | null;
   setActivePage: (page: PageId) => void;
+  /**
+   * Which admin sub-page to render. The sidebar is the source of truth for
+   * navigation now — each admin sub-page has its own URL (see ADMIN_PAGE_TO_TAB
+   * in data/dashboard.ts). Defaults to overview when not supplied.
+   */
+  adminPage?: PageId;
 };
 
 type FunnelStage = {
@@ -413,13 +419,14 @@ function dropOffFromPrevious(stage: FunnelStage, previous?: FunnelStage) {
   return `${Math.max(0, Math.round(((previous.count - stage.count) / previous.count) * 100))}%`;
 }
 
-export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboardProps) {
+export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: AdminDashboardProps) {
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
   const [isUserDetailLoading, setIsUserDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [credentialMessage, setCredentialMessage] = useState<string | null>(null);
-  const [adminTab, setAdminTab] = useState<AdminTab>('overview');
+  // Which section is on screen — sourced from the URL / sidebar via `adminPage`.
+  const adminTab = (ADMIN_PAGE_TO_TAB[adminPage ?? 'adminDashboard'] ?? 'overview') as AdminTab;
   const [applicantView, setApplicantView] = useState<'list' | 'board'>('board');
   const [maintenance, setMaintenance] = useState<AdminMaintenance[]>([]);
   const [resources, setResources] = useState<AdminResource[]>([]);
@@ -637,18 +644,6 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
     const filter = designationFilters.find((item) => item.id === id);
     return filter ? allDesignationUsers.filter(filter.matches).length : 0;
   };
-
-  // Admin sub-pages. Counts surface pending work so the admin sees it at a glance.
-  const adminTabs: Array<{ id: AdminTab; label: string; count?: number }> = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'applicants', label: 'Applicants', count: applicantCountFor('action') },
-    { id: 'residency', label: 'E-Residency', count: residencyPendingCount },
-    { id: 'designations', label: 'Designations', count: designationCountFor('incomplete') },
-    { id: 'maintenance', label: 'Maintenance', count: maintenance.filter((m) => m.status !== 'RESOLVED').length },
-    { id: 'vehicles', label: 'Vehicles', count: vehicleBookings.filter((b) => b.status !== 'CANCELLED').length },
-    { id: 'resources', label: 'Resources' },
-    { id: 'settings', label: 'Global settings' },
-  ];
 
   async function refreshOverview() {
     const data = await apiRequest<AdminOverview>('/admin/overview');
@@ -1216,23 +1211,6 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
           }
         />
 
-        <nav className="admin-tabs" aria-label="Admin sections">
-          {adminTabs.map((tab) => (
-            <button
-              className={adminTab === tab.id ? 'admin-tab admin-tab--active' : 'admin-tab'}
-              key={tab.id}
-              onClick={() => setAdminTab(tab.id)}
-            >
-              <span>{tab.label}</span>
-              {tab.count ? <strong className="admin-tab__count">{tab.count}</strong> : null}
-            </button>
-          ))}
-          <button className="admin-tab admin-tab--users" onClick={() => setActivePage('allUsers')}>
-            <Users size={15} />
-            All users
-          </button>
-        </nav>
-
         {isLoading ? <section className="panel"><p>Loading admin data...</p></section> : null}
         {isUserDetailLoading ? <section className="panel"><p>Loading user detail...</p></section> : null}
         {error ? <section className="panel"><p className="form-error">{error}</p></section> : null}
@@ -1265,8 +1243,8 @@ export function AdminDashboard({ currentUserRole, setActivePage }: AdminDashboar
             </div>
             <div className="attention-grid">
               {[
-                { key: 'apps', label: 'Applications to review', count: overview.attention.pendingApplications, go: () => setAdminTab('applicants') },
-                { key: 'res', label: 'E-Residency proofs', count: overview.attention.pendingResidency, go: () => setAdminTab('residency') },
+                { key: 'apps', label: 'Applications to review', count: overview.attention.pendingApplications, go: () => setActivePage('adminApplicants') },
+                { key: 'res', label: 'E-Residency proofs', count: overview.attention.pendingResidency, go: () => setActivePage('adminResidency') },
                 { key: 'tickets', label: 'Open support tickets', count: overview.attention.openTickets, go: undefined },
                 { key: 'pay', label: 'Overdue payments', count: overview.attention.overduePayments, go: undefined },
               ].map((item) => (

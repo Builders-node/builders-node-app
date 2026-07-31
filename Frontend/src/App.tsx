@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from './components/AppShell';
 import { AuthPanel } from './components/AuthPanel';
 import { PullToRefresh } from './components/PullToRefresh';
-import { pageForPath, pathForPage, type PageId } from './data/dashboard';
+import { ADMIN_SUB_PAGES, pageForPath, pathForPage, type PageId } from './data/dashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminLogin } from './pages/AdminLogin';
 import { Landing } from './pages/Landing';
@@ -35,6 +35,13 @@ const PAGE_TITLES: Partial<Record<PageId, string>> = {
   allUsers: 'Users — Builders Node',
   units: 'Units — Builders Node',
   adminDashboard: 'Admin — Builders Node',
+  adminApplicants: 'Applicants — Builders Node',
+  adminResidency: 'Residency — Builders Node',
+  adminDesignations: 'Designations — Builders Node',
+  adminMaintenance: 'Maintenance — Builders Node',
+  adminVehicles: 'Vehicles — Builders Node',
+  adminResources: 'Resources — Builders Node',
+  adminSettings: 'Admin settings — Builders Node',
 };
 
 function App() {
@@ -233,7 +240,7 @@ function App() {
       }
       return <Units />;
     }
-    if (activePage === 'adminDashboard') {
+    if (ADMIN_SUB_PAGES.includes(activePage)) {
       if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
       if (!canAccessAdmin) {
         return (
@@ -243,7 +250,7 @@ function App() {
         );
       }
 
-      return <AdminDashboard currentUserRole={currentUserRole} setActivePage={setActivePage} />;
+      return <AdminDashboard currentUserRole={currentUserRole} setActivePage={setActivePage} adminPage={activePage} />;
     }
     // Profile is the single member home (also the fallback for the legacy
     // 'dashboard' page id and any unmatched page).
@@ -253,7 +260,7 @@ function App() {
   // Full-screen views (no app shell): the landing, every auth screen, and any
   // protected page viewed while logged out (which falls back to the login panel).
   const AUTH_PAGES: PageId[] = ['apply', 'login', 'signup', 'setupPassword', 'forgotPassword', 'resetPassword', 'verifyEmail', 'adminLogin'];
-  const PROTECTED_PAGES: PageId[] = ['profile', 'resources', 'security', 'allUsers', 'units', 'adminDashboard'];
+  const PROTECTED_PAGES: PageId[] = ['profile', 'resources', 'security', 'allUsers', 'units', ...ADMIN_SUB_PAGES];
   if (
     showLanding ||
     AUTH_PAGES.includes(activePage) ||

@@ -1,5 +1,19 @@
 import type { LucideIcon } from 'lucide-react';
-import { BookOpen, Building2, Home, Settings, ShieldCheck, UsersRound } from 'lucide-react';
+import {
+  BookOpen,
+  Building2,
+  Car,
+  ClipboardList,
+  FileCheck2,
+  Home,
+  LayoutDashboard,
+  Library,
+  Settings,
+  Sliders,
+  UserCheck,
+  UsersRound,
+  Wrench,
+} from 'lucide-react';
 
 export type StatusTone = 'good' | 'attention' | 'danger' | 'neutral';
 
@@ -27,12 +41,43 @@ export type PageId =
   | 'setupPassword'
   | 'adminLogin'
   | 'adminDashboard'
+  | 'adminApplicants'
+  | 'adminResidency'
+  | 'adminDesignations'
+  | 'adminMaintenance'
+  | 'adminVehicles'
+  | 'adminResources'
+  | 'adminSettings'
   | 'allUsers'
   | 'units'
   | 'dashboard'
   | 'profile'
   | 'resources'
   | 'security';
+
+/** Sub-page ids that render inside the AdminDashboard. */
+export const ADMIN_SUB_PAGES: PageId[] = [
+  'adminDashboard',
+  'adminApplicants',
+  'adminResidency',
+  'adminDesignations',
+  'adminMaintenance',
+  'adminVehicles',
+  'adminResources',
+  'adminSettings',
+];
+
+/** Which internal admin tab each PageId corresponds to. */
+export const ADMIN_PAGE_TO_TAB: Record<string, string> = {
+  adminDashboard: 'overview',
+  adminApplicants: 'applicants',
+  adminResidency: 'residency',
+  adminDesignations: 'designations',
+  adminMaintenance: 'maintenance',
+  adminVehicles: 'vehicles',
+  adminResources: 'resources',
+  adminSettings: 'settings',
+};
 
 export const ADMIN_ROLES = ['SUPER_ADMIN', 'MODERATOR', 'COMMUNITY_LEADER'];
 
@@ -48,6 +93,13 @@ export const PAGE_PATHS: Record<PageId, string> = {
   setupPassword: '/setup-password',
   adminLogin: '/admin-login',
   adminDashboard: '/admin',
+  adminApplicants: '/admin/applicants',
+  adminResidency: '/admin/residency',
+  adminDesignations: '/admin/designations',
+  adminMaintenance: '/admin/maintenance',
+  adminVehicles: '/admin/vehicles',
+  adminResources: '/admin/resources',
+  adminSettings: '/admin/settings',
   allUsers: '/users',
   units: '/units',
   dashboard: '/account',
@@ -68,6 +120,13 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/setup-password': 'setupPassword',
   '/admin-login': 'adminLogin',
   '/admin': 'adminDashboard',
+  '/admin/applicants': 'adminApplicants',
+  '/admin/residency': 'adminResidency',
+  '/admin/designations': 'adminDesignations',
+  '/admin/maintenance': 'adminMaintenance',
+  '/admin/vehicles': 'adminVehicles',
+  '/admin/resources': 'adminResources',
+  '/admin/settings': 'adminSettings',
   '/users': 'allUsers',
   '/units': 'units',
   '/account': 'profile',
@@ -99,9 +158,16 @@ export const navSections: NavSection[] = [
     title: 'Admin',
     adminOnly: true,
     items: [
-      { id: 'adminDashboard', label: 'Admin', icon: ShieldCheck },
-      { id: 'allUsers', label: 'Users', icon: UsersRound },
+      { id: 'adminDashboard', label: 'Overview', icon: LayoutDashboard },
+      { id: 'adminApplicants', label: 'Applicants', icon: ClipboardList },
+      { id: 'adminResidency', label: 'Residency', icon: FileCheck2 },
+      { id: 'adminDesignations', label: 'Designations', icon: UserCheck },
+      { id: 'adminMaintenance', label: 'Maintenance', icon: Wrench },
+      { id: 'allUsers', label: 'Members', icon: UsersRound },
+      { id: 'adminVehicles', label: 'Vehicles', icon: Car },
+      { id: 'adminResources', label: 'Resources', icon: Library },
       { id: 'units', label: 'Units', icon: Building2 },
+      { id: 'adminSettings', label: 'Settings', icon: Sliders },
     ],
   },
 ];
