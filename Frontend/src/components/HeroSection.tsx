@@ -50,7 +50,7 @@ const HeroSection = () => {
           {badgeText}
         </span>
         <h1 ref={titleRef} className="text-4xl sm:text-5xl md:text-6xl lg:text-[5.5rem] font-light leading-[1.05] text-white max-w-6xl tracking-tight">
-          Startup society <br />in Prospera
+          Come to build. <br />Stay for the people
         </h1>
         <p className="text-base md:text-lg text-white/70 max-w-xl leading-relaxed">
           First arrivals from {arrivalText} — $1,950/mo including accommodation, gym, food, co-working, and more.
