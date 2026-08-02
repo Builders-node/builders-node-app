@@ -82,7 +82,6 @@ export class UsersService {
         communityPlans: true,
         payments: true,
         supportTickets: true,
-        rentalRequests: true,
         assignedApartment: true,
         residencyApplication: {
           select: { status: true, proofFileName: true, proofFileType: true, submittedAt: true, reviewedAt: true, reviewNote: true },

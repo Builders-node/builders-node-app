@@ -166,13 +166,11 @@ type AdminUserDetail = {
   meals: Array<{ id: string; day: string; meal: string; source: string }>;
   cleaningSchedules: Array<{ id: string; frequency?: string | null; nextCleaning?: string | null; notes?: string | null; source: string }>;
   payments: Array<{ id: string; amountCents: number; currency: string; status: string; dueDate: string; paidAt?: string | null; description: string }>;
-  rentalRequests: Array<{ id: string; status: string; message?: string | null; moveInDate?: string | null; moveOutDate?: string | null; apartment: { name: string } }>;
   supportTickets: Array<{ id: string; subject: string; message: string; status: string; createdAt: string }>;
   summary: {
     paidTotalCents: number;
     openPayments: number;
     supportTickets: number;
-    rentalRequests: number;
   };
 };
 
@@ -1033,7 +1031,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
       .toUpperCase();
     const documentStats = [
       { label: 'Payments', value: selectedUser.payments.length, detail: `${selectedUser.summary.openPayments} open` },
-      { label: 'Rentals', value: selectedUser.summary.rentalRequests, detail: selectedUser.assignedApartment?.apartment.name ?? 'No assignment' },
+      { label: 'Apartment', value: selectedUser.assignedApartment ? 1 : 0, detail: selectedUser.assignedApartment?.apartment.name ?? 'No assignment' },
       { label: 'Support', value: selectedUser.summary.supportTickets, detail: 'Tickets' },
     ];
 

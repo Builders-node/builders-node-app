@@ -53,7 +53,7 @@ type UserDetail = {
   payments: Array<{ id: string; amountCents: number; currency: string; status: string; dueDate: string; description: string }>;
   supportTickets: Array<{ id: string; subject: string; status: string; createdAt: string }>;
   referredApplications: Array<{ id: string; fullName: string; email: string; status: string; createdAt: string; referralCode?: string | null }>;
-  summary: { paidTotalCents: number; openPayments: number; supportTickets: number; rentalRequests: number };
+  summary: { paidTotalCents: number; openPayments: number; supportTickets: number };
 };
 
 type UserDrawerTab = 'account' | 'referrals' | 'residency' | 'housing' | 'plans' | 'payments' | 'meals' | 'support';
@@ -528,7 +528,7 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
                 <>
                   <section className="admin-user-stat-grid">
                     <article className="admin-user-stat"><span>Payments</span><strong>{selectedUser.payments.length}</strong><p>{selectedUser.summary.openPayments} open</p></article>
-                    <article className="admin-user-stat"><span>Rentals</span><strong>{selectedUser.summary.rentalRequests}</strong><p>{selectedUser.assignedApartment?.apartment.name ?? 'No assignment'}</p></article>
+                    <article className="admin-user-stat"><span>Apartment</span><strong>{selectedUser.assignedApartment ? '✓' : '—'}</strong><p>{selectedUser.assignedApartment?.apartment.name ?? 'No assignment'}</p></article>
                     <article className="admin-user-stat"><span>Support</span><strong>{selectedUser.summary.supportTickets}</strong><p>Tickets</p></article>
                   </section>
                   {isEditing && editForm ? (

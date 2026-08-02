@@ -131,10 +131,6 @@ export class AdminService {
           subscriptionPlan: true,
           communityPlans: { orderBy: { purchasedAt: 'desc' } },
           payments: { orderBy: { dueDate: 'desc' } },
-          rentalRequests: {
-            orderBy: { createdAt: 'desc' },
-            include: { apartment: true },
-          },
           assignedApartment: { include: { apartment: true } },
           mealMenuItems: { orderBy: { createdAt: 'desc' } },
           cleaningSchedules: { orderBy: { createdAt: 'desc' } },
@@ -178,14 +174,12 @@ export class AdminService {
       meals: user.mealMenuItems,
       cleaningSchedules: user.cleaningSchedules,
       payments: user.payments,
-      rentalRequests: user.rentalRequests,
       supportTickets: user.supportTickets,
       referredApplications,
       summary: {
         paidTotalCents,
         openPayments: user.payments.filter((payment) => payment.status === 'DUE' || payment.status === 'OVERDUE').length,
         supportTickets: user.supportTickets.length,
-        rentalRequests: user.rentalRequests.length,
       },
     };
   }
@@ -1184,7 +1178,6 @@ export class AdminService {
       include: {
         assignments: { include: { user: { include: { profile: true } } } },
         unitType: { select: { id: true, name: true } },
-        _count: { select: { rentalRequests: true } },
       },
     });
 
@@ -1209,7 +1202,6 @@ export class AdminService {
         availableFrom: apartment.availableFrom,
         unitType: apartment.unitType,
         occupants,
-        openRequests: apartment._count.rentalRequests,
       };
     });
 
@@ -1341,7 +1333,7 @@ export class AdminService {
     return this.listApartments();
   }
 
-  /** Delete a unit. Blocked while residents are assigned; drops open rental requests. */
+  /** Delete a unit. Blocked while residents are assigned. */
   async deleteApartment(apartmentId: string) {
     const apartment = await this.prisma.apartment.findUnique({
       where: { id: apartmentId },
@@ -1354,11 +1346,7 @@ export class AdminService {
       throw new BadRequestException('This unit is occupied. Reassign residents before deleting it.');
     }
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.rentalRequest.deleteMany({ where: { apartmentId } });
-      await tx.apartment.delete({ where: { id: apartmentId } });
-    });
-
+    await this.prisma.apartment.delete({ where: { id: apartmentId } });
     return this.listApartments();
   }
 
