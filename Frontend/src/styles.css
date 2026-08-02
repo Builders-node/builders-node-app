@@ -600,7 +600,20 @@ textarea {
 .nav-list {
   display: grid;
   gap: 10px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* Slim scrollbar so long admin sections don't clip off-screen. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
 }
+.nav-list::-webkit-scrollbar { width: 6px; }
+.nav-list::-webkit-scrollbar-track { background: transparent; }
+.nav-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+}
+.nav-list::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.42); }
 
 .nav-section {
   display: grid;
