@@ -709,11 +709,11 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
               {unlocked ? (
                 <a
                   className="text-button"
-                  href="https://portal.eprospera.com/"
+                  href="https://prosperasub.com/beach-club"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Visit
+                  Open subscription
                   <ExternalLink size={13} style={{ marginLeft: 4 }} />
                 </a>
               ) : null}
