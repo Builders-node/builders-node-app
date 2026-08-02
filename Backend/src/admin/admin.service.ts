@@ -528,9 +528,13 @@ export class AdminService {
       include: {
         profile: { select: { phone: true } },
         assignedApartment: { include: { apartment: { select: { name: true } } } },
+        residencyApplication: { select: { status: true } },
       },
     });
     const apartmentName = details?.assignedApartment?.apartment?.name ?? null;
+    // Beach Club is a Próspera-membership perk — only ask ProsperaSub to
+    // activate it once the member's E-Residency is verified.
+    const activateBeachClub = details?.residencyApplication?.status === 'VERIFIED';
 
     // Mirror to ProsperaSub. Failures are logged + audited but never bubble.
     let result;
@@ -547,6 +551,7 @@ export class AdminService {
         deliveryAddress: apartmentName,
         residence: apartmentName,
         apartmentNote: apartmentName ? `Unit ${apartmentName}` : null,
+        activateBeachClub,
       });
     } catch (error) {
       result = {
@@ -554,6 +559,7 @@ export class AdminService {
         externalMemberId: null,
         externalFoodSubscriptionId: null,
         externalCleaningSubscriptionId: null,
+        externalBeachClubSubscriptionId: null,
         externalAccountId: null,
         warnings: [] as string[],
         message: error instanceof Error ? error.message : 'ProsperaSub.com provisioning failed.',

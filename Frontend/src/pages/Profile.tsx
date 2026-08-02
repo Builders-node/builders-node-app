@@ -1,4 +1,5 @@
-import { Bed, Check, ChevronRight, ExternalLink, FileCheck2, Pencil, Send, Sparkles, Upload, Utensils, Waves, X } from 'lucide-react';
+import { Bed, Check, ChevronRight, ExternalLink, FileCheck2, Pencil, QrCode, Send, Sparkles, Upload, Utensils, Waves, X } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import type { PageId } from '../data/dashboard';
 import { PageHeader } from '../components/PageHeader';
@@ -84,6 +85,7 @@ function toneForResidency(status?: string): 'good' | 'attention' | 'danger' | 'n
 }
 
 type HomeMemberData = {
+  account?: { externalMemberId?: string | null };
   membership?: { status: string; hasApplied: boolean; applicationStatus?: string | null };
   apartment: { name: string; status: string; moveInDate?: string | null; details: string } | null;
   meals: { items: Array<{ id: string; day: string; meal: string }> };
@@ -125,6 +127,8 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
   const [editLocation, setEditLocation] = useState('');
   const [cleaningModalOpen, setCleaningModalOpen] = useState(false);
   useEscapeToClose(cleaningModalOpen, () => setCleaningModalOpen(false));
+  const [beachClubPassOpen, setBeachClubPassOpen] = useState(false);
+  useEscapeToClose(beachClubPassOpen, () => setBeachClubPassOpen(false));
   const [cleaningReschedule, setCleaningReschedule] = useState('');
   const [cleaningSubmitting, setCleaningSubmitting] = useState(false);
   const [cleaningError, setCleaningError] = useState<string | null>(null);
@@ -702,20 +706,19 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
                 <strong>Beach Club</strong>
                 <span>
                   {unlocked
-                    ? 'Included with your Próspera membership — show your residency ID at the door.'
+                    ? 'Included with your Próspera membership — show the pass at the door.'
                     : 'Unlocks once your E-Residency is verified.'}
                 </span>
               </span>
               {unlocked ? (
-                <a
+                <button
+                  type="button"
                   className="text-button"
-                  href="https://prosperasub.com/beach-club"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  onClick={() => setBeachClubPassOpen(true)}
                 >
-                  Open subscription
-                  <ExternalLink size={13} style={{ marginLeft: 4 }} />
-                </a>
+                  <QrCode size={14} style={{ marginRight: 4 }} />
+                  Show pass
+                </button>
               ) : null}
             </div>
           </section>
@@ -765,6 +768,56 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
           </form>
         </div>
       ) : null}
+
+      {beachClubPassOpen ? (() => {
+        // QR encodes the ProsperaSub Beach Club pass URL. If we've already
+        // mirrored the member onto ProsperaSub, we deep-link to their
+        // subscription by external id — otherwise fall back to the generic
+        // club page (the pass is still redeemable at the door by email).
+        const externalId = home?.account?.externalMemberId ?? null;
+        const passUrl = externalId
+          ? `https://prosperasub.com/beach-club?pass=${encodeURIComponent(externalId)}`
+          : 'https://prosperasub.com/beach-club';
+        return (
+          <div className="modal-overlay" role="presentation" onClick={() => setBeachClubPassOpen(false)}>
+            <div
+              className="profile-edit-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Beach Club pass"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="modal-head">
+                <div>
+                  <h2>Beach Club pass</h2>
+                  <p>Scan at the door — links to your active Beach Club subscription on ProsperaSub.</p>
+                </div>
+                <button className="icon-button" type="button" onClick={() => setBeachClubPassOpen(false)} aria-label="Close">
+                  <X size={18} />
+                </button>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '18px 0' }}>
+                <div style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
+                  <QRCodeSVG value={passUrl} size={220} level="M" includeMargin={false} />
+                </div>
+              </div>
+              <p className="modal-hint" style={{ textAlign: 'center', wordBreak: 'break-all' }}>
+                {passUrl}
+              </p>
+              <a
+                className="primary-button"
+                href={passUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ justifyContent: 'center' }}
+              >
+                Open on ProsperaSub
+                <ExternalLink size={14} style={{ marginLeft: 6 }} />
+              </a>
+            </div>
+          </div>
+        );
+      })() : null}
     </div>
   );
 }

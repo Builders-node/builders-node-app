@@ -49,6 +49,10 @@ export class HomeService {
         fullName: user.profile?.fullName,
         email: user.email,
         mustChangePassword: user.mustChangePassword,
+        // ProsperaSub user_id — used on the client to build the Beach Club
+        // QR pass URL (https://prosperasub.com/beach-club?pass=<id>).
+        // Null until the first successful ProsperaSub mirror.
+        externalMemberId: user.externalMemberId ?? null,
       },
       membership: {
         status: user.membership?.status ?? 'APPLICANT',

@@ -67,6 +67,13 @@ export interface ProvisionMemberInput {
   months?: number | null;
   /** Optional note for the cleaners about the apartment (pets, door code, …). */
   apartmentNote?: string | null;
+  /**
+   * Activate the Beach Club perk that comes with a Próspera E-Residency.
+   * ProsperaSub creates the subscription on their side and returns a
+   * beach_club_subscription_id in the response. Pass true only when the
+   * member's residency is VERIFIED.
+   */
+  activateBeachClub?: boolean;
   /** ISO date the subscription becomes active (defaults to today). */
   startDate?: Date;
 }
@@ -80,6 +87,8 @@ export interface ProvisionMemberResult {
   externalFoodSubscriptionId: string | null;
   /** ProsperaSub cleaning_subscriptions row id. */
   externalCleaningSubscriptionId: string | null;
+  /** ProsperaSub beach_club_subscriptions row id (set when residency is verified). */
+  externalBeachClubSubscriptionId: string | null;
   message: string;
   /** Non-fatal issues encountered during provisioning (e.g. missing provider id). */
   warnings: string[];
@@ -337,6 +346,7 @@ export class ProsperaSubClient {
       externalMemberId: null,
       externalFoodSubscriptionId: null,
       externalCleaningSubscriptionId: null,
+      externalBeachClubSubscriptionId: null,
       externalAccountId: null,
       warnings: [],
       message: '',
@@ -367,7 +377,8 @@ export class ProsperaSubClient {
 
     const wantsFood = Boolean(mealPlanId);
     const wantsCleaning = Boolean(cleaningPlanId);
-    if (!wantsFood && !wantsCleaning) {
+    const wantsBeachClub = Boolean(input.activateBeachClub);
+    if (!wantsFood && !wantsCleaning && !wantsBeachClub) {
       // Nothing to bill for — no reason to call. Local grant may still have
       // written a plan-name-only meal item; that's fine, just not mirrorable.
       base.status = 'ACTIVE';
@@ -402,6 +413,12 @@ export class ProsperaSubClient {
         apartment_note: input.apartmentNote ?? undefined,
       };
     }
+    if (wantsBeachClub) {
+      // Beach Club is bundled with a Próspera E-Residency — pass a flag so
+      // ProsperaSub creates/reuses the free "Beach Club" subscription tied
+      // to this member. Returned as beach_club_subscription_id.
+      payload.beach_club = { activate: true, started_at: startedAt };
+    }
 
     try {
       const response = await fetch(`${this.baseUrl}/integrations/builders-node/subscription`, {
@@ -426,6 +443,7 @@ export class ProsperaSubClient {
         user_id?: string;
         food_subscription_id?: string | null;
         cleaning_subscription_id?: string | null;
+        beach_club_subscription_id?: string | null;
         warnings?: string[];
       };
 
@@ -433,6 +451,7 @@ export class ProsperaSubClient {
       base.externalAccountId = base.externalMemberId;
       base.externalFoodSubscriptionId = data.food_subscription_id ?? null;
       base.externalCleaningSubscriptionId = data.cleaning_subscription_id ?? null;
+      base.externalBeachClubSubscriptionId = data.beach_club_subscription_id ?? null;
       // Append endpoint-reported warnings to any pre-flight ones we already
       // pushed (e.g. non-UUID plan ids we stripped before sending).
       if (Array.isArray(data.warnings)) base.warnings.push(...data.warnings);
@@ -445,13 +464,15 @@ export class ProsperaSubClient {
 
     const gotFood = Boolean(base.externalFoodSubscriptionId);
     const gotCleaning = Boolean(base.externalCleaningSubscriptionId);
+    const gotBeachClub = Boolean(base.externalBeachClubSubscriptionId);
     const foodOk = !wantsFood || gotFood;
     const cleaningOk = !wantsCleaning || gotCleaning;
+    const beachClubOk = !wantsBeachClub || gotBeachClub;
 
-    if (foodOk && cleaningOk) {
+    if (foodOk && cleaningOk && beachClubOk) {
       base.status = 'ACTIVE';
       base.message = 'Mirrored on ProsperaSub.';
-    } else if (gotFood || gotCleaning) {
+    } else if (gotFood || gotCleaning || gotBeachClub) {
       base.status = 'PARTIAL';
       base.message = 'Partially mirrored on ProsperaSub — see warnings.';
     } else {
