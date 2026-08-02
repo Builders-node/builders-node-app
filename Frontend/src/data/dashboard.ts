@@ -52,6 +52,7 @@ export type PageId =
   | 'units'
   | 'dashboard'
   | 'profile'
+  | 'pass'
   | 'resources'
   | 'security';
 
@@ -104,6 +105,7 @@ export const PAGE_PATHS: Record<PageId, string> = {
   units: '/units',
   dashboard: '/account',
   profile: '/account',
+  pass: '/pass',
   resources: '/resources',
   security: '/security',
 };
@@ -135,6 +137,9 @@ const PATH_TO_PAGE: Record<string, PageId> = {
 };
 
 export function pageForPath(pathname: string): PageId | null {
+  // Public member pass has a dynamic segment (/pass/:memberId) — treat any
+  // /pass/... URL as the same PageId; the page reads the id from location.
+  if (pathname === '/pass' || pathname.startsWith('/pass/')) return 'pass';
   return PATH_TO_PAGE[pathname] ?? null;
 }
 

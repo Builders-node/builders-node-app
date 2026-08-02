@@ -106,4 +106,50 @@ export class HomeService {
           : null,
     };
   }
+
+  /**
+   * Public member pass — a compact, printable / QR-scannable summary of
+   * everything a member has access to. Looked up by ProsperaSub external
+   * member id (already unguessable). Returns 404 if unknown.
+   *
+   * Deliberately excludes sensitive fields (email, phone, personal notes)
+   * — only what a venue / staff member would need to verify access.
+   */
+  async getPass(externalMemberId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { externalMemberId },
+      include: {
+        profile: { select: { fullName: true } },
+        membership: true,
+        residencyApplication: { select: { status: true } },
+        assignedApartment: { include: { apartment: { select: { name: true } } } },
+        mealMenuItems: { orderBy: { createdAt: 'asc' } },
+        cleaningSchedules: { orderBy: { createdAt: 'desc' }, take: 1 },
+      },
+    });
+    if (!user) throw new NotFoundException('Pass not found.');
+
+    const apartment = user.assignedApartment?.apartment?.name ?? null;
+    const unitMatch = apartment?.match(/\d+/g);
+    const unitNumber = unitMatch ? unitMatch[unitMatch.length - 1] : null;
+
+    const mealsFirst = user.mealMenuItems[0]?.meal ?? null;
+    const cleaning = user.cleaningSchedules[0] ?? null;
+
+    return {
+      memberId: externalMemberId,
+      fullName: user.profile?.fullName ?? user.email.split('@')[0],
+      membershipStatus: user.membership?.status ?? 'APPLICANT',
+      apartment: apartment
+        ? { name: apartment, unitNumber }
+        : null,
+      meals: mealsFirst,
+      cleaning: cleaning
+        ? { frequency: cleaning.frequency, nextCleaning: cleaning.nextCleaning }
+        : null,
+      residencyStatus: user.residencyApplication?.status ?? 'NOT_STARTED',
+      beachClub: user.residencyApplication?.status === 'VERIFIED' ? 'active' : 'locked',
+      issuedAt: new Date().toISOString(),
+    };
+  }
 }

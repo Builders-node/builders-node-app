@@ -14,6 +14,7 @@ import { Units } from './pages/Units';
 import { Apply } from './pages/Apply';
 import { VerifyEmail } from './pages/VerifyEmail';
 import { Resources } from './pages/Resources';
+import { Pass } from './pages/Pass';
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'MODERATOR', 'COMMUNITY_LEADER'];
 
@@ -42,6 +43,7 @@ const PAGE_TITLES: Partial<Record<PageId, string>> = {
   adminVehicles: 'Vehicles — Builders Node',
   adminResources: 'Resources — Builders Node',
   adminSettings: 'Admin settings — Builders Node',
+  pass: 'Member pass — Builders Node',
 };
 
 function App() {
@@ -205,6 +207,7 @@ function App() {
     if (activePage === 'forgotPassword') return <AuthPanel mode="forgotPassword" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
     if (activePage === 'resetPassword') return <AuthPanel mode="resetPassword" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
     if (activePage === 'verifyEmail') return <VerifyEmail setActivePage={setActivePage} />;
+    if (activePage === 'pass') return <Pass />;
     if (activePage === 'profile') {
       if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
       return <Profile currentUserId={currentUserId} setActivePage={setActivePage} />;
@@ -259,7 +262,7 @@ function App() {
 
   // Full-screen views (no app shell): the landing, every auth screen, and any
   // protected page viewed while logged out (which falls back to the login panel).
-  const AUTH_PAGES: PageId[] = ['apply', 'login', 'signup', 'setupPassword', 'forgotPassword', 'resetPassword', 'verifyEmail', 'adminLogin'];
+  const AUTH_PAGES: PageId[] = ['apply', 'login', 'signup', 'setupPassword', 'forgotPassword', 'resetPassword', 'verifyEmail', 'adminLogin', 'pass'];
   const PROTECTED_PAGES: PageId[] = ['profile', 'resources', 'security', 'allUsers', 'units', ...ADMIN_SUB_PAGES];
   if (
     showLanding ||

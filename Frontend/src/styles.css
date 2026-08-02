@@ -4637,3 +4637,116 @@ body:has(.modal-overlay) .onboarding-toast { display: none; }
   }
   .residency-alert__upload span { display: none; }
 }
+
+/* ── Day chip picker (weekday multi-select in the cleaning modal) ─────────── */
+.day-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.day-chip {
+  appearance: none;
+  border: 1px solid #ebedf1;
+  background: #fff;
+  color: #1c1e24;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.day-chip:hover { border-color: #d0d3d9; }
+.day-chip--active {
+  background: #e5541f;
+  color: #fff;
+  border-color: #e5541f;
+}
+.day-chip--active:hover { background: #cf4a1a; border-color: #cf4a1a; }
+
+/* ── Public Pass page (rendered when a QR is scanned) ─────────────────────── */
+.pass-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: linear-gradient(160deg, #fff 0%, #f7f8fa 100%);
+}
+.pass-card {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border: 1px solid #ebedf1;
+  border-radius: 20px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.pass-card--error h1 { font-size: 1.2rem; margin: 0 0 6px; }
+.pass-card__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pass-card__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: rgba(229, 84, 31, 0.12);
+  color: #e5541f;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.05rem;
+  flex-shrink: 0;
+}
+.pass-card__id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pass-card__id strong { font-size: 1.05rem; color: #1c1e24; }
+.pass-card__id span { font-size: 0.78rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.1em; }
+.pass-card__unit {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #e5541f;
+  letter-spacing: -0.02em;
+}
+.pass-card__perks { display: flex; flex-direction: column; gap: 8px; }
+.pass-perk {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #ebedf1;
+  border-radius: 12px;
+  background: #fff;
+}
+.pass-perk__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.pass-perk__icon--orange { background: rgba(229, 84, 31, 0.12); color: #e5541f; }
+.pass-perk__icon--blue { background: rgba(58, 128, 212, 0.12); color: #3a80d4; }
+.pass-perk__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.pass-perk__body strong { font-size: 0.9rem; color: #1c1e24; }
+.pass-perk__body span { font-size: 0.78rem; color: #6b7280; }
+.pass-perk__ok { color: #2fae66; flex-shrink: 0; }
+.pass-perk--locked { opacity: 0.55; }
+.pass-perk--locked .pass-perk__icon { filter: grayscale(0.6); }
+.pass-card__foot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: #9ea3ad;
+  letter-spacing: 0.04em;
+  border-top: 1px dashed #ebedf1;
+  padding-top: 12px;
+  flex-wrap: wrap;
+  gap: 6px;
+}

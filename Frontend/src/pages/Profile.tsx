@@ -129,17 +129,27 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
   useEscapeToClose(cleaningModalOpen, () => setCleaningModalOpen(false));
   const [beachClubPassOpen, setBeachClubPassOpen] = useState(false);
   useEscapeToClose(beachClubPassOpen, () => setBeachClubPassOpen(false));
-  const [cleaningReschedule, setCleaningReschedule] = useState('');
+  const [cleaningDays, setCleaningDays] = useState<string[]>([]);
+  const [cleaningTime, setCleaningTime] = useState<string>('');
+  const [cleaningNote, setCleaningNote] = useState('');
   const [cleaningSubmitting, setCleaningSubmitting] = useState(false);
   const [cleaningError, setCleaningError] = useState<string | null>(null);
 
+  function toggleCleaningDay(day: string) {
+    setCleaningDays((current) => current.includes(day) ? current.filter((d) => d !== day) : [...current, day]);
+  }
+
   async function submitCleaningReschedule() {
     if (!currentUserId) return;
-    const description = cleaningReschedule.trim();
-    if (!description) {
-      setCleaningError('Tell us your preferred day/time so we can adjust.');
+    if (cleaningDays.length === 0 || !cleaningTime) {
+      setCleaningError('Pick at least one day and a time slot.');
       return;
     }
+    // Structured, machine-readable request the admin can act on directly.
+    const description = [
+      `Requested: ${cleaningDays.join(', ')} at ${cleaningTime}`,
+      cleaningNote.trim() ? `Note: ${cleaningNote.trim()}` : null,
+    ].filter(Boolean).join('\n');
     setCleaningSubmitting(true);
     setCleaningError(null);
     try {
@@ -147,19 +157,24 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
         method: 'POST',
         body: JSON.stringify({
           category: 'Cleaning',
-          title: 'Cleaning reschedule request',
+          title: `Cleaning slot · ${cleaningDays.join('/')} ${cleaningTime}`,
           description,
         }),
       });
-      setCleaningReschedule('');
+      setCleaningDays([]);
+      setCleaningTime('');
+      setCleaningNote('');
       setCleaningModalOpen(false);
-      setResidencyMessage('Reschedule request sent — the team will confirm shortly.');
+      setResidencyMessage('Cleaning slot requested — the team will confirm shortly.');
     } catch (caught) {
       setCleaningError(caught instanceof Error ? caught.message : 'Could not send the request.');
     } finally {
       setCleaningSubmitting(false);
     }
   }
+
+  const CLEANING_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+  const CLEANING_TIMES = ['09:00', '11:00', '13:00', '15:00', '17:00'] as const;
 
   async function loadResidency(userId: string) {
     const data = await apiRequest<ResidencyData>(`/users/${userId}/residency`);
@@ -745,38 +760,64 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
           >
             <div className="modal-head">
               <div>
-                <h2>Reschedule cleaning</h2>
-                <p>Tell us the day and time that works best — the team will confirm.</p>
+                <h2>Book a cleaning slot</h2>
+                <p>Pick the days that work and a time slot — the team will confirm.</p>
               </div>
               <button className="icon-button" type="button" onClick={() => setCleaningModalOpen(false)} aria-label="Close">
                 <X size={18} />
               </button>
             </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: '0.85rem' }}>
+                Preferred day(s)
+              </label>
+              <div className="day-picker" role="group" aria-label="Preferred cleaning days">
+                {CLEANING_DAYS.map((day) => (
+                  <button
+                    key={day}
+                    type="button"
+                    className={cleaningDays.includes(day) ? 'day-chip day-chip--active' : 'day-chip'}
+                    onClick={() => toggleCleaningDay(day)}
+                    aria-pressed={cleaningDays.includes(day)}
+                  >
+                    {day}
+                  </button>
+                ))}
+              </div>
+            </div>
             <label>
-              Preferred day / time
+              Time slot
+              <select value={cleaningTime} onChange={(event) => setCleaningTime(event.target.value)}>
+                <option value="">— pick a time —</option>
+                {CLEANING_TIMES.map((time) => (
+                  <option key={time} value={time}>{time}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Note (optional)
               <textarea
-                value={cleaningReschedule}
-                onChange={(event) => setCleaningReschedule(event.target.value)}
-                rows={3}
-                placeholder="e.g. Fridays after 3 pm, or skip this week"
+                value={cleaningNote}
+                onChange={(event) => setCleaningNote(event.target.value)}
+                rows={2}
+                placeholder="Anything the cleaner should know (pets, code, …)"
               />
             </label>
             {cleaningError ? <p className="form-error">{cleaningError}</p> : null}
             <button className="primary-button" type="submit" disabled={cleaningSubmitting}>
-              {cleaningSubmitting ? 'Sending…' : 'Send request'}
+              {cleaningSubmitting ? 'Sending…' : 'Request slot'}
             </button>
           </form>
         </div>
       ) : null}
 
       {beachClubPassOpen ? (() => {
-        // QR encodes the ProsperaSub Beach Club pass URL. If we've already
-        // mirrored the member onto ProsperaSub, we deep-link to their
-        // subscription by external id — otherwise fall back to the generic
-        // club page (the pass is still redeemable at the door by email).
+        // Prefer our own pass page (shows all perks, not just Beach Club).
+        // Fall back to a plain ProsperaSub link if we don't yet have a
+        // ProsperaSub external member id for this account.
         const externalId = home?.account?.externalMemberId ?? null;
         const passUrl = externalId
-          ? `https://prosperasub.com/beach-club?pass=${encodeURIComponent(externalId)}`
+          ? `${window.location.origin}/pass/${encodeURIComponent(externalId)}`
           : 'https://prosperasub.com/beach-club';
         return (
           <div className="modal-overlay" role="presentation" onClick={() => setBeachClubPassOpen(false)}>
@@ -784,13 +825,13 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
               className="profile-edit-modal"
               role="dialog"
               aria-modal="true"
-              aria-label="Beach Club pass"
+              aria-label="Member pass"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="modal-head">
                 <div>
-                  <h2>Beach Club pass</h2>
-                  <p>Scan at the door — links to your active Beach Club subscription on ProsperaSub.</p>
+                  <h2>Your member pass</h2>
+                  <p>Scan at Beach Club, coworking, gym — shows every perk you have access to.</p>
                 </div>
                 <button className="icon-button" type="button" onClick={() => setBeachClubPassOpen(false)} aria-label="Close">
                   <X size={18} />
@@ -811,7 +852,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
                 rel="noopener noreferrer"
                 style={{ justifyContent: 'center' }}
               >
-                Open on ProsperaSub
+                Open pass
                 <ExternalLink size={14} style={{ marginLeft: 6 }} />
               </a>
             </div>
