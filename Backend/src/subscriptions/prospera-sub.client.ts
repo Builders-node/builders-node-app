@@ -126,6 +126,21 @@ function normalizeTimeSlots(raw: unknown): string[] {
   return Array.from(seen).sort();
 }
 
+/**
+ * ProsperaSub's real schema stores per-package booking config in a jsonb
+ * column called `booking_settings` (not `time_slots`). Slots — if / when
+ * the team adds them — will most likely land as booking_settings.time_slots
+ * or booking_settings.slots. Look in both places so we pick them up without
+ * a code change once they're populated.
+ */
+function extractTimeSlots(row: Record<string, unknown>): string[] {
+  const topLevel = normalizeTimeSlots(row.time_slots);
+  if (topLevel.length > 0) return topLevel;
+  const booking = row.booking_settings as Record<string, unknown> | null | undefined;
+  if (!booking || typeof booking !== 'object') return [];
+  return normalizeTimeSlots(booking.time_slots ?? booking.slots);
+}
+
 export interface CreatePaymentInput {
   amountCents: number;
   currency?: string;
@@ -277,7 +292,7 @@ export class ProsperaSubClient {
       cleaningsPerMonth: (row.cleanings_per_month as number) ?? null,
       serviceFrequency: (row.service_frequency as string) ?? null,
       apartmentType: (row.apartment_type as string) ?? null,
-      timeSlots: normalizeTimeSlots(row.time_slots),
+      timeSlots: extractTimeSlots(row),
     }));
   }
 
