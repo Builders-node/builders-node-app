@@ -751,6 +751,111 @@ export class AdminService {
    * selected global ProsperaSub.com meal plan plus the live list of meal options
    * to choose from.
    */
+  /**
+   * Support ticket queue — every ticket across every user with basic requester
+   * info. Optional status filter (OPEN / IN_PROGRESS / RESOLVED). Ordered
+   * open-first, then newest.
+   */
+  async listSupportTickets(status?: string) {
+    const where = status && ['OPEN', 'IN_PROGRESS', 'RESOLVED'].includes(status) ? { status } : {};
+    const tickets = await this.prisma.supportTicket.findMany({
+      where,
+      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+      include: { user: { include: { profile: { select: { fullName: true } } } } },
+    });
+    return tickets.map((t) => ({
+      id: t.id,
+      userId: t.userId,
+      email: t.user.email,
+      fullName: t.user.profile?.fullName ?? null,
+      subject: t.subject,
+      message: t.message,
+      status: t.status,
+      adminNote: t.adminNote,
+      resolvedAt: t.resolvedAt,
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt,
+    }));
+  }
+
+  /** Update ticket status + optional admin note. Sets resolvedAt automatically. */
+  async updateSupportTicket(ticketId: string, body: { status?: string; adminNote?: string }) {
+    const status = body.status?.trim();
+    if (status && !['OPEN', 'IN_PROGRESS', 'RESOLVED'].includes(status)) {
+      throw new BadRequestException('Status must be OPEN, IN_PROGRESS, or RESOLVED.');
+    }
+    const existing = await this.prisma.supportTicket.findUnique({ where: { id: ticketId } });
+    if (!existing) throw new NotFoundException('Ticket not found.');
+
+    const data: { status?: string; adminNote?: string | null; resolvedAt?: Date | null } = {};
+    if (status) {
+      data.status = status;
+      // Set resolvedAt when moving to RESOLVED; clear it if reopening.
+      if (status === 'RESOLVED' && !existing.resolvedAt) data.resolvedAt = new Date();
+      if (status !== 'RESOLVED' && existing.resolvedAt) data.resolvedAt = null;
+    }
+    if (body.adminNote !== undefined) data.adminNote = body.adminNote.trim() || null;
+
+    await this.prisma.supportTicket.update({ where: { id: ticketId }, data });
+    return this.listSupportTickets();
+  }
+
+  /**
+   * Payments queue — every payment across every user with requester info.
+   * Optional status filter (DUE / OVERDUE / PAID / CANCELLED). Ordered
+   * open-first (DUE/OVERDUE), then newest dueDate.
+   */
+  async listPayments(status?: string) {
+    const where = status && ['DUE', 'OVERDUE', 'PAID', 'CANCELLED'].includes(status)
+      ? { status }
+      : {};
+    const rows = await this.prisma.payment.findMany({
+      where,
+      orderBy: [{ status: 'asc' }, { dueDate: 'desc' }],
+      include: { user: { include: { profile: { select: { fullName: true } } } } },
+    });
+    return rows.map((p) => ({
+      id: p.id,
+      userId: p.userId,
+      email: p.user.email,
+      fullName: p.user.profile?.fullName ?? null,
+      amountCents: p.amountCents,
+      currency: p.currency,
+      status: p.status,
+      dueDate: p.dueDate,
+      paidAt: p.paidAt,
+      description: p.description,
+      receiptUrl: p.receiptUrl,
+      adminNote: p.adminNote,
+      createdAt: p.createdAt,
+    }));
+  }
+
+  /**
+   * Update a payment — status change (typically DUE/OVERDUE → PAID) plus
+   * optional admin note. Sets paidAt automatically on transition to PAID
+   * and clears it when moving away from PAID.
+   */
+  async updatePayment(paymentId: string, body: { status?: string; adminNote?: string }) {
+    const status = body.status?.trim();
+    if (status && !['DUE', 'OVERDUE', 'PAID', 'CANCELLED'].includes(status)) {
+      throw new BadRequestException('Status must be DUE, OVERDUE, PAID, or CANCELLED.');
+    }
+    const existing = await this.prisma.payment.findUnique({ where: { id: paymentId } });
+    if (!existing) throw new NotFoundException('Payment not found.');
+
+    const data: { status?: string; paidAt?: Date | null; adminNote?: string | null } = {};
+    if (status) {
+      data.status = status;
+      if (status === 'PAID' && !existing.paidAt) data.paidAt = new Date();
+      if (status !== 'PAID' && existing.paidAt) data.paidAt = null;
+    }
+    if (body.adminNote !== undefined) data.adminNote = body.adminNote.trim() || null;
+
+    await this.prisma.payment.update({ where: { id: paymentId }, data });
+    return this.listPayments();
+  }
+
   async listResidencyReviews() {
     const apps = await this.prisma.residencyApplication.findMany({
       where: { status: { in: ['PENDING_REVIEW', 'VERIFIED', 'REJECTED'] } },

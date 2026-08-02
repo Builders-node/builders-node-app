@@ -4,9 +4,11 @@ import {
   Building2,
   Car,
   ClipboardList,
+  CreditCard,
   FileCheck2,
   Home,
   LayoutDashboard,
+  LifeBuoy,
   Library,
   Settings,
   Sliders,
@@ -45,6 +47,8 @@ export type PageId =
   | 'adminResidency'
   | 'adminDesignations'
   | 'adminMaintenance'
+  | 'adminSupport'
+  | 'adminPayments'
   | 'adminVehicles'
   | 'adminResources'
   | 'adminSettings'
@@ -63,6 +67,8 @@ export const ADMIN_SUB_PAGES: PageId[] = [
   'adminResidency',
   'adminDesignations',
   'adminMaintenance',
+  'adminSupport',
+  'adminPayments',
   'adminVehicles',
   'adminResources',
   'adminSettings',
@@ -75,6 +81,8 @@ export const ADMIN_PAGE_TO_TAB: Record<string, string> = {
   adminResidency: 'residency',
   adminDesignations: 'designations',
   adminMaintenance: 'maintenance',
+  adminSupport: 'support',
+  adminPayments: 'payments',
   adminVehicles: 'vehicles',
   adminResources: 'resources',
   adminSettings: 'settings',
@@ -98,6 +106,8 @@ export const PAGE_PATHS: Record<PageId, string> = {
   adminResidency: '/admin/residency',
   adminDesignations: '/admin/designations',
   adminMaintenance: '/admin/maintenance',
+  adminSupport: '/admin/support',
+  adminPayments: '/admin/payments',
   adminVehicles: '/admin/vehicles',
   adminResources: '/admin/resources',
   adminSettings: '/admin/settings',
@@ -126,6 +136,8 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/admin/residency': 'adminResidency',
   '/admin/designations': 'adminDesignations',
   '/admin/maintenance': 'adminMaintenance',
+  '/admin/support': 'adminSupport',
+  '/admin/payments': 'adminPayments',
   '/admin/vehicles': 'adminVehicles',
   '/admin/resources': 'adminResources',
   '/admin/settings': 'adminSettings',
@@ -168,6 +180,8 @@ export const navSections: NavSection[] = [
       { id: 'adminResidency', label: 'Residency', icon: FileCheck2 },
       { id: 'adminDesignations', label: 'Designations', icon: UserCheck },
       { id: 'adminMaintenance', label: 'Maintenance', icon: Wrench },
+      { id: 'adminSupport', label: 'Support', icon: LifeBuoy },
+      { id: 'adminPayments', label: 'Payments', icon: CreditCard },
       { id: 'allUsers', label: 'Members', icon: UsersRound },
       { id: 'adminVehicles', label: 'Vehicles', icon: Car },
       { id: 'adminResources', label: 'Resources', icon: Library },

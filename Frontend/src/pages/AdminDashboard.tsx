@@ -96,6 +96,34 @@ type AdminMaintenance = {
   hasPhoto: boolean;
 };
 
+type AdminSupportTicket = {
+  id: string;
+  userId: string;
+  email: string;
+  fullName: string | null;
+  subject: string;
+  message: string;
+  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED';
+  adminNote?: string | null;
+  resolvedAt?: string | null;
+  createdAt: string;
+};
+
+type AdminPayment = {
+  id: string;
+  userId: string;
+  email: string;
+  fullName: string | null;
+  amountCents: number;
+  currency: string;
+  status: 'DUE' | 'OVERDUE' | 'PAID' | 'CANCELLED';
+  dueDate: string;
+  paidAt?: string | null;
+  description: string;
+  receiptUrl?: string | null;
+  adminNote?: string | null;
+};
+
 type ResidencyReview = {
   userId: string;
   email: string;
@@ -427,6 +455,10 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   const adminTab = (ADMIN_PAGE_TO_TAB[adminPage ?? 'adminDashboard'] ?? 'overview') as AdminTab;
   const [applicantView, setApplicantView] = useState<'list' | 'board'>('board');
   const [maintenance, setMaintenance] = useState<AdminMaintenance[]>([]);
+  const [supportTickets, setSupportTickets] = useState<AdminSupportTicket[]>([]);
+  const [supportFilter, setSupportFilter] = useState<'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'ALL'>('OPEN');
+  const [payments, setPayments] = useState<AdminPayment[]>([]);
+  const [paymentsFilter, setPaymentsFilter] = useState<'OVERDUE' | 'DUE' | 'PAID' | 'ALL'>('OVERDUE');
   const [resources, setResources] = useState<AdminResource[]>([]);
   const [resourceForm, setResourceForm] = useState<{ id?: string; title: string; category: string; body: string; published: boolean } | null>(null);
   useEscapeToClose(Boolean(resourceForm), () => setResourceForm(null));
@@ -667,6 +699,46 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     }
   }
 
+  async function loadSupport() {
+    try {
+      const qs = supportFilter === 'ALL' ? '' : `?status=${supportFilter}`;
+      setSupportTickets(await apiRequest<AdminSupportTicket[]>(`/admin/support-tickets${qs}`));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not load support tickets.');
+    }
+  }
+
+  async function updateSupportTicket(id: string, body: { status?: string; adminNote?: string }) {
+    try {
+      setSupportTickets(await apiRequest<AdminSupportTicket[]>(`/admin/support-tickets/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not update ticket.');
+    }
+  }
+
+  async function loadPayments() {
+    try {
+      const qs = paymentsFilter === 'ALL' ? '' : `?status=${paymentsFilter}`;
+      setPayments(await apiRequest<AdminPayment[]>(`/admin/payments${qs}`));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not load payments.');
+    }
+  }
+
+  async function updatePayment(id: string, body: { status?: string; adminNote?: string }) {
+    try {
+      setPayments(await apiRequest<AdminPayment[]>(`/admin/payments/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not update payment.');
+    }
+  }
+
   async function loadResources() {
     try {
       setResources(await apiRequest<AdminResource[]>('/admin/resources'));
@@ -735,8 +807,10 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     if (adminTab === 'maintenance') void loadMaintenance();
     if (adminTab === 'resources') void loadResources();
     if (adminTab === 'vehicles') void loadVehicles();
+    if (adminTab === 'support') void loadSupport();
+    if (adminTab === 'payments') void loadPayments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adminTab]);
+  }, [adminTab, supportFilter, paymentsFilter]);
 
   async function updateMaintenance(id: string, body: { status?: string; adminNote?: string }) {
     setError(null);
@@ -1243,8 +1317,8 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
               {[
                 { key: 'apps', label: 'Applications to review', count: overview.attention.pendingApplications, go: () => setActivePage('adminApplicants') },
                 { key: 'res', label: 'E-Residency proofs', count: overview.attention.pendingResidency, go: () => setActivePage('adminResidency') },
-                { key: 'tickets', label: 'Open support tickets', count: overview.attention.openTickets, go: undefined },
-                { key: 'pay', label: 'Overdue payments', count: overview.attention.overduePayments, go: undefined },
+                { key: 'tickets', label: 'Open support tickets', count: overview.attention.openTickets, go: () => setActivePage('adminSupport') },
+                { key: 'pay', label: 'Overdue payments', count: overview.attention.overduePayments, go: () => setActivePage('adminPayments') },
               ].map((item) => (
                 <button
                   key={item.key}
@@ -1579,6 +1653,109 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                     onBlur={(event) => { if (event.target.value !== (m.adminNote ?? '')) void updateMaintenance(m.id, { adminNote: event.target.value }); }}
                   />
                   {m.hasPhoto ? <button className="ghost-button compact-button" onClick={() => void viewMaintenancePhoto(m.id)}>View photo</button> : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+        ) : null}
+
+        {adminTab === 'support' ? (
+        <section className="panel admin-panel">
+          <div className="admin-panel__head">
+            <div>
+              <h2>Support tickets</h2>
+              <p>Requests members submitted through Contact support. Update status to close the loop.</p>
+            </div>
+            <div className="tab-row">
+              {(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'ALL'] as const).map((filter) => (
+                <button
+                  key={filter}
+                  className={supportFilter === filter ? 'tab-chip tab-chip--active' : 'tab-chip'}
+                  onClick={() => setSupportFilter(filter)}
+                >
+                  {filter === 'IN_PROGRESS' ? 'In progress' : filter[0] + filter.slice(1).toLowerCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="maintenance-admin-list">
+            {supportTickets.length === 0 ? <div className="empty-state">No tickets in this view.</div> : null}
+            {supportTickets.map((t) => (
+              <article className="maintenance-admin-card" key={t.id}>
+                <div className="maintenance-admin-card__top">
+                  <div>
+                    <strong>{t.subject}</strong>
+                    <span>{(t.fullName ?? t.email)} · {t.email} · {new Date(t.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <StatusBadge tone={t.status === 'RESOLVED' ? 'good' : t.status === 'IN_PROGRESS' ? 'attention' : 'neutral'}>{t.status}</StatusBadge>
+                </div>
+                <p className="maintenance-admin-card__desc">{t.message}</p>
+                <div className="maintenance-admin-card__row">
+                  <select value={t.status} onChange={(event) => void updateSupportTicket(t.id, { status: event.target.value })}>
+                    <option value="OPEN">Open</option>
+                    <option value="IN_PROGRESS">In progress</option>
+                    <option value="RESOLVED">Resolved</option>
+                  </select>
+                  <input
+                    defaultValue={t.adminNote ?? ''}
+                    placeholder="Internal note…"
+                    onBlur={(event) => { if (event.target.value !== (t.adminNote ?? '')) void updateSupportTicket(t.id, { adminNote: event.target.value }); }}
+                  />
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+        ) : null}
+
+        {adminTab === 'payments' ? (
+        <section className="panel admin-panel">
+          <div className="admin-panel__head">
+            <div>
+              <h2>Payments</h2>
+              <p>Dues and one-off charges. Mark paid when a manual/off-platform payment lands.</p>
+            </div>
+            <div className="tab-row">
+              {(['OVERDUE', 'DUE', 'PAID', 'ALL'] as const).map((filter) => (
+                <button
+                  key={filter}
+                  className={paymentsFilter === filter ? 'tab-chip tab-chip--active' : 'tab-chip'}
+                  onClick={() => setPaymentsFilter(filter)}
+                >
+                  {filter[0] + filter.slice(1).toLowerCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="maintenance-admin-list">
+            {payments.length === 0 ? <div className="empty-state">No payments in this view.</div> : null}
+            {payments.map((p) => (
+              <article className="maintenance-admin-card" key={p.id}>
+                <div className="maintenance-admin-card__top">
+                  <div>
+                    <strong>{formatMoney(p.amountCents, p.currency)} · {p.description}</strong>
+                    <span>{(p.fullName ?? p.email)} · {p.email} · due {new Date(p.dueDate).toLocaleDateString()}{p.paidAt ? ` · paid ${new Date(p.paidAt).toLocaleDateString()}` : ''}</span>
+                  </div>
+                  <StatusBadge tone={p.status === 'PAID' ? 'good' : p.status === 'OVERDUE' ? 'danger' : p.status === 'CANCELLED' ? 'neutral' : 'attention'}>{p.status}</StatusBadge>
+                </div>
+                <div className="maintenance-admin-card__row">
+                  <select value={p.status} onChange={(event) => void updatePayment(p.id, { status: event.target.value })}>
+                    <option value="DUE">Due</option>
+                    <option value="OVERDUE">Overdue</option>
+                    <option value="PAID">Paid</option>
+                    <option value="CANCELLED">Cancelled</option>
+                  </select>
+                  <input
+                    defaultValue={p.adminNote ?? ''}
+                    placeholder="Note (payment ref, waived, …)"
+                    onBlur={(event) => { if (event.target.value !== (p.adminNote ?? '')) void updatePayment(p.id, { adminNote: event.target.value }); }}
+                  />
+                  {p.status !== 'PAID' ? (
+                    <button className="primary-button compact-button" onClick={() => void updatePayment(p.id, { status: 'PAID' })}>
+                      Mark paid
+                    </button>
+                  ) : null}
                 </div>
               </article>
             ))}

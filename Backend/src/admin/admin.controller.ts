@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { AdminGuard } from './admin.guard';
 import { AdminService } from './admin.service';
@@ -128,6 +128,32 @@ export class AdminController {
   @Get('residency-reviews')
   listResidencyReviews() {
     return this.admin.listResidencyReviews();
+  }
+
+  @Get('support-tickets')
+  listSupportTickets(@Query('status') status?: string) {
+    return this.admin.listSupportTickets(status);
+  }
+
+  @Patch('support-tickets/:ticketId')
+  updateSupportTicket(
+    @Param('ticketId') ticketId: string,
+    @Body() body: { status?: string; adminNote?: string },
+  ) {
+    return this.admin.updateSupportTicket(ticketId, body);
+  }
+
+  @Get('payments')
+  listPayments(@Query('status') status?: string) {
+    return this.admin.listPayments(status);
+  }
+
+  @Patch('payments/:paymentId')
+  updatePayment(
+    @Param('paymentId') paymentId: string,
+    @Body() body: { status?: string; adminNote?: string },
+  ) {
+    return this.admin.updatePayment(paymentId, body);
   }
 
   @Post('users/:userId/residency/review')
