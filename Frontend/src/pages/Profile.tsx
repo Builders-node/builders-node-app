@@ -174,7 +174,25 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
   }
 
   const CLEANING_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
-  const CLEANING_TIMES = ['09:00', '11:00', '13:00', '15:00', '17:00'] as const;
+  const [cleaningSlots, setCleaningSlots] = useState<string[]>([]);
+  const [cleaningSlotsSource, setCleaningSlotsSource] = useState<'prospera' | 'default' | null>(null);
+  const [cleaningSlotsLoading, setCleaningSlotsLoading] = useState(false);
+
+  // Load slots from ProsperaSub the first time the modal opens.
+  useEffect(() => {
+    if (!cleaningModalOpen || cleaningSlots.length > 0 || cleaningSlotsLoading) return;
+    setCleaningSlotsLoading(true);
+    apiRequest<{ slots: string[]; source: 'prospera' | 'default' }>('/public/cleaning-slots')
+      .then((data) => {
+        setCleaningSlots(data.slots);
+        setCleaningSlotsSource(data.source);
+      })
+      .catch(() => {
+        setCleaningSlots(['09:00', '11:00', '13:00', '15:00', '17:00']);
+        setCleaningSlotsSource('default');
+      })
+      .finally(() => setCleaningSlotsLoading(false));
+  }, [cleaningModalOpen, cleaningSlots.length, cleaningSlotsLoading]);
 
   async function loadResidency(userId: string) {
     const data = await apiRequest<ResidencyData>(`/users/${userId}/residency`);
@@ -787,12 +805,23 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
             </div>
             <label>
               Time slot
-              <select value={cleaningTime} onChange={(event) => setCleaningTime(event.target.value)}>
-                <option value="">— pick a time —</option>
-                {CLEANING_TIMES.map((time) => (
+              <select
+                value={cleaningTime}
+                onChange={(event) => setCleaningTime(event.target.value)}
+                disabled={cleaningSlotsLoading}
+              >
+                <option value="">
+                  {cleaningSlotsLoading ? 'Loading slots…' : '— pick a time —'}
+                </option>
+                {cleaningSlots.map((time) => (
                   <option key={time} value={time}>{time}</option>
                 ))}
               </select>
+              {cleaningSlotsSource === 'default' ? (
+                <small style={{ display: 'block', marginTop: 4, color: '#6b7280', fontSize: '0.72rem' }}>
+                  Standard slots — the team may propose alternatives.
+                </small>
+              ) : null}
             </label>
             <label>
               Note (optional)

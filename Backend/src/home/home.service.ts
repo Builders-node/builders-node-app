@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { ProsperaSubClient } from '../subscriptions/prospera-sub.client';
 import {
   GLOBAL_CLEANING_PLAN_KEY,
   GLOBAL_MEAL_PLAN_KEY,
@@ -7,9 +8,15 @@ import {
   parseGlobalMealPlan,
 } from '../admin/global-settings';
 
+/** Fallback used when ProsperaSub's package doesn't list slots yet. */
+const DEFAULT_CLEANING_SLOTS = ['09:00', '11:00', '13:00', '15:00', '17:00'];
+
 @Injectable()
 export class HomeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly prosperaSub: ProsperaSubClient,
+  ) {}
 
   async getHome(userId: string) {
     const [globalMealRow, globalCleaningRow] = await Promise.all([
@@ -151,5 +158,33 @@ export class HomeService {
       beachClub: user.residencyApplication?.status === 'VERIFIED' ? 'active' : 'locked',
       issuedAt: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Return the time slots the member can book for cleaning. Reads them from
+   * ProsperaSub's cleaning_packages catalog — specifically from the active
+   * global cleaning plan (if set) so both member's plan and slots stay in
+   * sync. Falls back to a default list so the UI is always usable, and
+   * always includes `source: 'prospera' | 'default'` so the frontend can
+   * hint the user when it's a stale fallback.
+   */
+  async getCleaningSlots(): Promise<{ slots: string[]; source: 'prospera' | 'default'; packageId: string | null }> {
+    const globalCleaningRow = await this.prisma.globalSetting.findUnique({ where: { key: GLOBAL_CLEANING_PLAN_KEY } });
+    const globalCleaningPlan = parseGlobalCleaningPlan(globalCleaningRow?.value);
+
+    try {
+      const packages = await this.prosperaSub.getCleaningSchedule('public');
+      // Prefer the package the admin picked globally; otherwise the first one.
+      const active = (globalCleaningPlan
+        ? packages.find((p) => p.id === globalCleaningPlan.id)
+        : null) ?? packages[0] ?? null;
+      const slots = active?.timeSlots ?? [];
+      if (slots.length > 0) {
+        return { slots, source: 'prospera', packageId: active?.id ?? null };
+      }
+    } catch {
+      /* fall through to default */
+    }
+    return { slots: DEFAULT_CLEANING_SLOTS, source: 'default', packageId: globalCleaningPlan?.id ?? null };
   }
 }

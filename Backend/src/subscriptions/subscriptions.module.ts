@@ -8,5 +8,6 @@ import { SubscriptionsService } from './subscriptions.service';
   imports: [DatabaseModule],
   controllers: [SubscriptionsController],
   providers: [ProsperaSubClient, SubscriptionsService],
+  exports: [ProsperaSubClient],
 })
 export class SubscriptionsModule {}

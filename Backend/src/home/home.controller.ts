@@ -22,4 +22,16 @@ export class HomeController {
   getPass(@Param('memberId') memberId: string) {
     return this.home.getPass(memberId);
   }
+
+  /**
+   * Available cleaning time slots for the current global cleaning package.
+   * Read from ProsperaSub's cleaning_packages.time_slots; falls back to a
+   * sensible default set so the "Book a cleaning slot" modal never breaks.
+   * Public because the modal is member-facing and does not need auth to
+   * discover slot options.
+   */
+  @Get('public/cleaning-slots')
+  getCleaningSlots() {
+    return this.home.getCleaningSlots();
+  }
 }

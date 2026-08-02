@@ -44,6 +44,12 @@ export interface CleaningPackage {
   cleaningsPerMonth: number | null;
   serviceFrequency: string | null;
   apartmentType: string | null;
+  /**
+   * Time slots (HH:mm, 24h) the cleaner is available for this package.
+   * ProsperaSub exposes these as `time_slots` on cleaning_packages when the
+   * package supports scheduled slots; empty / omitted = no fixed slots.
+   */
+  timeSlots: string[];
 }
 
 export interface ProvisionMemberInput {
@@ -94,6 +100,30 @@ export interface ProvisionMemberResult {
   warnings: string[];
   /** @deprecated old field kept for audit compatibility. */
   externalAccountId: string | null;
+}
+
+/**
+ * ProsperaSub may return cleaning time slots in a few shapes depending on
+ * how the column is typed:
+ *   - "09:00,11:00,15:00"  (comma-separated string)
+ *   - ["09:00","11:00"]    (JSON array)
+ *   - null / undefined     (no slots configured)
+ * Normalize to HH:mm strings, trim whitespace, dedupe, sort.
+ */
+function normalizeTimeSlots(raw: unknown): string[] {
+  if (!raw) return [];
+  const list: unknown[] = Array.isArray(raw)
+    ? raw
+    : typeof raw === 'string'
+      ? raw.split(',')
+      : [];
+  const HH_MM = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+  const seen = new Set<string>();
+  for (const item of list) {
+    const trimmed = String(item ?? '').trim();
+    if (HH_MM.test(trimmed)) seen.add(trimmed);
+  }
+  return Array.from(seen).sort();
 }
 
 export interface CreatePaymentInput {
@@ -227,6 +257,7 @@ export class ProsperaSubClient {
           cleaningsPerMonth: null,
           serviceFrequency: null,
           apartmentType: null,
+          timeSlots: [],
         },
       ];
     }
@@ -246,6 +277,7 @@ export class ProsperaSubClient {
       cleaningsPerMonth: (row.cleanings_per_month as number) ?? null,
       serviceFrequency: (row.service_frequency as string) ?? null,
       apartmentType: (row.apartment_type as string) ?? null,
+      timeSlots: normalizeTimeSlots(row.time_slots),
     }));
   }
 
