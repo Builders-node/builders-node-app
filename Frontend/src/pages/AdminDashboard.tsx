@@ -61,7 +61,7 @@ type DesignationUser = AdminOverview['users'][number];
 type DesignationFilterId = 'all' | 'incomplete' | 'new' | 'members';
 type Applicant = AdminOverview['applications'][number];
 type ApplicantAction = { key: string; label: string; icon: ReactNode; tone?: 'ghost' | 'danger'; run: () => void };
-type AdminTab = 'overview' | 'applicants' | 'residency' | 'designations' | 'maintenance' | 'resources' | 'vehicles' | 'settings';
+type AdminTab = 'overview' | 'applicants' | 'residency' | 'designations' | 'maintenance' | 'support' | 'payments' | 'notifications' | 'resources' | 'vehicles' | 'settings';
 
 type AdminVehicle = {
   id: string;
@@ -1461,9 +1461,8 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                 <button
                   key={item.key}
                   type="button"
-                  className={`attention-card${item.count > 0 ? ' attention-card--active' : ''}${item.go ? '' : ' attention-card--static'}`}
+                  className={`attention-card${item.count > 0 ? ' attention-card--active' : ''}`}
                   onClick={item.go}
-                  disabled={!item.go}
                 >
                   <strong>{item.count}</strong>
                   <span>{item.label}</span>
