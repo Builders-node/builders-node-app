@@ -454,6 +454,8 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   // Which section is on screen — sourced from the URL / sidebar via `adminPage`.
   const adminTab = (ADMIN_PAGE_TO_TAB[adminPage ?? 'adminDashboard'] ?? 'overview') as AdminTab;
   const [applicantView, setApplicantView] = useState<'list' | 'board'>('board');
+  const [selectedApplicantIds, setSelectedApplicantIds] = useState<Set<string>>(new Set());
+  const [isBulkRunning, setIsBulkRunning] = useState(false);
   const [maintenance, setMaintenance] = useState<AdminMaintenance[]>([]);
   const [maintenanceFilter, setMaintenanceFilter] = useState<'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'ALL'>('OPEN');
   const [maintenanceSearch, setMaintenanceSearch] = useState('');
@@ -926,6 +928,37 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not update application.');
     }
+  }
+
+  function toggleApplicantSelected(id: string) {
+    setSelectedApplicantIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function runBulkAction(path: string, body: object, verb: string) {
+    if (selectedApplicantIds.size === 0) return;
+    if (!window.confirm(`${verb} ${selectedApplicantIds.size} applicant${selectedApplicantIds.size === 1 ? '' : 's'}?`)) return;
+    setIsBulkRunning(true);
+    setError(null);
+    setCredentialMessage(null);
+    const ids = Array.from(selectedApplicantIds);
+    const results = await Promise.allSettled(
+      ids.map((id) =>
+        apiRequest(`/admin/applications/${id}/${path}`, {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }),
+      ),
+    );
+    const ok = results.filter((r) => r.status === 'fulfilled').length;
+    const failed = results.length - ok;
+    setCredentialMessage(`${verb} · ${ok} succeeded${failed > 0 ? `, ${failed} failed` : ''}.`);
+    setSelectedApplicantIds(new Set());
+    setIsBulkRunning(false);
+    await refreshOverview();
   }
 
   // The single relevant next action for an applicant's current stage, plus any
@@ -1573,6 +1606,23 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
             </div>
           ) : (
           <>
+          {selectedApplicantIds.size > 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 12, background: 'rgba(229, 84, 31, 0.06)', border: '1px solid rgba(229, 84, 31, 0.28)', borderRadius: 12 }}>
+              <strong style={{ fontSize: '0.9rem' }}>{selectedApplicantIds.size} selected</strong>
+              <button className="primary-button compact-button" disabled={isBulkRunning} onClick={() => void runBulkAction('first-check', { approved: true }, 'Approve first check')}>
+                Approve first check
+              </button>
+              <button className="ghost-button compact-button" disabled={isBulkRunning} onClick={() => void runBulkAction('first-check', { approved: false }, 'Reject at first check')}>
+                Reject first check
+              </button>
+              <button className="ghost-button compact-button" disabled={isBulkRunning} onClick={() => void runBulkAction('online-meeting-check', { approved: true }, 'Approve meeting')}>
+                Approve meeting
+              </button>
+              <button className="text-button" onClick={() => setSelectedApplicantIds(new Set())} style={{ marginLeft: 'auto' }}>
+                Clear
+              </button>
+            </div>
+          ) : null}
           <div className="applicant-list">
             {allApplicants.length === 0 ? (
               <div className="empty-state">No applications in the database yet.</div>
@@ -1590,10 +1640,19 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
               return (
                 <article className="applicant-card" key={application.id}>
                   <div className="applicant-card__top">
-                    <div className="applicant-card__id">
-                      <strong>{application.fullName}</strong>
-                      <span>{application.email}</span>
-                      {meta ? <small>{meta}</small> : null}
+                    <div className="applicant-card__id" style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedApplicantIds.has(application.id)}
+                        onChange={() => toggleApplicantSelected(application.id)}
+                        aria-label={`Select ${application.fullName}`}
+                        style={{ marginTop: 4 }}
+                      />
+                      <div>
+                        <strong>{application.fullName}</strong>
+                        <span style={{ display: 'block' }}>{application.email}</span>
+                        {meta ? <small>{meta}</small> : null}
+                      </div>
                     </div>
                     <div className="applicant-card__status">
                       <StatusBadge tone={toneForStatus(application.status)}>{application.status}</StatusBadge>

@@ -183,6 +183,54 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
     }
   }
 
+  /** Refresh the currently-open drawer after an inline action. */
+  async function refreshSelected() {
+    if (!selectedUser) return;
+    try {
+      setSelectedUser(await apiRequest<UserDetail>(`/admin/users/${selectedUser.id}`));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not refresh user detail.');
+    }
+  }
+
+  async function reviewResidencyInline(decision: 'VERIFIED' | 'REJECTED', note?: string) {
+    if (!selectedUser) return;
+    try {
+      await apiRequest(`/admin/users/${selectedUser.id}/residency/review`, {
+        method: 'POST',
+        body: JSON.stringify({ decision, note: note?.trim() || undefined }),
+      });
+      setNotice(`Residency ${decision === 'VERIFIED' ? 'verified' : 'rejected'}.`);
+      await refreshSelected();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not review residency.');
+    }
+  }
+
+  async function updateTicketInline(ticketId: string, body: { status?: string }) {
+    try {
+      await apiRequest(`/admin/support-tickets/${ticketId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      });
+      await refreshSelected();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not update ticket.');
+    }
+  }
+
+  async function updatePaymentInline(paymentId: string, body: { status?: string }) {
+    try {
+      await apiRequest(`/admin/payments/${paymentId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      });
+      await refreshSelected();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not update payment.');
+    }
+  }
+
   function openAddForm() {
     setAddForm({ email: '', fullName: '', phone: '', location: '', membershipStatus: 'ACTIVE_MEMBER', role: 'MEMBER' });
     setCreatedInvite(null);
@@ -607,12 +655,30 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
               {activeUserTab === 'residency' ? (
                 <section className="panel">
                   <h2>E-Residency</h2>
-                  <p>{selectedUser.residencyApplication?.stage ?? 'Not started'}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <StatusBadge tone={toneForStatus(selectedUser.residencyApplication?.status ?? 'NOT_STARTED')}>
+                      {selectedUser.residencyApplication?.status ?? 'NOT_STARTED'}
+                    </StatusBadge>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{selectedUser.residencyApplication?.stage ?? 'Not started'}</span>
+                  </div>
                   <div className="next-step-list">
                     {(selectedUser.residencyApplication?.requiredNextSteps?.length ? selectedUser.residencyApplication.requiredNextSteps : ['No required next steps.']).map((step) => (
                       <div className="next-step" key={step}>{step}</div>
                     ))}
                   </div>
+                  {selectedUser.residencyApplication && selectedUser.residencyApplication.status !== 'VERIFIED' ? (
+                    <div className="button-row" style={{ marginTop: 12 }}>
+                      <button className="primary-button compact-button" onClick={() => void reviewResidencyInline('VERIFIED')}>
+                        Verify
+                      </button>
+                      <button className="ghost-button compact-button" onClick={() => {
+                        const note = window.prompt('Rejection reason (optional):') ?? undefined;
+                        void reviewResidencyInline('REJECTED', note);
+                      }}>
+                        Reject
+                      </button>
+                    </div>
+                  ) : null}
                 </section>
               ) : null}
 
@@ -663,6 +729,15 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
                       <FileText size={18} />
                       <div><strong>{payment.description}</strong><span>{formatMoney(payment.amountCents, payment.currency)} · Due {formatDate(payment.dueDate)}</span></div>
                       <StatusBadge tone={toneForStatus(payment.status)}>{payment.status}</StatusBadge>
+                      {payment.status !== 'PAID' ? (
+                        <button className="primary-button compact-button" onClick={() => void updatePaymentInline(payment.id, { status: 'PAID' })}>
+                          Mark paid
+                        </button>
+                      ) : (
+                        <button className="ghost-button compact-button" onClick={() => void updatePaymentInline(payment.id, { status: 'DUE' })}>
+                          Reopen
+                        </button>
+                      )}
                     </div>
                   ))}
                 </section>
@@ -691,7 +766,15 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
                     <div className="admin-user-list-row" key={ticket.id}>
                       <FileText size={18} />
                       <div><strong>{ticket.subject}</strong><span>Created {formatDate(ticket.createdAt)}</span></div>
-                      <StatusBadge tone={toneForStatus(ticket.status)}>{ticket.status}</StatusBadge>
+                      <select
+                        value={ticket.status}
+                        onChange={(event) => void updateTicketInline(ticket.id, { status: event.target.value })}
+                        aria-label="Change ticket status"
+                      >
+                        <option value="OPEN">Open</option>
+                        <option value="IN_PROGRESS">In progress</option>
+                        <option value="RESOLVED">Resolved</option>
+                      </select>
                     </div>
                   ))}
                 </section>
