@@ -2,7 +2,16 @@ import { ArrowLeft, Check, FileText, Home, Link as LinkIcon, Search, Send, Shiel
 import { useEffect, useState, type ReactNode } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
-import { ADMIN_PAGE_TO_TAB, type PageId, type StatusTone } from '../data/dashboard';
+import {
+  ADMIN_PAGE_TO_TAB,
+  INBOX_PAGES,
+  INBOX_TABS,
+  SETTINGS_PAGES,
+  SETTINGS_TABS,
+  type PageId,
+  type StatusTone,
+} from '../data/dashboard';
+import { Units } from './Units';
 import { apiRequest } from '../lib/api';
 import { useEscapeToClose } from '../lib/useModalA11y';
 
@@ -61,7 +70,7 @@ type DesignationUser = AdminOverview['users'][number];
 type DesignationFilterId = 'all' | 'incomplete' | 'new' | 'members';
 type Applicant = AdminOverview['applications'][number];
 type ApplicantAction = { key: string; label: string; icon: ReactNode; tone?: 'ghost' | 'danger'; run: () => void };
-type AdminTab = 'overview' | 'applicants' | 'residency' | 'designations' | 'maintenance' | 'support' | 'payments' | 'notifications' | 'resources' | 'vehicles' | 'settings';
+type AdminTab = 'overview' | 'applicants' | 'residency' | 'designations' | 'maintenance' | 'support' | 'payments' | 'notifications' | 'resources' | 'vehicles' | 'units' | 'settings';
 
 type AdminVehicle = {
   id: string;
@@ -1407,12 +1416,25 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     );
   }
 
+  const currentPage = adminPage ?? 'adminDashboard';
+  const inInbox = INBOX_PAGES.includes(currentPage);
+  const inSettings = SETTINGS_PAGES.includes(currentPage);
+  const attention = (overview?.attention ?? {}) as Record<string, number>;
+  const header = inInbox
+    ? { title: 'Inbox', description: 'Everything waiting on an admin decision, in one place.' }
+    : inSettings
+      ? { title: 'Settings', description: 'Community plans, landing batch, and the shared resources members can book.' }
+      : {
+          title: 'Admin Dashboard',
+          description: `Role access: ${roleLabel(currentUserRole ?? 'MEMBER')}. Manage applicants, members, designations, and operations from the same dashboard.`,
+        };
+
   return (
     <div className="admin-shell">
       <div className="page-stack admin-page">
         <PageHeader
-          title="Admin Dashboard"
-          description={`Role access: ${roleLabel(currentUserRole ?? 'MEMBER')}. Manage applicants, members, designations, and operations from the same dashboard.`}
+          title={header.title}
+          description={header.description}
           action={
             <button className="ghost-button" onClick={() => setActivePage('profile')}>
               <Home size={16} />
@@ -1420,6 +1442,38 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
             </button>
           }
         />
+
+        {inInbox ? (
+          <nav className="tab-row admin-group-tabs" aria-label="Inbox sections">
+            {INBOX_TABS.map((tab) => {
+              const count = attention[tab.attentionKey] ?? 0;
+              return (
+                <button
+                  key={tab.page}
+                  className={currentPage === tab.page ? 'tab-chip tab-chip--active' : 'tab-chip'}
+                  onClick={() => setActivePage(tab.page)}
+                >
+                  {tab.label}
+                  {count > 0 ? <strong className="tab-chip__count">{count}</strong> : null}
+                </button>
+              );
+            })}
+          </nav>
+        ) : null}
+
+        {inSettings ? (
+          <nav className="tab-row admin-group-tabs" aria-label="Settings sections">
+            {SETTINGS_TABS.map((tab) => (
+              <button
+                key={tab.page}
+                className={currentPage === tab.page ? 'tab-chip tab-chip--active' : 'tab-chip'}
+                onClick={() => setActivePage(tab.page)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        ) : null}
 
         {isLoading ? <section className="panel"><p>Loading admin data...</p></section> : null}
         {isUserDetailLoading ? <section className="panel"><p>Loading user detail...</p></section> : null}
@@ -1946,6 +2000,10 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
           </div>
         </section>
         ) : null}
+
+        {/* Units keeps its own page component — rendered inline as a Settings
+            sub-tab so the sidebar stays at six entries. */}
+        {adminTab === 'units' ? <Units embedded /> : null}
 
         {adminTab === 'notifications' ? (
         <>

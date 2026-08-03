@@ -235,17 +235,8 @@ function App() {
 
       return <AllUsers currentUserId={currentUserId} currentUserRole={currentUserRole} />;
     }
-    if (activePage === 'units') {
-      if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
-      if (!canAccessAdmin) {
-        return (
-          <div className="page-stack">
-            <section className="panel empty-state">You need a Super Admin, Moderator, or Community Leader role to open units.</section>
-          </div>
-        );
-      }
-      return <Units />;
-    }
+    // `units` is part of ADMIN_SUB_PAGES now — it renders as a Settings
+    // sub-tab inside AdminDashboard rather than as its own page.
     if (ADMIN_SUB_PAGES.includes(activePage)) {
       if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
       if (!canAccessAdmin) {

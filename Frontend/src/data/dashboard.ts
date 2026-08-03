@@ -1,21 +1,14 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   BookOpen,
-  Building2,
-  Car,
-  ClipboardList,
-  CreditCard,
-  FileCheck2,
   Home,
+  Inbox,
   LayoutDashboard,
-  LifeBuoy,
-  Library,
   Megaphone,
   Settings,
   Sliders,
   UserCheck,
   UsersRound,
-  Wrench,
 } from 'lucide-react';
 
 export type StatusTone = 'good' | 'attention' | 'danger' | 'neutral';
@@ -24,6 +17,17 @@ export type NavItem = {
   id: PageId;
   label: string;
   icon: LucideIcon;
+  /**
+   * Pages that should light this nav item up. Used by the grouped admin items
+   * (Inbox / Settings) where one sidebar entry fronts several sub-pages.
+   * Defaults to just `id`.
+   */
+  matches?: PageId[];
+  /**
+   * Key into the admin overview `attention` block. When set, the sidebar shows
+   * the summed count as a pill. Multiple keys are added together.
+   */
+  badgeKeys?: string[];
 };
 
 export type NavSection = {
@@ -75,6 +79,7 @@ export const ADMIN_SUB_PAGES: PageId[] = [
   'adminVehicles',
   'adminResources',
   'adminSettings',
+  'units',
 ];
 
 /** Which internal admin tab each PageId corresponds to. */
@@ -90,7 +95,32 @@ export const ADMIN_PAGE_TO_TAB: Record<string, string> = {
   adminVehicles: 'vehicles',
   adminResources: 'resources',
   adminSettings: 'settings',
+  units: 'units',
 };
+
+/**
+ * The five day-to-day queues, surfaced as sub-tabs under a single "Inbox"
+ * sidebar entry. `attentionKey` reads from the admin overview `attention`
+ * block to show a per-tab pending count.
+ */
+export const INBOX_TABS: Array<{ page: PageId; label: string; attentionKey: string }> = [
+  { page: 'adminApplicants', label: 'Applicants', attentionKey: 'pendingApplications' },
+  { page: 'adminResidency', label: 'Residency', attentionKey: 'pendingResidency' },
+  { page: 'adminSupport', label: 'Support', attentionKey: 'openTickets' },
+  { page: 'adminPayments', label: 'Payments', attentionKey: 'overduePayments' },
+  { page: 'adminMaintenance', label: 'Maintenance', attentionKey: 'openMaintenance' },
+];
+
+/** Rarely-touched CRUD, grouped as sub-tabs under a single "Settings" entry. */
+export const SETTINGS_TABS: Array<{ page: PageId; label: string }> = [
+  { page: 'adminSettings', label: 'Plans & batch' },
+  { page: 'adminVehicles', label: 'Vehicles' },
+  { page: 'units', label: 'Units' },
+  { page: 'adminResources', label: 'Resources' },
+];
+
+export const INBOX_PAGES: PageId[] = INBOX_TABS.map((tab) => tab.page);
+export const SETTINGS_PAGES: PageId[] = SETTINGS_TABS.map((tab) => tab.page);
 
 export const ADMIN_ROLES = ['SUPER_ADMIN', 'MODERATOR', 'COMMUNITY_LEADER'];
 
@@ -106,18 +136,20 @@ export const PAGE_PATHS: Record<PageId, string> = {
   setupPassword: '/setup-password',
   adminLogin: '/admin-login',
   adminDashboard: '/admin',
-  adminApplicants: '/admin/applicants',
-  adminResidency: '/admin/residency',
+  // Day-to-day queues live under one Inbox group.
+  adminApplicants: '/admin/inbox/applicants',
+  adminResidency: '/admin/inbox/residency',
+  adminSupport: '/admin/inbox/support',
+  adminPayments: '/admin/inbox/payments',
+  adminMaintenance: '/admin/inbox/maintenance',
   adminDesignations: '/admin/designations',
-  adminMaintenance: '/admin/maintenance',
-  adminSupport: '/admin/support',
-  adminPayments: '/admin/payments',
   adminNotifications: '/admin/notifications',
-  adminVehicles: '/admin/vehicles',
-  adminResources: '/admin/resources',
+  // Rarely-touched CRUD lives under the Settings group.
   adminSettings: '/admin/settings',
+  adminVehicles: '/admin/settings/vehicles',
+  units: '/admin/settings/units',
+  adminResources: '/admin/settings/resources',
   allUsers: '/users',
-  units: '/units',
   dashboard: '/account',
   profile: '/account',
   pass: '/pass',
@@ -137,17 +169,30 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/setup-password': 'setupPassword',
   '/admin-login': 'adminLogin',
   '/admin': 'adminDashboard',
+  '/admin/designations': 'adminDesignations',
+  '/admin/notifications': 'adminNotifications',
+  // Inbox group.
+  '/admin/inbox': 'adminApplicants', // group root → first tab
+  '/admin/inbox/applicants': 'adminApplicants',
+  '/admin/inbox/residency': 'adminResidency',
+  '/admin/inbox/support': 'adminSupport',
+  '/admin/inbox/payments': 'adminPayments',
+  '/admin/inbox/maintenance': 'adminMaintenance',
+  // Settings group.
+  '/admin/settings': 'adminSettings',
+  '/admin/settings/vehicles': 'adminVehicles',
+  '/admin/settings/units': 'units',
+  '/admin/settings/resources': 'adminResources',
+  '/users': 'allUsers',
+  // Legacy flat paths — kept so old bookmarks/links still resolve. The URL
+  // sync effect in App.tsx rewrites them to the canonical path above.
   '/admin/applicants': 'adminApplicants',
   '/admin/residency': 'adminResidency',
-  '/admin/designations': 'adminDesignations',
   '/admin/maintenance': 'adminMaintenance',
   '/admin/support': 'adminSupport',
   '/admin/payments': 'adminPayments',
-  '/admin/notifications': 'adminNotifications',
   '/admin/vehicles': 'adminVehicles',
   '/admin/resources': 'adminResources',
-  '/admin/settings': 'adminSettings',
-  '/users': 'allUsers',
   '/units': 'units',
   '/account': 'profile',
   '/resources': 'resources',
@@ -182,18 +227,24 @@ export const navSections: NavSection[] = [
     adminOnly: true,
     items: [
       { id: 'adminDashboard', label: 'Overview', icon: LayoutDashboard },
-      { id: 'adminApplicants', label: 'Applicants', icon: ClipboardList },
-      { id: 'adminResidency', label: 'Residency', icon: FileCheck2 },
-      { id: 'adminDesignations', label: 'Designations', icon: UserCheck },
-      { id: 'adminMaintenance', label: 'Maintenance', icon: Wrench },
-      { id: 'adminSupport', label: 'Support', icon: LifeBuoy },
-      { id: 'adminPayments', label: 'Payments', icon: CreditCard },
-      { id: 'adminNotifications', label: 'Notifications', icon: Megaphone },
+      {
+        // Fronts the five day-to-day queues; sub-tabs live inside the page.
+        id: 'adminApplicants',
+        label: 'Inbox',
+        icon: Inbox,
+        matches: INBOX_PAGES,
+        badgeKeys: INBOX_TABS.map((tab) => tab.attentionKey),
+      },
       { id: 'allUsers', label: 'Members', icon: UsersRound },
-      { id: 'adminVehicles', label: 'Vehicles', icon: Car },
-      { id: 'adminResources', label: 'Resources', icon: Library },
-      { id: 'units', label: 'Units', icon: Building2 },
-      { id: 'adminSettings', label: 'Settings', icon: Sliders },
+      { id: 'adminDesignations', label: 'Designations', icon: UserCheck },
+      { id: 'adminNotifications', label: 'Notifications', icon: Megaphone },
+      {
+        // Fronts the rarely-touched CRUD (plans, vehicles, units, resources).
+        id: 'adminSettings',
+        label: 'Settings',
+        icon: Sliders,
+        matches: SETTINGS_PAGES,
+      },
     ],
   },
 ];

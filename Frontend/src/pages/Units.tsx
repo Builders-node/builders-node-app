@@ -21,7 +21,6 @@ type Unit = {
   availableFrom?: string | null;
   unitType?: { id: string; name: string } | null;
   occupants: Occupant[];
-  openRequests: number;
 };
 
 type UnitType = {
@@ -69,7 +68,7 @@ function statusLabel(status: string) {
   return status.split('_').join(' ');
 }
 
-export function Units() {
+export function Units({ embedded = false }: { embedded?: boolean } = {}) {
   const [data, setData] = useState<UnitsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -280,17 +279,32 @@ export function Units() {
   ];
 
   return (
-    <div className="page-stack admin-page">
-      <PageHeader
-        title="Units"
-        description="All housing units — availability status, occupants, and open requests."
-        action={
-          <button className="primary-button" onClick={openAddForm}>
+    <div className={embedded ? 'units-embedded' : 'page-stack admin-page'}>
+      {embedded ? (
+        // Rendered inside the Settings group — the page already has a header,
+        // so just surface the primary action.
+        <div className="admin-panel__head" style={{ marginBottom: 4 }}>
+          <div>
+            <h2>Units</h2>
+            <p>All housing units — availability status and occupants.</p>
+          </div>
+          <button className="primary-button compact-button" onClick={openAddForm}>
             <Plus size={16} />
             Add unit
           </button>
-        }
-      />
+        </div>
+      ) : (
+        <PageHeader
+          title="Units"
+          description="All housing units — availability status, occupants, and open requests."
+          action={
+            <button className="primary-button" onClick={openAddForm}>
+              <Plus size={16} />
+              Add unit
+            </button>
+          }
+        />
+      )}
       {error ? <section className="panel"><p className="form-error">{error}</p></section> : null}
       {isLoading ? <section className="panel">Loading units...</section> : null}
 

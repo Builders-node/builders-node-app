@@ -1,6 +1,6 @@
 import { Bell, LayoutGrid, LogOut, Menu, Moon, Pencil, Settings as SettingsIcon, Share2, Sun, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ADMIN_ROLES, allNavItems, navSections, pageForPath, type PageId } from '../data/dashboard';
+import { ADMIN_ROLES, allNavItems, navSections, pageForPath, type NavItem, type PageId } from '../data/dashboard';
 import { apiRequest } from '../lib/api';
 import { useEscapeToClose } from '../lib/useModalA11y';
 import { ReferralModal } from './ReferralModal';
@@ -61,7 +61,15 @@ export function AppShell({
   const isAdmin = ADMIN_ROLES.includes(currentUserRole ?? '');
   const avatarInitial = currentUserLabel?.trim().charAt(0).toUpperCase() || '?';
   const visibleSections = navSections.filter((section) => !section.adminOnly || isAdmin);
-  const currentLabel = allNavItems.find((item) => item.id === activePage)?.label ?? 'Dashboard';
+  // A grouped item (Inbox / Settings) owns several sub-pages — match on those too.
+  const isNavActive = (item: NavItem) => (item.matches ?? [item.id]).includes(activePage);
+  const currentLabel = allNavItems.find(isNavActive)?.label ?? 'Dashboard';
+
+  // Pending counts for the sidebar badges. Admin-only; refreshed on the same
+  // cadence as notifications so the Inbox pill stays roughly live.
+  const [attention, setAttention] = useState<Record<string, number>>({});
+  const badgeFor = (item: NavItem) =>
+    (item.badgeKeys ?? []).reduce((sum, key) => sum + (attention[key] ?? 0), 0);
 
   const [accountOpen, setAccountOpen] = useState(false);
   const [referralOpen, setReferralOpen] = useState(false);
@@ -121,6 +129,25 @@ export function AppShell({
     };
   }, [currentUserId]);
 
+  // Sidebar badge counts. Cheap enough to piggyback on the notifications
+  // interval; failures are silent (the badge just stays hidden).
+  useEffect(() => {
+    if (!isAdmin || !currentUserId) return;
+    let alive = true;
+    const load = () =>
+      apiRequest<{ attention?: Record<string, number> }>('/admin/overview')
+        .then((data) => {
+          if (alive && data.attention) setAttention(data.attention);
+        })
+        .catch(() => undefined);
+    void load();
+    const timer = setInterval(load, 60000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [isAdmin, currentUserId]);
+
   async function toggleNotifications() {
     const opening = !notifOpen;
     setNotifOpen(opening);
@@ -168,14 +195,16 @@ export function AppShell({
               <span className="nav-section__title">{section.title}</span>
               {section.items.map((item) => {
                 const Icon = item.icon;
+                const badge = badgeFor(item);
                 return (
                   <button
                     key={item.id}
-                    className={activePage === item.id ? 'nav-item nav-item--active' : 'nav-item'}
+                    className={isNavActive(item) ? 'nav-item nav-item--active' : 'nav-item'}
                     onClick={() => go(item.id)}
                   >
                     <Icon size={20} />
                     <span>{item.label}</span>
+                    {badge > 0 ? <span className="nav-item__badge">{badge > 99 ? '99+' : badge}</span> : null}
                   </button>
                 );
               })}
@@ -310,7 +339,7 @@ export function AppShell({
       <nav className="bottom-nav" aria-label="Primary">
         {memberItems.map((item) => {
           const Icon = item.icon;
-          const active = activePage === item.id;
+          const active = isNavActive(item);
           return (
             <button
               key={item.id}
@@ -325,7 +354,7 @@ export function AppShell({
         })}
         {isAdmin && adminItems.length > 0 ? (
           <button
-            className={adminItems.some((item) => item.id === activePage) ? 'bottom-nav__item bottom-nav__item--active' : 'bottom-nav__item'}
+            className={adminItems.some(isNavActive) ? 'bottom-nav__item bottom-nav__item--active' : 'bottom-nav__item'}
             onClick={() => setAdminSheetOpen(true)}
             aria-haspopup="dialog"
             aria-expanded={adminSheetOpen}
@@ -343,7 +372,7 @@ export function AppShell({
             <div className="admin-sheet__grid">
               {adminItems.map((item) => {
                 const Icon = item.icon;
-                const active = activePage === item.id;
+                const active = isNavActive(item);
                 return (
                   <button
                     key={item.id}

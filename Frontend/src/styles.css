@@ -647,10 +647,32 @@ textarea {
   justify-content: center;
   line-height: 1.05;
   min-height: 58px;
-  overflow: hidden;
+  overflow: visible;
   padding: 7px 4px;
+  position: relative;
   text-align: center;
   width: 100%;
+}
+
+/* Pending-count pill on grouped nav items (Inbox). */
+.nav-item__badge {
+  position: absolute;
+  top: 5px;
+  right: 8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--accent, #e5541f);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+}
+.nav-item--active .nav-item__badge {
+  background: var(--accent, #e5541f);
+  color: #ffffff;
 }
 
 .nav-item--active,
@@ -4664,6 +4686,32 @@ body:has(.modal-overlay) .onboarding-toast { display: none; }
   background: #fff;
   color: var(--text, #1c1e24);
   box-shadow: 0 1px 2px rgba(15, 18, 24, 0.08);
+}
+
+/* Group-level tab bar (Inbox / Settings) — sits directly under the header. */
+.admin-group-tabs {
+  display: flex;
+  align-self: flex-start;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.admin-group-tabs::-webkit-scrollbar { display: none; }
+.admin-group-tabs .tab-chip { white-space: nowrap; }
+
+.tab-chip__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent, #e5541f);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
 }
 
 /* ── Day chip picker (weekday multi-select in the cleaning modal) ─────────── */
