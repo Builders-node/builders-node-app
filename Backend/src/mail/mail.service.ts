@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { InvitationEmail } from '../auth/invitation';
+import { resolveFrontendBaseUrl } from '../common/frontend-url';
 
 type Email = { to: string; subject: string; html: string; text: string };
 
@@ -33,12 +34,7 @@ export class MailService {
    * users always click through to the branded domain when it's set.
    */
   frontendBaseUrl(): string {
-    const urls = (this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173')
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean);
-    const preferred = urls.find((url) => !/\.vercel\.app(?:\/|$)/.test(url)) ?? urls[0];
-    return preferred.replace(/\/+$/, '');
+    return resolveFrontendBaseUrl(this.config.get<string>('FRONTEND_URL'));
   }
 
   async send(email: Email): Promise<void> {

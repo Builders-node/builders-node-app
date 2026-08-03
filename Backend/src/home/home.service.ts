@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { resolveFrontendBaseUrl } from '../common/frontend-url';
 import { PrismaService } from '../database/prisma.service';
 import { ProsperaSubClient } from '../subscriptions/prospera-sub.client';
 import {
@@ -247,7 +248,7 @@ export class HomeService {
   }
 
   private frontendBaseUrl(): string {
-    return (process.env.FRONTEND_URL ?? 'https://buildersnode.com').replace(/\/$/, '');
+    return resolveFrontendBaseUrl(process.env.FRONTEND_URL, 'https://buildersnode.com');
   }
 
   /**

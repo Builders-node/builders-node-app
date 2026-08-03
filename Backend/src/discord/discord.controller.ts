@@ -2,6 +2,7 @@ import { Controller, Delete, Get, Param, Query, Req, Res, UseGuards } from '@nes
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { resolveFrontendBaseUrl } from '../common/frontend-url';
 import { DiscordService } from './discord.service';
 
 @Controller()
@@ -47,11 +48,6 @@ export class DiscordController {
    * remains a backup only if no custom domain is set.
    */
   private resolveFrontendBase(): string {
-    const urls = (this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173')
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean);
-    const preferred = urls.find((url) => !/\.vercel\.app(?:\/|$)/.test(url)) ?? urls[0];
-    return preferred.replace(/\/+$/, '');
+    return resolveFrontendBaseUrl(this.config.get<string>('FRONTEND_URL'));
   }
 }
