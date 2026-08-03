@@ -65,4 +65,53 @@ export class NotificationsService {
     await this.prisma.notification.updateMany({ where, data: { readAt: new Date() } });
     return { ok: true };
   }
+
+  /**
+   * Broadcast a notification to every active member. Returns { sent } — the
+   * number of rows created. Not best-effort: throws so the composer can show
+   * a real error instead of silently claiming success.
+   */
+  async broadcast(input: NewNotification & { audienceRoles?: string[] }): Promise<{ sent: number }> {
+    const roles = input.audienceRoles && input.audienceRoles.length ? input.audienceRoles : ['MEMBER'];
+    const audience = await this.prisma.user.findMany({ where: { role: { in: roles } }, select: { id: true } });
+    if (audience.length === 0) return { sent: 0 };
+    const result = await this.prisma.notification.createMany({
+      data: audience.map((u) => ({
+        userId: u.id,
+        type: input.type ?? 'info',
+        title: input.title,
+        body: input.body,
+        link: input.link,
+      })),
+    });
+    return { sent: result.count };
+  }
+
+  /** Send one notification to one member. Throws if the create fails. */
+  async sendToMember(userId: string, input: NewNotification): Promise<{ id: string }> {
+    const created = await this.prisma.notification.create({
+      data: { userId, type: input.type ?? 'info', title: input.title, body: input.body, link: input.link },
+    });
+    return { id: created.id };
+  }
+
+  /** Recent admin-composed notifications (all types), for the audit log on the composer page. */
+  async listRecent(limit = 30) {
+    const items = await this.prisma.notification.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: { user: { select: { email: true, profile: { select: { fullName: true } } } } },
+    });
+    return items.map((n) => ({
+      id: n.id,
+      recipient: n.user?.profile?.fullName ?? n.user?.email ?? '—',
+      recipientEmail: n.user?.email ?? '—',
+      type: n.type,
+      title: n.title,
+      body: n.body,
+      link: n.link,
+      readAt: n.readAt,
+      createdAt: n.createdAt,
+    }));
+  }
 }

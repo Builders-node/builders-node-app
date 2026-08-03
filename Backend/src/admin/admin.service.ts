@@ -928,6 +928,45 @@ export class AdminService {
     };
   }
 
+  /**
+   * Admin-composed notification. audience='member' sends to a single userId,
+   * audience='all-members' broadcasts to every MEMBER role account.
+   */
+  async composeNotification(body: {
+    audience?: 'member' | 'all-members';
+    userId?: string;
+    type?: 'info' | 'success' | 'warning';
+    title?: string;
+    message?: string;
+    link?: string;
+  }) {
+    const title = body.title?.trim();
+    if (!title) throw new BadRequestException('Title is required.');
+    const payload = {
+      type: body.type ?? 'info',
+      title,
+      body: body.message?.trim() || undefined,
+      link: body.link?.trim() || undefined,
+    };
+
+    if (body.audience === 'all-members') {
+      const { sent } = await this.notifications.broadcast(payload);
+      return { audience: 'all-members', sent };
+    }
+
+    const userId = body.userId?.trim();
+    if (!userId) throw new BadRequestException('Pick a member (or switch audience to all-members).');
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) throw new NotFoundException('Member not found.');
+    const { id } = await this.notifications.sendToMember(userId, payload);
+    return { audience: 'member', sent: 1, id };
+  }
+
+  /** Recent notifications across all members — for the composer page's audit log. */
+  listRecentNotifications(limit?: number) {
+    return this.notifications.listRecent(limit);
+  }
+
   async listResidencyReviews() {
     const apps = await this.prisma.residencyApplication.findMany({
       where: { status: { in: ['PENDING_REVIEW', 'VERIFIED', 'REJECTED'] } },

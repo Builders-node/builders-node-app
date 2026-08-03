@@ -124,6 +124,18 @@ type AdminPayment = {
   adminNote?: string | null;
 };
 
+type AdminNotificationLog = {
+  id: string;
+  recipient: string;
+  recipientEmail: string;
+  type: 'info' | 'success' | 'warning';
+  title: string;
+  body?: string | null;
+  link?: string | null;
+  readAt?: string | null;
+  createdAt: string;
+};
+
 type ResidencyReview = {
   userId: string;
   email: string;
@@ -468,6 +480,17 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   const [supportFilter, setSupportFilter] = useState<'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'ALL'>('OPEN');
   const [payments, setPayments] = useState<AdminPayment[]>([]);
   const [paymentsFilter, setPaymentsFilter] = useState<'OVERDUE' | 'DUE' | 'PAID' | 'ALL'>('OVERDUE');
+  const [notifRecent, setNotifRecent] = useState<AdminNotificationLog[]>([]);
+  const [notifForm, setNotifForm] = useState<{
+    audience: 'member' | 'all-members';
+    userId: string;
+    type: 'info' | 'success' | 'warning';
+    title: string;
+    message: string;
+    link: string;
+  }>({ audience: 'all-members', userId: '', type: 'info', title: '', message: '', link: '' });
+  const [notifSending, setNotifSending] = useState(false);
+  const [notifSentMsg, setNotifSentMsg] = useState<string | null>(null);
   const [invoiceForm, setInvoiceForm] = useState<{ userId: string; amountCents: string; description: string; dueDate: string } | null>(null);
   useEscapeToClose(Boolean(invoiceForm), () => setInvoiceForm(null));
   const [resources, setResources] = useState<AdminResource[]>([]);
@@ -769,6 +792,33 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     }
   }
 
+  async function loadNotifications() {
+    try {
+      setNotifRecent(await apiRequest<AdminNotificationLog[]>('/admin/notifications?limit=40'));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not load notifications.');
+    }
+  }
+
+  async function sendNotification() {
+    setNotifSending(true);
+    setNotifSentMsg(null);
+    setError(null);
+    try {
+      const result = await apiRequest<{ audience: string; sent: number }>('/admin/notifications', {
+        method: 'POST',
+        body: JSON.stringify(notifForm),
+      });
+      setNotifSentMsg(`Sent to ${result.sent} recipient${result.sent === 1 ? '' : 's'}.`);
+      setNotifForm((f) => ({ ...f, title: '', message: '', link: '' }));
+      await loadNotifications();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not send notification.');
+    } finally {
+      setNotifSending(false);
+    }
+  }
+
   async function reorderResource(id: string, direction: 'up' | 'down') {
     try {
       setResources(await apiRequest<AdminResource[]>(`/admin/resources/${id}/reorder`, {
@@ -850,6 +900,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     if (adminTab === 'vehicles') void loadVehicles();
     if (adminTab === 'support') void loadSupport();
     if (adminTab === 'payments') void loadPayments();
+    if (adminTab === 'notifications') void loadNotifications();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adminTab, supportFilter, paymentsFilter]);
 
@@ -1895,6 +1946,93 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
             ))}
           </div>
         </section>
+        ) : null}
+
+        {adminTab === 'notifications' ? (
+        <>
+          <section className="panel admin-panel">
+            <div className="admin-panel__head">
+              <div>
+                <h2>Compose notification</h2>
+                <p>Send an announcement to all members or a direct notice to a specific one.</p>
+              </div>
+            </div>
+            <form
+              onSubmit={(event) => { event.preventDefault(); void sendNotification(); }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+            >
+              <div className="form-grid">
+                <label>
+                  Audience
+                  <select value={notifForm.audience} onChange={(event) => setNotifForm({ ...notifForm, audience: event.target.value as 'member' | 'all-members' })}>
+                    <option value="all-members">All members</option>
+                    <option value="member">One member</option>
+                  </select>
+                </label>
+                <label>
+                  Type
+                  <select value={notifForm.type} onChange={(event) => setNotifForm({ ...notifForm, type: event.target.value as 'info' | 'success' | 'warning' })}>
+                    <option value="info">Info</option>
+                    <option value="success">Success</option>
+                    <option value="warning">Warning</option>
+                  </select>
+                </label>
+              </div>
+              {notifForm.audience === 'member' ? (
+                <label>
+                  Member
+                  <select value={notifForm.userId} onChange={(event) => setNotifForm({ ...notifForm, userId: event.target.value })} required>
+                    <option value="">— pick a member —</option>
+                    {(overview?.users ?? []).map((u) => (
+                      <option key={u.id} value={u.id}>{u.fullName ?? u.email} · {u.email}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              <label>
+                Title
+                <input value={notifForm.title} onChange={(event) => setNotifForm({ ...notifForm, title: event.target.value })} required placeholder="e.g. Water shutoff Friday" />
+              </label>
+              <label>
+                Message (optional)
+                <textarea value={notifForm.message} onChange={(event) => setNotifForm({ ...notifForm, message: event.target.value })} rows={3} placeholder="A short body — 1-2 sentences." />
+              </label>
+              <label>
+                Link (optional)
+                <input value={notifForm.link} onChange={(event) => setNotifForm({ ...notifForm, link: event.target.value })} placeholder="/account or full URL" />
+              </label>
+              {notifSentMsg ? <p className="form-success">{notifSentMsg}</p> : null}
+              <button className="primary-button" type="submit" disabled={notifSending || !notifForm.title.trim() || (notifForm.audience === 'member' && !notifForm.userId)}>
+                {notifSending ? 'Sending…' : 'Send'}
+              </button>
+            </form>
+          </section>
+
+          <section className="panel admin-panel">
+            <div className="admin-panel__head">
+              <div>
+                <h2>Recent notifications</h2>
+                <p>Last 40 notifications delivered — includes system + admin-composed.</p>
+              </div>
+            </div>
+            <div className="maintenance-admin-list">
+              {notifRecent.length === 0 ? <div className="empty-state">No notifications yet.</div> : null}
+              {notifRecent.map((n) => (
+                <article className="maintenance-admin-card" key={n.id}>
+                  <div className="maintenance-admin-card__top">
+                    <div>
+                      <strong>{n.title}</strong>
+                      <span>→ {n.recipient} ({n.recipientEmail}) · {new Date(n.createdAt).toLocaleString()}{n.readAt ? ' · read' : ' · unread'}</span>
+                    </div>
+                    <StatusBadge tone={n.type === 'success' ? 'good' : n.type === 'warning' ? 'attention' : 'neutral'}>{n.type}</StatusBadge>
+                  </div>
+                  {n.body ? <p className="maintenance-admin-card__desc">{n.body}</p> : null}
+                  {n.link ? <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Link: {n.link}</p> : null}
+                </article>
+              ))}
+            </div>
+          </section>
+        </>
         ) : null}
 
         {adminTab === 'resources' ? (() => {

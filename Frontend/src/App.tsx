@@ -42,6 +42,7 @@ const PAGE_TITLES: Partial<Record<PageId, string>> = {
   adminMaintenance: 'Maintenance — Builders Node',
   adminSupport: 'Support — Builders Node',
   adminPayments: 'Payments — Builders Node',
+  adminNotifications: 'Notifications — Builders Node',
   adminVehicles: 'Vehicles — Builders Node',
   adminResources: 'Resources — Builders Node',
   adminSettings: 'Admin settings — Builders Node',

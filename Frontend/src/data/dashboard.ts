@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   LifeBuoy,
   Library,
+  Megaphone,
   Settings,
   Sliders,
   UserCheck,
@@ -49,6 +50,7 @@ export type PageId =
   | 'adminMaintenance'
   | 'adminSupport'
   | 'adminPayments'
+  | 'adminNotifications'
   | 'adminVehicles'
   | 'adminResources'
   | 'adminSettings'
@@ -69,6 +71,7 @@ export const ADMIN_SUB_PAGES: PageId[] = [
   'adminMaintenance',
   'adminSupport',
   'adminPayments',
+  'adminNotifications',
   'adminVehicles',
   'adminResources',
   'adminSettings',
@@ -83,6 +86,7 @@ export const ADMIN_PAGE_TO_TAB: Record<string, string> = {
   adminMaintenance: 'maintenance',
   adminSupport: 'support',
   adminPayments: 'payments',
+  adminNotifications: 'notifications',
   adminVehicles: 'vehicles',
   adminResources: 'resources',
   adminSettings: 'settings',
@@ -108,6 +112,7 @@ export const PAGE_PATHS: Record<PageId, string> = {
   adminMaintenance: '/admin/maintenance',
   adminSupport: '/admin/support',
   adminPayments: '/admin/payments',
+  adminNotifications: '/admin/notifications',
   adminVehicles: '/admin/vehicles',
   adminResources: '/admin/resources',
   adminSettings: '/admin/settings',
@@ -138,6 +143,7 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/admin/maintenance': 'adminMaintenance',
   '/admin/support': 'adminSupport',
   '/admin/payments': 'adminPayments',
+  '/admin/notifications': 'adminNotifications',
   '/admin/vehicles': 'adminVehicles',
   '/admin/resources': 'adminResources',
   '/admin/settings': 'adminSettings',
@@ -182,6 +188,7 @@ export const navSections: NavSection[] = [
       { id: 'adminMaintenance', label: 'Maintenance', icon: Wrench },
       { id: 'adminSupport', label: 'Support', icon: LifeBuoy },
       { id: 'adminPayments', label: 'Payments', icon: CreditCard },
+      { id: 'adminNotifications', label: 'Notifications', icon: Megaphone },
       { id: 'allUsers', label: 'Members', icon: UsersRound },
       { id: 'adminVehicles', label: 'Vehicles', icon: Car },
       { id: 'adminResources', label: 'Resources', icon: Library },

@@ -130,6 +130,23 @@ export class AdminController {
     return this.admin.listResidencyReviews();
   }
 
+  @Get('notifications')
+  listRecentNotifications(@Query('limit') limit?: string) {
+    return this.admin.listRecentNotifications(limit ? Number(limit) : undefined);
+  }
+
+  @Post('notifications')
+  composeNotification(@Body() body: {
+    audience?: 'member' | 'all-members';
+    userId?: string;
+    type?: 'info' | 'success' | 'warning';
+    title?: string;
+    message?: string;
+    link?: string;
+  }) {
+    return this.admin.composeNotification(body);
+  }
+
   @Get('support-tickets')
   listSupportTickets(@Query('status') status?: string) {
     return this.admin.listSupportTickets(status);
