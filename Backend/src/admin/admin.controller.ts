@@ -148,6 +148,11 @@ export class AdminController {
     return this.admin.listPayments(status);
   }
 
+  @Post('payments')
+  createPayment(@Body() body: { userId?: string; amountCents?: number; currency?: string; dueDate?: string; description?: string; status?: string }) {
+    return this.admin.createPayment(body);
+  }
+
   @Patch('payments/:paymentId')
   updatePayment(
     @Param('paymentId') paymentId: string,
@@ -164,6 +169,15 @@ export class AdminController {
   @Get('settings/global')
   globalSettings() {
     return this.admin.getGlobalSettings();
+  }
+
+  /**
+   * Dry-run preview for a global-plan change — returns { affectedMembers, sampleEmails }
+   * so the admin sees "This will affect N members" before hitting Apply.
+   */
+  @Get('settings/global/affected-members')
+  globalPlanAffected() {
+    return this.admin.previewGlobalPlanAffected();
   }
 
   @Put('settings/global/meal-plan')

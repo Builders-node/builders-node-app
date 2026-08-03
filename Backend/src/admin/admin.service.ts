@@ -856,6 +856,78 @@ export class AdminService {
     return this.listPayments();
   }
 
+  /** Admin-created invoice for a member (dues, one-off charges). */
+  async createPayment(body: { userId?: string; amountCents?: number; currency?: string; dueDate?: string; description?: string; status?: string }) {
+    const userId = body.userId?.trim();
+    if (!userId) throw new BadRequestException('Pick a member.');
+    const amountCents = Number(body.amountCents);
+    if (!Number.isFinite(amountCents) || amountCents < 0) throw new BadRequestException('Amount must be a positive number of cents.');
+    const description = body.description?.trim();
+    if (!description) throw new BadRequestException('Description is required.');
+    const dueDate = body.dueDate?.trim();
+    if (!dueDate) throw new BadRequestException('Due date is required.');
+    const due = new Date(dueDate);
+    if (Number.isNaN(due.getTime())) throw new BadRequestException('Due date is invalid.');
+    const status = body.status && ['DUE', 'OVERDUE', 'PAID', 'CANCELLED'].includes(body.status) ? body.status : 'DUE';
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Member not found.');
+
+    await this.prisma.payment.create({
+      data: {
+        userId,
+        amountCents: Math.round(amountCents),
+        currency: body.currency?.trim() || 'USD',
+        status,
+        dueDate: due,
+        description,
+      },
+    });
+    return this.listPayments();
+  }
+
+  /**
+   * Dry-run preview: which members would inherit a new global meal/cleaning
+   * plan (i.e. don't have a personal override). Result feeds a confirmation
+   * modal so the admin doesn't accidentally hit every member without warning.
+   */
+  async previewGlobalPlanAffected() {
+    const [membersWithoutMeal, membersWithoutCleaning, totalActive] = await Promise.all([
+      this.prisma.user.findMany({
+        where: {
+          role: 'MEMBER',
+          membership: { status: 'ACTIVE_MEMBER' },
+          mealMenuItems: { none: {} },
+        },
+        select: { email: true },
+        take: 500,
+      }),
+      this.prisma.user.findMany({
+        where: {
+          role: 'MEMBER',
+          membership: { status: 'ACTIVE_MEMBER' },
+          cleaningSchedules: { none: {} },
+        },
+        select: { email: true },
+        take: 500,
+      }),
+      this.prisma.user.count({
+        where: { role: 'MEMBER', membership: { status: 'ACTIVE_MEMBER' } },
+      }),
+    ]);
+    return {
+      totalActiveMembers: totalActive,
+      meal: {
+        affected: membersWithoutMeal.length,
+        sampleEmails: membersWithoutMeal.slice(0, 5).map((m) => m.email),
+      },
+      cleaning: {
+        affected: membersWithoutCleaning.length,
+        sampleEmails: membersWithoutCleaning.slice(0, 5).map((m) => m.email),
+      },
+    };
+  }
+
   async listResidencyReviews() {
     const apps = await this.prisma.residencyApplication.findMany({
       where: { status: { in: ['PENDING_REVIEW', 'VERIFIED', 'REJECTED'] } },
@@ -1010,6 +1082,9 @@ export class AdminService {
       create: { key: GLOBAL_MEAL_PLAN_KEY, value: JSON.stringify(plan) },
       update: { value: JSON.stringify(plan) },
     });
+    await this.prisma.auditEvent.create({
+      data: { userId: null, action: 'global_meal_plan_change', metadataJson: JSON.stringify({ planId: plan.id, name: plan.name }) },
+    });
 
     return this.getGlobalSettings();
   }
@@ -1048,6 +1123,9 @@ export class AdminService {
       where: { key: GLOBAL_CLEANING_PLAN_KEY },
       create: { key: GLOBAL_CLEANING_PLAN_KEY, value: JSON.stringify(plan) },
       update: { value: JSON.stringify(plan) },
+    });
+    await this.prisma.auditEvent.create({
+      data: { userId: null, action: 'global_cleaning_plan_change', metadataJson: JSON.stringify({ planId: plan.id, name: plan.name }) },
     });
 
     return this.getGlobalSettings();

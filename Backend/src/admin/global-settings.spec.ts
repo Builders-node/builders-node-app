@@ -44,6 +44,7 @@ describe('AdminService.setGlobalMealPlan', () => {
     const findUnique = jest.fn().mockResolvedValue(null);
     const prisma = {
       globalSetting: { upsert, deleteMany, findUnique },
+      auditEvent: { create: jest.fn().mockResolvedValue({}) },
       apartment: { findMany: jest.fn().mockResolvedValue([]) },
     };
     const prosperaSub = {
@@ -109,6 +110,7 @@ describe('AdminService.setGlobalCleaningPlan', () => {
     const findUnique = jest.fn().mockResolvedValue(null);
     const prisma = {
       globalSetting: { upsert, deleteMany, findUnique },
+      auditEvent: { create: jest.fn().mockResolvedValue({}) },
       apartment: { findMany: jest.fn().mockResolvedValue([]) },
     };
     const prosperaSub = {

@@ -40,4 +40,10 @@ export class ResourcesController {
   remove(@Param('id') id: string) {
     return this.resources.remove(id);
   }
+
+  @UseGuards(AdminGuard)
+  @Patch('admin/resources/:id/reorder')
+  reorder(@Param('id') id: string, @Body() body: { direction?: 'up' | 'down' }) {
+    return this.resources.reorder(id, body.direction ?? 'up');
+  }
 }

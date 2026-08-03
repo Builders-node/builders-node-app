@@ -74,6 +74,32 @@ export class ResourcesService {
     return { deleted: true, id };
   }
 
+  /**
+   * Move a resource up or down in the ordered list within its category by
+   * swapping `order` with the adjacent row. Dependency-free (no DnD lib).
+   */
+  async reorder(id: string, direction: 'up' | 'down') {
+    if (direction !== 'up' && direction !== 'down') {
+      throw new BadRequestException('Direction must be up or down.');
+    }
+    const current = await this.require(id);
+    const full = await this.prisma.resource.findUnique({ where: { id: current.id } });
+    if (!full) throw new NotFoundException('Resource not found.');
+    const neighbor = await this.prisma.resource.findFirst({
+      where: {
+        category: full.category,
+        order: direction === 'up' ? { lt: full.order } : { gt: full.order },
+      },
+      orderBy: { order: direction === 'up' ? 'desc' : 'asc' },
+    });
+    if (!neighbor) return this.listAll();
+    await this.prisma.$transaction([
+      this.prisma.resource.update({ where: { id: full.id }, data: { order: neighbor.order } }),
+      this.prisma.resource.update({ where: { id: neighbor.id }, data: { order: full.order } }),
+    ]);
+    return this.listAll();
+  }
+
   private async require(id: string) {
     const found = await this.prisma.resource.findUnique({ where: { id }, select: { id: true } });
     if (!found) throw new NotFoundException('Resource not found.');

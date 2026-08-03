@@ -455,10 +455,19 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   const adminTab = (ADMIN_PAGE_TO_TAB[adminPage ?? 'adminDashboard'] ?? 'overview') as AdminTab;
   const [applicantView, setApplicantView] = useState<'list' | 'board'>('board');
   const [maintenance, setMaintenance] = useState<AdminMaintenance[]>([]);
+  const [maintenanceFilter, setMaintenanceFilter] = useState<'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'ALL'>('OPEN');
+  const [maintenanceSearch, setMaintenanceSearch] = useState('');
+  const [residencySearch, setResidencySearch] = useState('');
+  const [residencyFilter, setResidencyFilter] = useState<'PENDING_REVIEW' | 'VERIFIED' | 'REJECTED' | 'ALL'>('PENDING_REVIEW');
+  const [vehiclesSearch, setVehiclesSearch] = useState('');
+  const [resourcesSearch, setResourcesSearch] = useState('');
+  const [resourcesFilter, setResourcesFilter] = useState<string>('ALL');
   const [supportTickets, setSupportTickets] = useState<AdminSupportTicket[]>([]);
   const [supportFilter, setSupportFilter] = useState<'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'ALL'>('OPEN');
   const [payments, setPayments] = useState<AdminPayment[]>([]);
   const [paymentsFilter, setPaymentsFilter] = useState<'OVERDUE' | 'DUE' | 'PAID' | 'ALL'>('OVERDUE');
+  const [invoiceForm, setInvoiceForm] = useState<{ userId: string; amountCents: string; description: string; dueDate: string } | null>(null);
+  useEscapeToClose(Boolean(invoiceForm), () => setInvoiceForm(null));
   const [resources, setResources] = useState<AdminResource[]>([]);
   const [resourceForm, setResourceForm] = useState<{ id?: string; title: string; category: string; body: string; published: boolean } | null>(null);
   useEscapeToClose(Boolean(resourceForm), () => setResourceForm(null));
@@ -739,6 +748,36 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     }
   }
 
+  async function submitInvoice() {
+    if (!invoiceForm) return;
+    try {
+      setPayments(await apiRequest<AdminPayment[]>('/admin/payments', {
+        method: 'POST',
+        body: JSON.stringify({
+          userId: invoiceForm.userId,
+          amountCents: Math.round(Number(invoiceForm.amountCents) * 100),
+          description: invoiceForm.description,
+          dueDate: invoiceForm.dueDate,
+        }),
+      }));
+      setInvoiceForm(null);
+      setCredentialMessage('Invoice created.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not create invoice.');
+    }
+  }
+
+  async function reorderResource(id: string, direction: 'up' | 'down') {
+    try {
+      setResources(await apiRequest<AdminResource[]>(`/admin/resources/${id}/reorder`, {
+        method: 'PATCH',
+        body: JSON.stringify({ direction }),
+      }));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not reorder.');
+    }
+  }
+
   async function loadResources() {
     try {
       setResources(await apiRequest<AdminResource[]>('/admin/resources'));
@@ -1013,6 +1052,14 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   async function saveGlobalMealPlan() {
     setError(null);
     setGlobalMessage(null);
+    // Dry-run preview: how many active members would inherit this global.
+    try {
+      const preview = await apiRequest<{ meal: { affected: number } }>('/admin/settings/global/affected-members');
+      const n = preview.meal.affected;
+      if (n > 0 && !window.confirm(`Apply this meal plan to ${n} active member${n === 1 ? '' : 's'} without a personal plan?`)) {
+        return;
+      }
+    } catch { /* if preview fails, fall through and save anyway */ }
     setIsSavingGlobal(true);
     try {
       const isCustom = globalMealPlanId === 'custom';
@@ -1048,6 +1095,13 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   async function saveGlobalCleaningPlan() {
     setError(null);
     setGlobalMessage(null);
+    try {
+      const preview = await apiRequest<{ cleaning: { affected: number } }>('/admin/settings/global/affected-members');
+      const n = preview.cleaning.affected;
+      if (n > 0 && !window.confirm(`Apply this cleaning plan to ${n} active member${n === 1 ? '' : 's'} without a personal plan?`)) {
+        return;
+      }
+    } catch { /* fall through */ }
     setIsSavingGlobalCleaning(true);
     try {
       const data = await apiRequest<GlobalSettings>('/admin/settings/global/cleaning-plan', {
@@ -1621,17 +1675,32 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
         </section>
         ) : null}
 
-        {adminTab === 'maintenance' ? (
+        {adminTab === 'maintenance' ? (() => {
+          const q = maintenanceSearch.trim().toLowerCase();
+          const filtered = maintenance
+            .filter((m) => maintenanceFilter === 'ALL' || m.status === maintenanceFilter)
+            .filter((m) => !q || m.title.toLowerCase().includes(q) || m.description.toLowerCase().includes(q) || m.requesterEmail.toLowerCase().includes(q));
+          return (
         <section className="panel admin-panel">
           <div className="admin-panel__head">
             <div>
               <h2>Maintenance queue</h2>
               <p>Member-reported unit issues. Update status to keep members informed.</p>
             </div>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input placeholder="Search…" value={maintenanceSearch} onChange={(event) => setMaintenanceSearch(event.target.value)} style={{ minWidth: 180 }} />
+              <div className="tab-row">
+                {(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'ALL'] as const).map((f) => (
+                  <button key={f} className={maintenanceFilter === f ? 'tab-chip tab-chip--active' : 'tab-chip'} onClick={() => setMaintenanceFilter(f)}>
+                    {f === 'IN_PROGRESS' ? 'In progress' : f[0] + f.slice(1).toLowerCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           <div className="maintenance-admin-list">
-            {maintenance.length === 0 ? <div className="empty-state">No maintenance requests.</div> : null}
-            {maintenance.map((m) => (
+            {filtered.length === 0 ? <div className="empty-state">No maintenance requests in this view.</div> : null}
+            {filtered.map((m) => (
               <article className="maintenance-admin-card" key={m.id}>
                 <div className="maintenance-admin-card__top">
                   <div>
@@ -1658,7 +1727,8 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
             ))}
           </div>
         </section>
-        ) : null}
+          );
+        })() : null}
 
         {adminTab === 'support' ? (
         <section className="panel admin-panel">
@@ -1716,16 +1786,21 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
               <h2>Payments</h2>
               <p>Dues and one-off charges. Mark paid when a manual/off-platform payment lands.</p>
             </div>
-            <div className="tab-row">
-              {(['OVERDUE', 'DUE', 'PAID', 'ALL'] as const).map((filter) => (
-                <button
-                  key={filter}
-                  className={paymentsFilter === filter ? 'tab-chip tab-chip--active' : 'tab-chip'}
-                  onClick={() => setPaymentsFilter(filter)}
-                >
-                  {filter[0] + filter.slice(1).toLowerCase()}
-                </button>
-              ))}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <div className="tab-row">
+                {(['OVERDUE', 'DUE', 'PAID', 'ALL'] as const).map((filter) => (
+                  <button
+                    key={filter}
+                    className={paymentsFilter === filter ? 'tab-chip tab-chip--active' : 'tab-chip'}
+                    onClick={() => setPaymentsFilter(filter)}
+                  >
+                    {filter[0] + filter.slice(1).toLowerCase()}
+                  </button>
+                ))}
+              </div>
+              <button className="primary-button compact-button" onClick={() => setInvoiceForm({ userId: '', amountCents: '', description: '', dueDate: new Date().toISOString().slice(0, 10) })}>
+                + New invoice
+              </button>
             </div>
           </div>
           <div className="maintenance-admin-list">
@@ -1763,24 +1838,42 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
         </section>
         ) : null}
 
-        {adminTab === 'resources' ? (
+        {adminTab === 'resources' ? (() => {
+          const q = resourcesSearch.trim().toLowerCase();
+          const categories = ['ALL', ...Array.from(new Set(resources.map((r) => r.category))).sort()];
+          const filteredResources = resources
+            .filter((r) => resourcesFilter === 'ALL' || r.category === resourcesFilter)
+            .filter((r) => !q || r.title.toLowerCase().includes(q) || r.category.toLowerCase().includes(q));
+          return (
         <section className="panel admin-panel">
           <div className="admin-panel__head">
             <div>
               <h2>Resources</h2>
               <p>Guides shown to members in the Resource Hub. Supports ## headings, - bullets, **bold**, and [links](https://…).</p>
             </div>
-            <button className="primary-button compact-button" onClick={() => setResourceForm({ title: '', category: 'General', body: '', published: true })}>New article</button>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input placeholder="Search…" value={resourcesSearch} onChange={(event) => setResourcesSearch(event.target.value)} style={{ minWidth: 180 }} />
+              {categories.length > 1 ? (
+                <div className="tab-row">
+                  {categories.map((c) => (
+                    <button key={c} className={resourcesFilter === c ? 'tab-chip tab-chip--active' : 'tab-chip'} onClick={() => setResourcesFilter(c)}>{c}</button>
+                  ))}
+                </div>
+              ) : null}
+              <button className="primary-button compact-button" onClick={() => setResourceForm({ title: '', category: 'General', body: '', published: true })}>New article</button>
+            </div>
           </div>
           <div className="resource-admin-list">
-            {resources.length === 0 ? <div className="empty-state">No resources yet — create your first guide.</div> : null}
-            {resources.map((r) => (
+            {filteredResources.length === 0 ? <div className="empty-state">No resources in this view.</div> : null}
+            {filteredResources.map((r) => (
               <div className="resource-admin-row" key={r.id}>
                 <div className="resource-admin-row__id">
                   <strong>{r.title}</strong>
                   <span>{r.category}{r.published ? '' : ' · draft'}</span>
                 </div>
                 <div className="resource-admin-row__actions">
+                  <button className="ghost-button compact-button" title="Move up" onClick={() => void reorderResource(r.id, 'up')}>↑</button>
+                  <button className="ghost-button compact-button" title="Move down" onClick={() => void reorderResource(r.id, 'down')}>↓</button>
                   <button className="ghost-button compact-button" onClick={() => setResourceForm({ id: r.id, title: r.title, category: r.category, body: r.body, published: r.published })}>Edit</button>
                   <button className="compact-button applicant-action--danger" onClick={() => void deleteResource(r.id)}>Delete</button>
                 </div>
@@ -1788,9 +1881,16 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
             ))}
           </div>
         </section>
-        ) : null}
+          );
+        })() : null}
 
-        {adminTab === 'vehicles' ? (
+        {adminTab === 'vehicles' ? (() => {
+          const q = vehiclesSearch.trim().toLowerCase();
+          const filteredVehicles = vehicles.filter((v) => !q || v.name.toLowerCase().includes(q) || (v.description ?? '').toLowerCase().includes(q));
+          const filteredBookings = vehicleBookings.filter((b) =>
+            !q || b.vehicle.name.toLowerCase().includes(q) || b.renterEmail.toLowerCase().includes(q) || (b.renterName ?? '').toLowerCase().includes(q)
+          );
+          return (
         <>
         <section className="panel admin-panel">
           <div className="admin-panel__head">
@@ -1798,11 +1898,14 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
               <h2>Vehicles</h2>
               <p>Community cars members can rent for free.</p>
             </div>
-            <button className="primary-button compact-button" onClick={() => setVehicleForm({ name: '', description: '', active: true })}>Add vehicle</button>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <input placeholder="Search…" value={vehiclesSearch} onChange={(event) => setVehiclesSearch(event.target.value)} style={{ minWidth: 180 }} />
+              <button className="primary-button compact-button" onClick={() => setVehicleForm({ name: '', description: '', active: true })}>Add vehicle</button>
+            </div>
           </div>
           <div className="resource-admin-list">
-            {vehicles.length === 0 ? <div className="empty-state">No vehicles yet. Add one to let members book it.</div> : null}
-            {vehicles.map((v) => (
+            {filteredVehicles.length === 0 ? <div className="empty-state">No vehicles in this view.</div> : null}
+            {filteredVehicles.map((v) => (
               <div className="resource-admin-row" key={v.id}>
                 <div className="resource-admin-row__id">
                   <strong>{v.name}</strong>
@@ -1825,8 +1928,8 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
             </div>
           </div>
           <div className="maintenance-admin-list">
-            {vehicleBookings.length === 0 ? <div className="empty-state">No bookings yet.</div> : null}
-            {vehicleBookings.map((b) => (
+            {filteredBookings.length === 0 ? <div className="empty-state">No bookings in this view.</div> : null}
+            {filteredBookings.map((b) => (
               <article className="maintenance-admin-card" key={b.id}>
                 <div className="maintenance-admin-card__top">
                   <div>
@@ -1845,7 +1948,8 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
           </div>
         </section>
         </>
-        ) : null}
+          );
+        })() : null}
 
         {adminTab === 'settings' ? (
         <section className="panel admin-panel" id="admin-global">
@@ -2084,17 +2188,32 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
         </section>
         ) : null}
 
-        {adminTab === 'residency' ? (
+        {adminTab === 'residency' ? (() => {
+          const q = residencySearch.trim().toLowerCase();
+          const filteredReviews = residencyReviews
+            .filter((r) => residencyFilter === 'ALL' || r.status === residencyFilter)
+            .filter((r) => !q || (r.fullName ?? '').toLowerCase().includes(q) || r.email.toLowerCase().includes(q));
+          return (
         <section className="panel admin-panel" id="admin-residency">
           <div className="admin-panel__head">
             <div>
               <h2>E-Residency reviews</h2>
               <p>Members apply on Prospera.co and upload proof here. Verify it or send it back for changes.</p>
             </div>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input placeholder="Search…" value={residencySearch} onChange={(event) => setResidencySearch(event.target.value)} style={{ minWidth: 180 }} />
+              <div className="tab-row">
+                {(['PENDING_REVIEW', 'VERIFIED', 'REJECTED', 'ALL'] as const).map((f) => (
+                  <button key={f} className={residencyFilter === f ? 'tab-chip tab-chip--active' : 'tab-chip'} onClick={() => setResidencyFilter(f)}>
+                    {f === 'PENDING_REVIEW' ? 'Pending' : f[0] + f.slice(1).toLowerCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           <div className="applicant-list">
-            {residencyReviews.length === 0 ? <div className="empty-state">No E-Residency submissions yet.</div> : null}
-            {residencyReviews.map((review) => (
+            {filteredReviews.length === 0 ? <div className="empty-state">No E-Residency submissions in this view.</div> : null}
+            {filteredReviews.map((review) => (
               <article className="applicant-card" key={review.userId}>
                 <div className="admin-panel__head">
                   <div>
@@ -2140,7 +2259,8 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
             ))}
           </div>
         </section>
-        ) : null}
+          );
+        })() : null}
       </div>
 
       {proofView ? (
@@ -2247,6 +2367,45 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
               Active (visible to members)
             </label>
             <button className="primary-button" type="submit">Save vehicle</button>
+          </form>
+        </div>
+      ) : null}
+
+      {invoiceForm ? (
+        <div className="modal-overlay" role="presentation" onClick={() => setInvoiceForm(null)}>
+          <form
+            className="profile-edit-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Create invoice"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={(event) => { event.preventDefault(); void submitInvoice(); }}
+          >
+            <div className="modal-head">
+              <div>
+                <h2>New invoice</h2>
+                <p>Create a payment record for a member. They'll see it in their account.</p>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setInvoiceForm(null)} aria-label="Close"><X size={18} /></button>
+            </div>
+            <label>
+              Member
+              <select value={invoiceForm.userId} onChange={(event) => setInvoiceForm({ ...invoiceForm, userId: event.target.value })} required>
+                <option value="">— pick a member —</option>
+                {(overview?.users ?? []).map((u) => (
+                  <option key={u.id} value={u.id}>{u.fullName ?? u.email} · {u.email}</option>
+                ))}
+              </select>
+            </label>
+            <div className="form-grid">
+              <label>Amount (USD)<input type="number" step="0.01" min="0" value={invoiceForm.amountCents} onChange={(event) => setInvoiceForm({ ...invoiceForm, amountCents: event.target.value })} required /></label>
+              <label>Due date<input type="date" value={invoiceForm.dueDate} onChange={(event) => setInvoiceForm({ ...invoiceForm, dueDate: event.target.value })} required /></label>
+            </div>
+            <label>
+              Description
+              <input value={invoiceForm.description} onChange={(event) => setInvoiceForm({ ...invoiceForm, description: event.target.value })} placeholder="e.g. Rent — August 2026" required />
+            </label>
+            <button className="primary-button" type="submit">Create invoice</button>
           </form>
         </div>
       ) : null}
