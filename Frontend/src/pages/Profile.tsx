@@ -129,6 +129,30 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
   useEscapeToClose(cleaningModalOpen, () => setCleaningModalOpen(false));
   const [beachClubPassOpen, setBeachClubPassOpen] = useState(false);
   useEscapeToClose(beachClubPassOpen, () => setBeachClubPassOpen(false));
+  const [passUrl, setPassUrl] = useState<string | null>(null);
+  const [passRotating, setPassRotating] = useState(false);
+
+  // Fetch (and lazily mint) the member's pass token the first time they open it.
+  useEffect(() => {
+    if (!beachClubPassOpen || !currentUserId || passUrl) return;
+    apiRequest<{ url: string }>(`/users/${currentUserId}/pass`)
+      .then((data) => setPassUrl(data.url))
+      .catch(() => setError('Could not load your pass. Try again.'));
+  }, [beachClubPassOpen, currentUserId, passUrl]);
+
+  async function rotatePass() {
+    if (!currentUserId) return;
+    if (!window.confirm('Reset your pass? The QR on any other device stops working immediately.')) return;
+    setPassRotating(true);
+    try {
+      const data = await apiRequest<{ url: string }>(`/users/${currentUserId}/pass/rotate`, { method: 'POST' });
+      setPassUrl(data.url);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not reset your pass.');
+    } finally {
+      setPassRotating(false);
+    }
+  }
   const [cleaningDays, setCleaningDays] = useState<string[]>([]);
   const [cleaningTime, setCleaningTime] = useState<string>('');
   const [cleaningNote, setCleaningNote] = useState('');
@@ -616,6 +640,19 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
         );
       })() : null}
 
+      {/* One pass for everything the member has access to. Deliberately the
+          first thing on Home — it's what they reach for at a door. */}
+      {showMemberSections ? (
+        <button className="pass-cta" onClick={() => setBeachClubPassOpen(true)}>
+          <span className="pass-cta__icon" aria-hidden="true"><QrCode size={22} /></span>
+          <span className="pass-cta__body">
+            <strong>My member pass</strong>
+            <span>Show this at the Beach Club, gym, coworking or front desk</span>
+          </span>
+          <ChevronRight size={18} className="pass-cta__chevron" />
+        </button>
+      ) : null}
+
       {showMemberSections ? (
         <section className="home-section">
           <h3 className="home-section__title">Your stay</h3>
@@ -840,54 +877,36 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
         </div>
       ) : null}
 
-      {beachClubPassOpen ? (() => {
-        // Prefer our own pass page (shows all perks, not just Beach Club).
-        // Fall back to a plain ProsperaSub link if we don't yet have a
-        // ProsperaSub external member id for this account.
-        const externalId = home?.account?.externalMemberId ?? null;
-        const passUrl = externalId
-          ? `${window.location.origin}/pass/${encodeURIComponent(externalId)}`
-          : 'https://prosperasub.com/beach-club';
-        return (
-          <div className="modal-overlay" role="presentation" onClick={() => setBeachClubPassOpen(false)}>
-            <div
-              className="profile-edit-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Member pass"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="modal-head">
-                <div>
-                  <h2>Your member pass</h2>
-                  <p>Scan at Beach Club, coworking, gym — shows every perk you have access to.</p>
-                </div>
-                <button className="icon-button" type="button" onClick={() => setBeachClubPassOpen(false)} aria-label="Close">
-                  <X size={18} />
-                </button>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '18px 0' }}>
-                <div style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
-                  <QRCodeSVG value={passUrl} size={220} level="M" includeMargin={false} />
-                </div>
-              </div>
-              <p className="modal-hint" style={{ textAlign: 'center', wordBreak: 'break-all' }}>
-                {passUrl}
-              </p>
-              <a
-                className="primary-button"
-                href={passUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ justifyContent: 'center' }}
-              >
-                Open pass
-                <ExternalLink size={14} style={{ marginLeft: 6 }} />
-              </a>
-            </div>
+      {/* Fullscreen so the QR is big and the white background helps the
+          scanner — this gets held up at a door, not read at a desk. */}
+      {beachClubPassOpen ? (
+        <div className="pass-sheet" role="dialog" aria-modal="true" aria-label="Member pass">
+          <button className="pass-sheet__close" onClick={() => setBeachClubPassOpen(false)} aria-label="Close pass">
+            <X size={22} />
+          </button>
+
+          <div className="pass-sheet__code">
+            {passUrl ? (
+              <QRCodeSVG value={passUrl} size={264} level="M" marginSize={0} />
+            ) : (
+              <span className="pass-sheet__loading">Loading…</span>
+            )}
           </div>
-        );
-      })() : null}
+
+          <div className="pass-sheet__id">
+            <strong>{profile?.profile?.fullName ?? profile?.email ?? 'Member'}</strong>
+            {home?.apartment?.name ? <span>{home.apartment.name}</span> : null}
+          </div>
+
+          <p className="pass-sheet__hint">
+            Turn your brightness up and let staff scan this. It shows everything you have access to.
+          </p>
+
+          <button className="pass-sheet__reset" onClick={() => void rotatePass()} disabled={passRotating}>
+            {passRotating ? 'Resetting…' : 'Lost your phone? Reset pass'}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

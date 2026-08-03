@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { ProsperaSubClient } from '../subscriptions/prospera-sub.client';
@@ -115,16 +116,27 @@ export class HomeService {
   }
 
   /**
-   * Public member pass — a compact, printable / QR-scannable summary of
-   * everything a member has access to. Looked up by ProsperaSub external
-   * member id (already unguessable). Returns 404 if unknown.
+   * Public member pass, resolved from the opaque QR token. Written for the
+   * person doing the checking (front desk, Beach Club, gym), so it answers
+   * one question: what is this member allowed to use right now?
    *
-   * Deliberately excludes sensitive fields (email, phone, personal notes)
-   * — only what a venue / staff member would need to verify access.
+   * Always 200 — an unknown or revoked token returns { valid: false } rather
+   * than a 404, so scanning can't be used to probe which tokens exist.
+   *
+   * Deliberately omits email, phone, payment amounts and internal notes.
+   * Staff need access state, not the member's file.
    */
-  async getPass(externalMemberId: string) {
+  async getPassByToken(token: string) {
+    const invalid = (reason: string) => ({
+      valid: false as const,
+      reason,
+      checkedAt: new Date().toISOString(),
+    });
+
+    if (!token || token.length < 16) return invalid('This pass link is not valid.');
+
     const user = await this.prisma.user.findUnique({
-      where: { externalMemberId },
+      where: { passToken: token },
       include: {
         profile: { select: { fullName: true } },
         membership: true,
@@ -134,30 +146,108 @@ export class HomeService {
         cleaningSchedules: { orderBy: { createdAt: 'desc' }, take: 1 },
       },
     });
-    if (!user) throw new NotFoundException('Pass not found.');
+    if (!user) return invalid('This pass is not recognised.');
 
-    const apartment = user.assignedApartment?.apartment?.name ?? null;
-    const unitMatch = apartment?.match(/\d+/g);
+    // Membership is the gate. When someone leaves, their pass stops working
+    // on the next scan — no manual revocation needed for the common case.
+    const membershipStatus = user.membership?.status ?? 'APPLICANT';
+    if (membershipStatus !== 'ACTIVE_MEMBER') {
+      return {
+        ...invalid('This membership is not active.'),
+        fullName: user.profile?.fullName ?? user.email.split('@')[0],
+        membershipStatus,
+      };
+    }
+
+    const apartmentName = user.assignedApartment?.apartment?.name ?? null;
+    const unitMatch = apartmentName?.match(/\d+/g);
     const unitNumber = unitMatch ? unitMatch[unitMatch.length - 1] : null;
 
-    const mealsFirst = user.mealMenuItems[0]?.meal ?? null;
+    const mealPlan = user.mealMenuItems[0]?.meal ?? null;
     const cleaning = user.cleaningSchedules[0] ?? null;
+    const residencyVerified = user.residencyApplication?.status === 'VERIFIED';
+
+    // One flat list so the scanner UI is a simple checklist. `granted` drives
+    // the green tick; `detail` is the small print underneath.
+    const access = [
+      {
+        key: 'residence',
+        label: 'Residence',
+        granted: Boolean(apartmentName),
+        detail: apartmentName ?? 'No unit assigned',
+      },
+      {
+        key: 'meals',
+        label: 'Meals',
+        granted: Boolean(mealPlan),
+        detail: mealPlan ?? 'No meal plan',
+      },
+      { key: 'coworking', label: 'Coworking', granted: true, detail: '24/7 access' },
+      { key: 'gym', label: 'Gym', granted: true, detail: 'Included with membership' },
+      { key: 'pool', label: 'Pool', granted: true, detail: 'Included with membership' },
+      {
+        key: 'beach-club',
+        label: 'Beach Club',
+        granted: residencyVerified,
+        detail: residencyVerified ? 'Included via Próspera residency' : 'Needs verified E-Residency',
+      },
+      {
+        key: 'cleaning',
+        label: 'Cleaning',
+        granted: Boolean(cleaning?.frequency),
+        detail: cleaning?.frequency ?? 'Not scheduled',
+      },
+      { key: 'vehicles', label: 'Community vehicles', granted: true, detail: 'Can book free of charge' },
+    ];
 
     return {
-      memberId: externalMemberId,
+      valid: true as const,
       fullName: user.profile?.fullName ?? user.email.split('@')[0],
-      membershipStatus: user.membership?.status ?? 'APPLICANT',
-      apartment: apartment
-        ? { name: apartment, unitNumber }
-        : null,
-      meals: mealsFirst,
-      cleaning: cleaning
-        ? { frequency: cleaning.frequency, nextCleaning: cleaning.nextCleaning }
-        : null,
-      residencyStatus: user.residencyApplication?.status ?? 'NOT_STARTED',
-      beachClub: user.residencyApplication?.status === 'VERIFIED' ? 'active' : 'locked',
-      issuedAt: new Date().toISOString(),
+      membershipStatus,
+      unitNumber,
+      memberSince: user.membership?.activatedAt ?? user.createdAt,
+      access,
+      // Rendered as a live clock on the pass page so a screenshot of someone
+      // else's pass is visibly stale to whoever is checking it.
+      checkedAt: new Date().toISOString(),
     };
+  }
+
+  /**
+   * The member's own pass. Mints the token on first call so we don't have to
+   * backfill every account, and returns the full URL the QR should encode.
+   */
+  async getMyPass(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, passToken: true, membership: { select: { status: true } } },
+    });
+    if (!user) throw new NotFoundException('User not found.');
+
+    let token = user.passToken;
+    if (!token) {
+      token = randomBytes(16).toString('hex');
+      await this.prisma.user.update({ where: { id: userId }, data: { passToken: token } });
+    }
+
+    return {
+      token,
+      url: `${this.frontendBaseUrl()}/pass/${token}`,
+      active: user.membership?.status === 'ACTIVE_MEMBER',
+    };
+  }
+
+  /** Issue a fresh token — used when a phone is lost. Invalidates the old QR. */
+  async rotatePass(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) throw new NotFoundException('User not found.');
+    const token = randomBytes(16).toString('hex');
+    await this.prisma.user.update({ where: { id: userId }, data: { passToken: token } });
+    return { token, url: `${this.frontendBaseUrl()}/pass/${token}` };
+  }
+
+  private frontendBaseUrl(): string {
+    return (process.env.FRONTEND_URL ?? 'https://buildersnode.com').replace(/\/$/, '');
   }
 
   /**

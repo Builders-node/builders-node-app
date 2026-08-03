@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { HomeService } from './home.service';
 
@@ -13,14 +13,28 @@ export class HomeController {
   }
 
   /**
-   * Public digital member pass — no auth. Keyed on the ProsperaSub external
-   * member id (unguessable UUID) so a QR-code scan at a venue can render
-   * the member's active perks without a login. Returns 404 if the id
-   * doesn't match anyone.
+   * Public member pass — no auth, resolved from the opaque QR token so staff
+   * can scan with a plain phone camera. Always 200: an unknown or revoked
+   * token comes back as { valid: false } rather than a 404, so the endpoint
+   * can't be used to probe which tokens exist.
    */
-  @Get('public/pass/:memberId')
-  getPass(@Param('memberId') memberId: string) {
-    return this.home.getPass(memberId);
+  @Get('public/pass/:token')
+  getPass(@Param('token') token: string) {
+    return this.home.getPassByToken(token);
+  }
+
+  /** The member's own pass — mints the token on first call. */
+  @UseGuards(JwtAuthGuard)
+  @Get('users/:userId/pass')
+  getMyPass(@Param('userId') userId: string) {
+    return this.home.getMyPass(userId);
+  }
+
+  /** Issue a fresh token (lost phone) — the previous QR stops working. */
+  @UseGuards(JwtAuthGuard)
+  @Post('users/:userId/pass/rotate')
+  rotatePass(@Param('userId') userId: string) {
+    return this.home.rotatePass(userId);
   }
 
   /**

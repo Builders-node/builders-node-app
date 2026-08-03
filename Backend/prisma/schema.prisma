@@ -25,6 +25,10 @@ model User {
   // ProsperaSub user_id once the member has been mirrored on ProsperaSub.
   // Populated lazily on first provisioning; used to attach subscriptions.
   externalMemberId      String?                  @unique
+  // Opaque bearer token behind the member's QR pass. Random (not derived from
+  // id) so it can be rotated if a phone is lost without changing identity.
+  // Minted lazily the first time the member opens their pass.
+  passToken             String?                  @unique
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
   profile               Profile?

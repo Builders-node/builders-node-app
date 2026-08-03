@@ -4740,6 +4740,105 @@ body:has(.modal-overlay) .onboarding-toast { display: none; }
 }
 .day-chip--active:hover { background: #cf4a1a; border-color: #cf4a1a; }
 
+/* ── Member pass: Home CTA + fullscreen QR sheet ──────────────────────────── */
+.pass-cta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #23262c 0%, #14161b 100%);
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.pass-cta__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+}
+.pass-cta__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pass-cta__body strong { font-size: 0.98rem; font-weight: 700; }
+.pass-cta__body span { font-size: 0.8rem; color: rgba(255, 255, 255, 0.7); }
+.pass-cta__chevron { color: rgba(255, 255, 255, 0.5); flex-shrink: 0; }
+
+.pass-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 28px 24px calc(28px + env(safe-area-inset-bottom, 0));
+}
+.pass-sheet__close {
+  position: absolute;
+  top: calc(16px + env(safe-area-inset-top, 0));
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(15, 18, 24, 0.06);
+  color: #1c1e24;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.pass-sheet__code {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 264px;
+  min-height: 264px;
+  padding: 20px;
+  border-radius: 20px;
+  background: #fff;
+  border: 1px solid #ebedf1;
+}
+.pass-sheet__loading { color: #6b7280; font-size: 0.9rem; }
+.pass-sheet__id { text-align: center; display: flex; flex-direction: column; gap: 3px; }
+.pass-sheet__id strong { font-size: 1.2rem; font-weight: 700; color: #1c1e24; }
+.pass-sheet__id span { font-size: 0.88rem; color: #6b7280; }
+.pass-sheet__hint {
+  max-width: 300px;
+  margin: 0;
+  text-align: center;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #6b7280;
+}
+.pass-sheet__reset {
+  border: 0;
+  background: transparent;
+  color: #9ea3ad;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.pass-sheet__reset:hover:not(:disabled) { color: #c0392b; }
+.pass-sheet__reset:disabled { opacity: 0.6; cursor: default; }
+
 /* ── Public Pass page (rendered when a QR is scanned) ─────────────────────── */
 .pass-page {
   min-height: 100vh;
@@ -4798,6 +4897,45 @@ body:has(.modal-overlay) .onboarding-toast { display: none; }
   border-radius: 12px;
   background: #fff;
 }
+
+/* Verdict banner — the first thing whoever is checking the pass should see. */
+.pass-verdict {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  color: #fff;
+}
+.pass-verdict div { display: flex; flex-direction: column; gap: 1px; }
+.pass-verdict strong { font-size: 1.05rem; }
+.pass-verdict span { font-size: 0.82rem; opacity: 0.9; }
+.pass-verdict--valid { background: #2fae66; }
+.pass-verdict--invalid { background: #c0392b; }
+.pass-page--invalid { background: linear-gradient(160deg, #fff 0%, #fdf3f2 100%); }
+
+.pass-card__avatar--muted { background: rgba(107, 114, 128, 0.14); color: #6b7280; }
+
+/* Yes/no marker on each access row. */
+.pass-perk__mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.pass-perk__mark--yes { background: rgba(47, 174, 102, 0.14); color: #2fae66; }
+.pass-perk__mark--no { background: rgba(107, 114, 128, 0.12); color: #9ea3ad; }
+
+/* Live clock — a frozen value is the tell that someone is showing a screenshot. */
+.pass-clock {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: #6b7280;
+}
+
 .pass-perk__icon {
   width: 32px;
   height: 32px;
