@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from './components/AppShell';
 import { AuthPanel } from './components/AuthPanel';
 import { PullToRefresh } from './components/PullToRefresh';
-import { ADMIN_SUB_PAGES, pageForPath, pathForPage, type PageId } from './data/dashboard';
+import { ADMIN_SUB_PAGES, canonicalPathFor, pageForPath, type PageId } from './data/dashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminLogin } from './pages/AdminLogin';
 import { Landing } from './pages/Landing';
@@ -81,7 +81,9 @@ function App() {
   // deep-linkable, bookmarkable and refresh-safe. Compares pathname only, so any
   // query string (e.g. ?token=... on the reset/verify pages) is preserved.
   useEffect(() => {
-    const target = pathForPage(activePage);
+    // canonicalPathFor keeps the trailing segment of a dynamic route
+    // (/pass/:token) while still rewriting legacy aliases to their new home.
+    const target = canonicalPathFor(activePage, window.location.pathname);
     // Landing on a token URL (e.g. /reset-password?token=…) already matches the
     // target pathname, so no push fires and the query survives for the page to read.
     if (window.location.pathname !== target) {

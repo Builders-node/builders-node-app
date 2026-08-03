@@ -210,6 +210,26 @@ export function pathForPage(page: PageId): string {
   return PAGE_PATHS[page] ?? '/';
 }
 
+/** Pages whose real URL carries a trailing dynamic segment (/pass/:token). */
+const DYNAMIC_PAGES: PageId[] = ['pass'];
+
+/**
+ * The path the address bar should hold for `page`.
+ *
+ * Normally that's the canonical path — which is what rewrites the legacy admin
+ * aliases (/admin/support → /admin/inbox/support). But for a dynamic route the
+ * canonical path is only a prefix, so when the current URL is already a deeper
+ * form of it we hand that back untouched. Without this the URL-sync effect
+ * strips the token off /pass/:token and the pass reads as "missing its code".
+ */
+export function canonicalPathFor(page: PageId, currentPathname: string): string {
+  const base = pathForPage(page);
+  if (DYNAMIC_PAGES.includes(page) && currentPathname.startsWith(`${base}/`)) {
+    return currentPathname;
+  }
+  return base;
+}
+
 // Sidebar navigation, grouped into a members area and an admin area.
 export const navSections: NavSection[] = [
   {
