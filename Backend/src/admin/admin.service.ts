@@ -162,6 +162,32 @@ export class AdminService {
     };
   }
 
+  /**
+   * Who referred this person, resolved from their own application.
+   *
+   * The pointer lives on Application, not User, so a member's page had no way
+   * to show where they came from — you could see who someone brought in, never
+   * who brought them.
+   */
+  private async referredBy(email: string) {
+    const own = await this.prisma.application.findUnique({
+      where: { email },
+      select: { referredByUserId: true, referralCode: true },
+    });
+    if (!own?.referredByUserId) return null;
+    const referrer = await this.prisma.user.findUnique({
+      where: { id: own.referredByUserId },
+      select: { id: true, email: true, profile: { select: { fullName: true } } },
+    });
+    if (!referrer) return null;
+    return {
+      userId: referrer.id,
+      name: referrer.profile?.fullName ?? referrer.email,
+      email: referrer.email,
+      code: own.referralCode,
+    };
+  }
+
   async userDetail(userId: string) {
     const [user, referredApplications] = await Promise.all([
       this.prisma.user.findUnique({
@@ -188,6 +214,8 @@ export class AdminService {
     if (!user) {
       throw new NotFoundException('User not found.');
     }
+
+    const referredBy = await this.referredBy(user.email);
 
     const paidTotalCents = user.payments
       .filter((payment) => payment.status === 'PAID')
@@ -218,11 +246,114 @@ export class AdminService {
       payments: user.payments,
       supportTickets: user.supportTickets,
       referredApplications,
+      referredBy,
       summary: {
         paidTotalCents,
         openPayments: user.payments.filter((payment) => payment.status === 'DUE' || payment.status === 'OVERDUE').length,
         supportTickets: user.supportTickets.length,
       },
+    };
+  }
+
+  /**
+   * Who brought whom, in one place.
+   *
+   * Referral data existed but was only ever visible one member at a time, so
+   * there was no way to answer "who is actually bringing people in" without
+   * opening every profile in turn.
+   *
+   * One pass over applications and the members who own the codes; the whole set
+   * is small enough that grouping in memory beats a query per referrer.
+   */
+  async referrals() {
+    const applications = await this.prisma.application.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        status: true,
+        createdAt: true,
+        referralCode: true,
+        referredByUserId: true,
+      },
+    });
+
+    // referredByUserId is a plain column, not a Prisma relation, so the
+    // referrers have to be fetched by the ids the applications point at.
+    const referrerIds = [...new Set(applications.map((a) => a.referredByUserId).filter((id): id is string => Boolean(id)))];
+    const referrers = referrerIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: referrerIds } },
+          select: {
+            id: true,
+            email: true,
+            referralCode: true,
+            profile: { select: { fullName: true } },
+          },
+        })
+      : [];
+
+    const terminal = new Set(TERMINAL_APPLICATION_STATUSES);
+    const onboardedStatuses = new Set(['APPROVED', 'CREDENTIALS_SENT']);
+
+    const byReferrer = new Map<string, ReturnType<typeof emptyReferrerRow>>();
+    function emptyReferrerRow(user: (typeof referrers)[number]) {
+      return {
+        userId: user.id,
+        name: user.profile?.fullName ?? user.email,
+        email: user.email,
+        referralCode: user.referralCode,
+        total: 0,
+        onboarded: 0,
+        inProgress: 0,
+        rejected: 0,
+        lastAt: null as Date | null,
+        people: [] as Array<{
+          applicationId: string;
+          fullName: string;
+          email: string;
+          status: string;
+          createdAt: Date;
+        }>,
+      };
+    }
+    for (const user of referrers) byReferrer.set(user.id, emptyReferrerRow(user));
+
+    let withReferral = 0;
+    for (const app of applications) {
+      if (!app.referredByUserId) continue;
+      const row = byReferrer.get(app.referredByUserId);
+      // A referrer whose account was deleted leaves the application orphaned;
+      // count it as attributed but don't invent a row for a missing member.
+      withReferral += 1;
+      if (!row) continue;
+      row.total += 1;
+      if (onboardedStatuses.has(app.status)) row.onboarded += 1;
+      else if (terminal.has(app.status)) row.rejected += 1;
+      else row.inProgress += 1;
+      if (!row.lastAt || app.createdAt > row.lastAt) row.lastAt = app.createdAt;
+      row.people.push({
+        applicationId: app.id,
+        fullName: app.fullName,
+        email: app.email,
+        status: app.status,
+        createdAt: app.createdAt,
+      });
+    }
+
+    const rows = [...byReferrer.values()].sort(
+      (a, b) => b.onboarded - a.onboarded || b.total - a.total || a.name.localeCompare(b.name),
+    );
+
+    return {
+      totals: {
+        applications: applications.length,
+        withReferral,
+        withoutReferral: applications.length - withReferral,
+        referrers: rows.length,
+      },
+      referrers: rows,
     };
   }
 

@@ -53,7 +53,25 @@ type UserDetail = {
   payments: Array<{ id: string; amountCents: number; currency: string; status: string; dueDate: string; description: string }>;
   supportTickets: Array<{ id: string; subject: string; status: string; createdAt: string }>;
   referredApplications: Array<{ id: string; fullName: string; email: string; status: string; createdAt: string; referralCode?: string | null }>;
+  referredBy: { userId: string; name: string; email: string; code: string | null } | null;
   summary: { paidTotalCents: number; openPayments: number; supportTickets: number };
+};
+
+/** Who brought whom, across everyone — the `/admin/referrals` payload. */
+type ReferralsReport = {
+  totals: { applications: number; withReferral: number; withoutReferral: number; referrers: number };
+  referrers: Array<{
+    userId: string;
+    name: string;
+    email: string;
+    referralCode: string | null;
+    total: number;
+    onboarded: number;
+    inProgress: number;
+    rejected: number;
+    lastAt: string | null;
+    people: Array<{ applicationId: string; fullName: string; email: string; status: string; createdAt: string }>;
+  }>;
 };
 
 type UserDrawerTab = 'account' | 'referrals' | 'residency' | 'housing' | 'plans' | 'payments' | 'meals' | 'support';
@@ -139,6 +157,9 @@ type AllUsersProps = {
 
 export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
   const [users, setUsers] = useState<AdminOverviewUser[]>([]);
+  const [view, setView] = useState<'people' | 'referrals'>('people');
+  const [report, setReport] = useState<ReferralsReport | null>(null);
+  const [openReferrer, setOpenReferrer] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDrawerLoading, setIsDrawerLoading] = useState(false);
@@ -166,6 +187,13 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
       .then((data) => setUsers(data.users))
       .catch((caught) => setError(caught instanceof Error ? caught.message : 'Could not load users.'))
       .finally(() => setIsLoading(false));
+  }, []);
+
+  // Loaded once and kept — the tab count needs it even while People is showing.
+  useEffect(() => {
+    apiRequest<ReferralsReport>('/admin/referrals')
+      .then(setReport)
+      .catch((caught) => setError(caught instanceof Error ? caught.message : 'Could not load referrals.'));
   }, []);
 
   async function openUser(userId: string) {
@@ -375,6 +403,24 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
       {error ? <section className="panel"><p className="form-error">{error}</p></section> : null}
       {notice ? <section className="panel"><p className="form-success">{notice}</p></section> : null}
 
+      {/* Referrals live here rather than as a seventh sidebar entry: it's a view
+          of the same people, just organised by who brought them. */}
+      <nav className="tab-row admin-group-tabs" aria-label="Members sections">
+        <button
+          className={view === 'people' ? 'tab-chip tab-chip--active' : 'tab-chip'}
+          onClick={() => setView('people')}
+        >
+          People
+        </button>
+        <button
+          className={view === 'referrals' ? 'tab-chip tab-chip--active' : 'tab-chip'}
+          onClick={() => setView('referrals')}
+        >
+          Referrals
+          {report ? <strong className="tab-chip__count">{report.totals.withReferral}</strong> : null}
+        </button>
+      </nav>
+
       {showAddForm ? (
         <div className="modal-overlay" role="presentation" onClick={() => setShowAddForm(false)}>
         <section className="profile-edit-modal" role="dialog" aria-modal="true" aria-label="Add user" onClick={(event) => event.stopPropagation()}>
@@ -451,6 +497,69 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
       {isLoading ? <section className="panel">Loading users...</section> : null}
       {isDrawerLoading ? <section className="panel">Loading user information...</section> : null}
 
+      {view === 'referrals' ? (
+        <section className="panel all-users-panel">
+          {!report ? (
+            <p>Loading referrals…</p>
+          ) : (
+            <>
+              <div className="detail-box">
+                <div><span>Applications</span><strong>{report.totals.applications}</strong></div>
+                <div><span>Came via a referral</span><strong>{report.totals.withReferral}</strong></div>
+                <div><span>Applied directly</span><strong>{report.totals.withoutReferral}</strong></div>
+                <div><span>Members referring</span><strong>{report.totals.referrers}</strong></div>
+              </div>
+
+              {report.referrers.length === 0 ? (
+                <div className="empty-state">Nobody has been referred yet.</div>
+              ) : null}
+
+              {/* Ranked by people actually onboarded, not raw applications —
+                  otherwise whoever shares the link widest looks best regardless
+                  of whether any of them joined. */}
+              {report.referrers.map((referrer) => {
+                const open = openReferrer === referrer.userId;
+                return (
+                  <div className="referrer-row" key={referrer.userId}>
+                    <button
+                      className="referrer-row__head"
+                      onClick={() => setOpenReferrer(open ? null : referrer.userId)}
+                      aria-expanded={open}
+                    >
+                      <span className="referrer-row__id">
+                        <strong>{referrer.name}</strong>
+                        <span>{referrer.email}{referrer.referralCode ? ` · ${referrer.referralCode}` : ''}</span>
+                      </span>
+                      <span className="referrer-row__stats">
+                        <span className="referrer-stat referrer-stat--good"><strong>{referrer.onboarded}</strong> onboarded</span>
+                        <span className="referrer-stat"><strong>{referrer.inProgress}</strong> in progress</span>
+                        <span className="referrer-stat"><strong>{referrer.rejected}</strong> rejected</span>
+                        <span className="referrer-stat referrer-stat--total"><strong>{referrer.total}</strong> total</span>
+                      </span>
+                    </button>
+                    {open ? (
+                      <div className="referrer-row__people">
+                        {referrer.people.map((person) => (
+                          <div className="admin-user-list-row" key={person.applicationId}>
+                            <FileText size={18} />
+                            <div>
+                              <strong>{person.fullName}</strong>
+                              <span>{person.email} · Applied {formatDate(person.createdAt)}</span>
+                            </div>
+                            <StatusBadge tone={toneForStatus(person.status)}>{person.status}</StatusBadge>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </section>
+      ) : null}
+
+      {view === 'people' ? (
       <section className="panel all-users-panel">
         <div className="designation-search all-users-search">
           <Search size={16} />
@@ -522,6 +631,7 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
           ))}
         </div>
       </section>
+      ) : null}
 
       {selectedUser ? (
         <div className="drawer-overlay" role="presentation" onClick={() => setSelectedUser(null)}>
@@ -639,6 +749,16 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
                   <div className="detail-box">
                     <div><span>Referral code</span><strong>{selectedUser.referralCode ?? '-'}</strong></div>
                     <div><span>Apply link</span><strong>{selectedUser.referralCode ? `${window.location.origin}/?ref=${selectedUser.referralCode}` : '-'}</strong></div>
+                    {/* The other direction. You could always see who someone
+                        brought in; where they came from was invisible. */}
+                    <div>
+                      <span>Came in via</span>
+                      <strong>
+                        {selectedUser.referredBy
+                          ? `${selectedUser.referredBy.name}${selectedUser.referredBy.code ? ` (${selectedUser.referredBy.code})` : ''}`
+                          : 'Applied directly'}
+                      </strong>
+                    </div>
                     <div><span>Applicants referred</span><strong>{selectedUser.referredApplications.length}</strong></div>
                   </div>
                   {selectedUser.referredApplications.length === 0 ? <div className="empty-state">No referred applicants yet.</div> : null}

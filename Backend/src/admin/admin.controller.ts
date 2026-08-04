@@ -19,6 +19,12 @@ export class AdminController {
     return this.admin.counters();
   }
 
+  /** Who brought whom, with per-referrer counts. See AdminService.referrals(). */
+  @Get('referrals')
+  referrals() {
+    return this.admin.referrals();
+  }
+
   @Get('users/:userId')
   userDetail(@Param('userId') userId: string) {
     return this.admin.userDetail(userId);

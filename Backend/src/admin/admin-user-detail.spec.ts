@@ -40,6 +40,8 @@ describe('AdminService userDetail', () => {
       },
       application: {
         findMany: jest.fn().mockResolvedValue([]),
+        // userDetail also resolves who referred this member, from their own application.
+        findUnique: jest.fn().mockResolvedValue(null),
       },
     };
     const service = new AdminService(prisma as never, {} as never, {} as never, {} as never);
@@ -82,6 +84,8 @@ describe('AdminService userDetail', () => {
       },
       application: {
         findMany: jest.fn().mockResolvedValue([]),
+        // userDetail also resolves who referred this member, from their own application.
+        findUnique: jest.fn().mockResolvedValue(null),
       },
     };
     const service = new AdminService(prisma as never, {} as never, {} as never, {} as never);
@@ -127,6 +131,8 @@ describe('AdminService userDetail', () => {
       },
       application: {
         findMany: jest.fn().mockResolvedValue(referredApplications),
+        // userDetail also resolves who referred this member, from their own application.
+        findUnique: jest.fn().mockResolvedValue(null),
       },
     };
     const service = new AdminService(prisma as never, {} as never, {} as never, {} as never);

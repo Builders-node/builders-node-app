@@ -391,7 +391,12 @@ export function AppShell({
       ) : null}
 
       {referralOpen && currentUserId ? (
-        <ReferralModal userId={currentUserId} inviteLink={inviteLink} onClose={() => setReferralOpen(false)} />
+        <ReferralModal
+          userId={currentUserId}
+          inviteLink={inviteLink}
+          referralCode={referralCode ?? ''}
+          onClose={() => setReferralOpen(false)}
+        />
       ) : null}
     </div>
   );

@@ -4229,6 +4229,38 @@ textarea {
 .cal-duration__label { font-size: 0.85rem; font-weight: 650; }
 .cal-duration__range { color: var(--muted); font-size: 0.85rem; margin-left: auto; }
 
+/* ── Referrals report ───────────────────────────────────────────────────────
+   One row per member who has brought someone in; expands to the people. */
+.referrer-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+.referrer-row__head {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px 14px;
+  text-align: left;
+  width: 100%;
+}
+.referrer-row__head:hover { background: var(--surface-soft); }
+.referrer-row__id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.referrer-row__id strong { font-size: 0.95rem; }
+.referrer-row__id span { color: var(--muted); font-size: 0.8rem; }
+.referrer-row__stats { display: flex; flex-wrap: wrap; gap: 12px; }
+.referrer-stat { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
+.referrer-stat strong { color: var(--text); font-size: 0.95rem; margin-right: 3px; }
+.referrer-stat--good strong { color: var(--good); }
+.referrer-stat--total strong { color: var(--accent); }
+.referrer-row__people { border-top: 1px solid var(--border); padding: 6px 10px 10px; }
+
 /* The terms of borrowing a shared car, stated before you take it. */
 .car-rules {
   background: var(--surface-soft);
