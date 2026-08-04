@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { AdminGuard } from '../admin/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { VehiclesService } from './vehicles.service';
@@ -18,10 +19,21 @@ export class VehiclesController {
     return this.vehicles.listAvailable();
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Get('vehicles/:id/photo')
-  photo(@Param('id') id: string) {
-    return this.vehicles.getVehiclePhoto(id);
+  /**
+   * The car's photo, as actual image bytes.
+   *
+   * Public and binary on purpose. It's rendered with a plain `<img src>`, which
+   * can neither send an Authorization header nor decode a JSON envelope — the
+   * old authenticated route returned `{ dataBase64 }` and so every car in the
+   * picker silently fell back to a blank thumbnail. A photo of a shared
+   * community car isn't sensitive; the id is a uuid, so this leaks nothing.
+   */
+  @Get('public/vehicles/:id/photo')
+  @Header('Cache-Control', 'public, max-age=86400')
+  async photo(@Param('id') id: string, @Res() res: Response) {
+    const photo = await this.vehicles.getVehiclePhoto(id);
+    res.type(photo.fileType);
+    res.send(Buffer.from(photo.dataBase64, 'base64'));
   }
 
   @UseGuards(JwtAuthGuard)

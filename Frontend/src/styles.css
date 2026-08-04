@@ -4116,7 +4116,7 @@ textarea {
 .car-picker { display: flex; flex-direction: column; gap: 8px; margin: 0.25rem 0 0.5rem; }
 .car-option {
   display: grid;
-  grid-template-columns: auto 60px 1fr;
+  grid-template-columns: auto 88px 1fr;
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
@@ -4127,25 +4127,103 @@ textarea {
 }
 .car-option:hover { background: rgba(0, 0, 0, 0.02); }
 .car-option--active { border-color: rgba(229, 84, 31, 0.55); background: rgba(229, 84, 31, 0.05); }
-.car-option img { width: 60px; height: 45px; object-fit: cover; border-radius: 8px; }
+/* Fixed box so a missing or slow photo doesn't reflow the row. */
+.car-option__media { width: 88px; height: 62px; display: block; }
+.car-option img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; display: block; }
 .car-option__thumb {
-  width: 60px; height: 45px; border-radius: 8px;
+  width: 100%; height: 100%; border-radius: 8px;
   background: linear-gradient(135deg, #ff7a3a, #e5541f);
   color: #fff; display: inline-flex; align-items: center; justify-content: center;
 }
 .car-option__body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .car-option__body strong { font-size: 0.95rem; }
 .car-option__body span { font-size: 0.8rem; color: var(--text-muted, #6b7280); }
-.car-booked {
-  background: rgba(224, 160, 0, 0.08);
-  border: 1px solid rgba(224, 160, 0, 0.3);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 0.85rem;
-}
-.car-booked strong { display: block; margin-bottom: 4px; font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; color: #b57a00; }
-.car-booked ul { margin: 0; padding-left: 1.1rem; color: var(--text-muted, #6b7280); }
 :root[data-theme='dark'] .car-option:hover { background: rgba(255, 255, 255, 0.03); }
+
+/* ── Car booking calendar ───────────────────────────────────────────────────
+   A day strip over an hour grid. The grid is the point: taken hours are
+   visible before you choose, instead of a date field that only tells you it
+   clashed after you submit. */
+.cal-days {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  /* Let the strip scroll without the modal itself scrolling sideways. */
+  scrollbar-width: thin;
+}
+.cal-day {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 48px;
+  padding: 7px 8px;
+}
+.cal-day__dow { font-size: 0.68rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.cal-day__num { font-size: 1rem; font-weight: 750; color: var(--text); }
+.cal-day--active {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.cal-day--active .cal-day__num { color: var(--accent); }
+
+.cal-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 6px;
+}
+.cal-slot {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.85rem;
+  font-weight: 650;
+  min-height: 46px;
+  justify-content: center;
+  padding: 6px 4px;
+}
+.cal-slot:disabled { cursor: not-allowed; }
+.cal-slot--taken {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+  color: var(--danger);
+}
+.cal-slot--past { opacity: 0.4; }
+.cal-slot__tag { font-size: 0.62rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.cal-slot--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+/* The hours the chosen duration runs through, so a 3h booking reads as a block. */
+.cal-slot--covered {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.cal-duration {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.cal-duration__label { font-size: 0.85rem; font-weight: 650; }
+.cal-duration__range { color: var(--muted); font-size: 0.85rem; margin-left: auto; }
 
 /* ── Pull-to-refresh indicator ──────────────────────────────────────────────── */
 .ptr {

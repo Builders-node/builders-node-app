@@ -21,8 +21,28 @@ type Booking = {
   vehicle: { id: string; name: string };
 };
 
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000').replace(/[/.]+$/, '');
+
+/** The bookable window. Slots start on the hour; the last one ends at DAY_END. */
+const DAY_START_HOUR = 7;
+const DAY_END_HOUR = 22;
+/** One member can hold a car for at most this long — mirrored on the server. */
+const MAX_HOURS = 3;
+/** How far ahead the day strip runs. */
+const DAYS_AHEAD = 14;
+
 function toYMD(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+/** Local Date for a given day + hour. Local, not UTC — members pick wall-clock times. */
+function atHour(ymd: string, hour: number): Date {
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(y, m - 1, d, hour, 0, 0, 0);
+}
+
+function formatHour(hour: number): string {
+  return `${String(hour).padStart(2, '0')}:00`;
 }
 
 // Same-day booking that spans <24h → show times; otherwise show a date range.
@@ -41,19 +61,6 @@ function formatRange(start: string, end: string): string {
     : `${s.toLocaleDateString(undefined, dateOpts)} – ${e.toLocaleDateString(undefined, dateOpts)}`;
 }
 
-// True if the requested [start,end] overlaps any of the vehicle's active ranges.
-function overlaps(vehicle: Vehicle | null, startISO: string, endISO: string): boolean {
-  if (!vehicle || !startISO || !endISO) return false;
-  const s = new Date(startISO).getTime();
-  const e = new Date(endISO).getTime();
-  if (Number.isNaN(s) || Number.isNaN(e)) return false;
-  return vehicle.bookedRanges.some((range) => {
-    const rs = new Date(range.startDate).getTime();
-    const re = new Date(range.endDate).getTime();
-    return rs < e && re > s;
-  });
-}
-
 export function CarsSection({ currentUserId }: { currentUserId: string }) {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -63,37 +70,74 @@ export function CarsSection({ currentUserId }: { currentUserId: string }) {
   const [isOpen, setIsOpen] = useState(false);
   useEscapeToClose(isOpen, () => setIsOpen(false));
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [mode, setMode] = useState<'hours' | 'days'>('days');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [hourDate, setHourDate] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
+  const [day, setDay] = useState(() => toYMD(new Date()));
+  const [startHour, setStartHour] = useState<number | null>(null);
+  const [hours, setHours] = useState(1);
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const today = useMemo(() => toYMD(new Date()), []);
   const selected = vehicles.find((v) => v.id === selectedId) ?? null;
 
-  // Build the ISO instants the backend will actually receive. In "days" mode
-  // we send bare YYYY-MM-DD; in "hours" mode we send full local datetimes and
-  // let the browser attach the local offset before converting to ISO.
-  const payload = useMemo(() => {
-    if (mode === 'days') {
-      if (!startDate || !endDate) return null;
-      const endInst = new Date(`${endDate}T23:59:59.999Z`).toISOString();
-      const startInst = new Date(`${startDate}T00:00:00.000Z`).toISOString();
-      return { startISO: startInst, endISO: endInst, startPayload: startDate, endPayload: endDate };
-    }
-    if (!hourDate || !startTime || !endTime) return null;
-    const s = new Date(`${hourDate}T${startTime}`);
-    const e = new Date(`${hourDate}T${endTime}`);
-    if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return null;
-    return { startISO: s.toISOString(), endISO: e.toISOString(), startPayload: s.toISOString(), endPayload: e.toISOString() };
-  }, [mode, startDate, endDate, hourDate, startTime, endTime]);
+  /** The next fortnight, for the day strip. */
+  const days = useMemo(() => {
+    const base = new Date();
+    base.setHours(0, 0, 0, 0);
+    return Array.from({ length: DAYS_AHEAD }, (_, i) => {
+      const d = new Date(base);
+      d.setDate(base.getDate() + i);
+      return d;
+    });
+  }, []);
 
-  const conflict = payload ? overlaps(selected, payload.startISO, payload.endISO) : false;
+  /**
+   * Every hour of the chosen day, marked free / taken / past. This is the whole
+   * point of the calendar: you can see when the car is out before you pick.
+   */
+  const slots = useMemo(() => {
+    const ranges = (selected?.bookedRanges ?? []).map((r) => ({
+      start: new Date(r.startDate).getTime(),
+      end: new Date(r.endDate).getTime(),
+    }));
+    const now = Date.now();
+    const out: Array<{ hour: number; taken: boolean; past: boolean }> = [];
+    for (let hour = DAY_START_HOUR; hour < DAY_END_HOUR; hour += 1) {
+      const s = atHour(day, hour).getTime();
+      const e = atHour(day, hour + 1).getTime();
+      out.push({
+        hour,
+        taken: ranges.some((r) => r.start < e && r.end > s),
+        past: s < now,
+      });
+    }
+    return out;
+  }, [selected, day]);
+
+  /** Durations that fit in the free run after `startHour`, capped at MAX_HOURS. */
+  const allowedHours = useMemo(() => {
+    if (startHour === null) return [];
+    const allowed: number[] = [];
+    for (let n = 1; n <= MAX_HOURS; n += 1) {
+      if (startHour + n > DAY_END_HOUR) break;
+      const covered = slots.filter((s) => s.hour >= startHour && s.hour < startHour + n);
+      if (covered.length !== n || covered.some((s) => s.taken || s.past)) break;
+      allowed.push(n);
+    }
+    return allowed;
+  }, [startHour, slots]);
+
+  // Picking a new start (or a new day/car) can invalidate the chosen duration.
+  useEffect(() => {
+    if (allowedHours.length > 0 && !allowedHours.includes(hours)) setHours(allowedHours[0]);
+  }, [allowedHours, hours]);
+
+  const payload = useMemo(() => {
+    if (startHour === null || allowedHours.length === 0) return null;
+    return {
+      startISO: atHour(day, startHour).toISOString(),
+      endISO: atHour(day, startHour + hours).toISOString(),
+    };
+  }, [day, startHour, hours, allowedHours]);
 
   async function load() {
     try {
@@ -116,12 +160,9 @@ export function CarsSection({ currentUserId }: { currentUserId: string }) {
   function openModal() {
     setError(null);
     setMessage(null);
-    setMode('days');
-    setStartDate('');
-    setEndDate('');
-    setHourDate('');
-    setStartTime('');
-    setEndTime('');
+    setDay(toYMD(new Date()));
+    setStartHour(null);
+    setHours(1);
     setNote('');
     setSelectedId(vehicles[0]?.id ?? null);
     setIsOpen(true);
@@ -130,21 +171,15 @@ export function CarsSection({ currentUserId }: { currentUserId: string }) {
   async function submit() {
     setError(null);
     if (!selectedId) return setError('Pick a car.');
-    if (!payload) {
-      return setError(mode === 'days' ? 'Pick both dates.' : 'Pick the date and start / end times.');
-    }
-    if (new Date(payload.endISO).getTime() <= new Date(payload.startISO).getTime()) {
-      return setError(mode === 'days' ? 'End date must be on or after the start date.' : 'End time must be after the start time.');
-    }
-    if (conflict) return setError('That overlaps another booking. Pick a different slot.');
+    if (!payload) return setError('Pick a free time slot.');
     setSubmitting(true);
     try {
       await apiRequest(`/users/${currentUserId}/vehicle-bookings`, {
         method: 'POST',
         body: JSON.stringify({
           vehicleId: selectedId,
-          startDate: payload.startPayload,
-          endDate: payload.endPayload,
+          startDate: payload.startISO,
+          endDate: payload.endISO,
           note,
         }),
       });
@@ -224,7 +259,7 @@ export function CarsSection({ currentUserId }: { currentUserId: string }) {
             <div className="modal-head">
               <div>
                 <h2>Rent a car</h2>
-                <p>Pick a car and the dates you need it.</p>
+                <p>Pick a car, then a free slot — up to {MAX_HOURS} hours.</p>
               </div>
               <button className="icon-button" type="button" onClick={() => setIsOpen(false)} aria-label="Close">
                 <X size={18} />
@@ -239,74 +274,104 @@ export function CarsSection({ currentUserId }: { currentUserId: string }) {
                     name="vehicle"
                     value={v.id}
                     checked={selectedId === v.id}
-                    onChange={() => setSelectedId(v.id)}
+                    onChange={() => { setSelectedId(v.id); setStartHour(null); }}
                   />
-                  {v.hasPhoto ? (
-                    <img src={`${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001'}/vehicles/${v.id}/photo`} alt={v.name} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                  ) : (
-                    <div className="car-option__thumb"><Car size={22} /></div>
-                  )}
-                  <div className="car-option__body">
+                  <span className="car-option__media">
+                    {v.hasPhoto ? (
+                      <img src={`${API_BASE}/public/vehicles/${v.id}/photo`} alt="" />
+                    ) : (
+                      <span className="car-option__thumb"><Car size={26} /></span>
+                    )}
+                  </span>
+                  <span className="car-option__body">
                     <strong>{v.name}</strong>
                     {v.description ? <span>{v.description}</span> : null}
-                  </div>
+                  </span>
                 </label>
               ))}
             </div>
 
-            <div className="segmented" role="tablist" aria-label="Booking length">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === 'hours'}
-                className={mode === 'hours' ? 'segmented__opt segmented__opt--active' : 'segmented__opt'}
-                onClick={() => setMode('hours')}
-              >
-                By hours
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === 'days'}
-                className={mode === 'days' ? 'segmented__opt segmented__opt--active' : 'segmented__opt'}
-                onClick={() => setMode('days')}
-              >
-                By days
-              </button>
+            {/* Day strip */}
+            <div className="cal-days" role="tablist" aria-label="Pick a day">
+              {days.map((d) => {
+                const ymd = toYMD(d);
+                const active = ymd === day;
+                return (
+                  <button
+                    key={ymd}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    className={active ? 'cal-day cal-day--active' : 'cal-day'}
+                    onClick={() => { setDay(ymd); setStartHour(null); }}
+                  >
+                    <span className="cal-day__dow">{d.toLocaleDateString(undefined, { weekday: 'short' })}</span>
+                    <span className="cal-day__num">{d.getDate()}</span>
+                  </button>
+                );
+              })}
             </div>
 
-            {mode === 'days' ? (
-              <div className="form-grid">
-                <label>Start date<input type="date" value={startDate} min={today} onChange={(event) => setStartDate(event.target.value)} /></label>
-                <label>End date<input type="date" value={endDate} min={startDate || today} onChange={(event) => setEndDate(event.target.value)} /></label>
-              </div>
-            ) : (
-              <>
-                <label>Date<input type="date" value={hourDate} min={today} onChange={(event) => setHourDate(event.target.value)} /></label>
-                <div className="form-grid">
-                  <label>Start time<input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} /></label>
-                  <label>End time<input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} /></label>
-                </div>
-              </>
-            )}
+            {/* Hour grid for the chosen day. Taken slots say who has it, so the
+                answer to "when is it free?" is on screen instead of guessed. */}
+            <div className="cal-slots" role="group" aria-label="Pick a start time">
+              {slots.map((slot) => {
+                const disabled = slot.taken || slot.past;
+                const active = startHour === slot.hour;
+                const covered =
+                  startHour !== null && slot.hour > startHour && slot.hour < startHour + hours;
+                return (
+                  <button
+                    key={slot.hour}
+                    type="button"
+                    disabled={disabled}
+                    aria-pressed={active}
+                    className={[
+                      'cal-slot',
+                      slot.taken ? 'cal-slot--taken' : '',
+                      slot.past && !slot.taken ? 'cal-slot--past' : '',
+                      active ? 'cal-slot--active' : '',
+                      covered ? 'cal-slot--covered' : '',
+                    ].filter(Boolean).join(' ')}
+                    onClick={() => setStartHour(slot.hour)}
+                  >
+                    <span className="cal-slot__time">{formatHour(slot.hour)}</span>
+                    {slot.taken ? <span className="cal-slot__tag">Booked</span> : null}
+                  </button>
+                );
+              })}
+            </div>
 
-            {selected && selected.bookedRanges.length > 0 ? (
-              <div className="car-booked">
-                <strong>Already booked</strong>
-                <ul>
-                  {selected.bookedRanges.map((r, idx) => (
-                    <li key={idx}>{formatRange(r.startDate, r.endDate)}</li>
+            {slots.every((s) => s.taken || s.past) ? (
+              <p className="form-hint">Nothing free left on this day — try another.</p>
+            ) : null}
+
+            {startHour !== null && allowedHours.length > 0 ? (
+              <div className="cal-duration">
+                <span className="cal-duration__label">How long?</span>
+                <div className="segmented">
+                  {allowedHours.map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      className={hours === n ? 'segmented__opt segmented__opt--active' : 'segmented__opt'}
+                      onClick={() => setHours(n)}
+                    >
+                      {n}h
+                    </button>
                   ))}
-                </ul>
+                </div>
+                <span className="cal-duration__range">
+                  {formatHour(startHour)} – {formatHour(startHour + hours)}
+                </span>
               </div>
             ) : null}
 
-            {conflict ? <p className="form-error">Those dates overlap another booking.</p> : null}
             {error ? <p className="form-error">{error}</p> : null}
 
             <label>Note (optional)<textarea value={note} onChange={(event) => setNote(event.target.value)} rows={2} placeholder="Anything the team should know…" /></label>
 
-            <button className="primary-button" type="submit" disabled={submitting || conflict || !selectedId || !payload}>
+            <button className="primary-button" type="submit" disabled={submitting || !selectedId || !payload}>
               {submitting ? 'Booking…' : 'Book car'}
             </button>
           </form>

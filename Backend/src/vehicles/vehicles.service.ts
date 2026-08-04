@@ -3,7 +3,16 @@ import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
 const MAX_PHOTO_BASE64_LENGTH = 3_500_000; // ~2.5 MB
-const MAX_BOOKING_DAYS = 30;
+
+/**
+ * One member can hold a car for at most three hours. There are a handful of
+ * shared cars and a residence full of people; day-long bookings meant one
+ * person could take a car off the board for everyone else.
+ *
+ * Enforced here as well as in the UI — the UI only offers 1/2/3h, but the
+ * endpoint is what actually protects the rule.
+ */
+export const MAX_BOOKING_HOURS = 3;
 
 type VehicleInput = {
   name?: string;
@@ -22,9 +31,10 @@ type BookingInput = {
 };
 
 /**
- * Accept either a YYYY-MM-DD date (treated as UTC midnight — full-day booking)
- * or a full ISO datetime string (hourly booking). Sub-day bookings need a
- * timezone so `Date` can resolve them unambiguously; a bare date is fine.
+ * Accept either a YYYY-MM-DD date (treated as UTC midnight) or a full ISO
+ * datetime string. Bookings are hourly now, so the client always sends the
+ * latter; the bare-date form is kept so older payloads still parse rather than
+ * failing obscurely — they'll be rejected by the duration cap instead.
  */
 function parseBookingInstant(value: string | undefined, label: string): Date {
   if (!value) throw new BadRequestException(`${label} is required.`);
@@ -122,9 +132,9 @@ export class VehiclesService {
     if (start.getTime() < nowMinusSkew) {
       throw new BadRequestException('Start cannot be in the past.');
     }
-    const spanDays = (end.getTime() - start.getTime()) / (24 * 3600 * 1000);
-    if (spanDays > MAX_BOOKING_DAYS) {
-      throw new BadRequestException(`Bookings can span at most ${MAX_BOOKING_DAYS} days.`);
+    const spanHours = (end.getTime() - start.getTime()) / (3600 * 1000);
+    if (spanHours > MAX_BOOKING_HOURS) {
+      throw new BadRequestException(`Bookings can run at most ${MAX_BOOKING_HOURS} hours.`);
     }
 
     const vehicle = await this.prisma.vehicle.findUnique({ where: { id: vehicleId } });
