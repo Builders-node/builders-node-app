@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Github, Globe, Linkedin, MapPin, Search, Twitter, UserRound, X } from 'lucide-react';
+import { CalendarDays, Github, Globe, Linkedin, MapPin, Search, Twitter, UserRound, Users, X } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { apiRequest } from '../lib/api';
 import { useEscapeToClose } from '../lib/useModalA11y';
+import { EventsTab } from './CommunityEvents';
 
 type DirectoryItem = {
   userId: string;
@@ -42,6 +43,7 @@ function initials(name: string): string {
 }
 
 export function Community({ currentUserId }: { currentUserId?: string | null }) {
+  const [tab, setTab] = useState<'members' | 'events'>('members');
   const [items, setItems] = useState<DirectoryItem[]>([]);
   const [skills, setSkills] = useState<Array<{ name: string; count: number }>>([]);
   const [search, setSearch] = useState('');
@@ -129,9 +131,9 @@ export function Community({ currentUserId }: { currentUserId?: string | null }) 
     <div className="page-stack">
       <PageHeader
         title="Community"
-        description="The people building alongside you. Search by name, what they're working on, or a skill."
+        description="The people building alongside you, and what's happening this week."
         action={
-          mine ? (
+          mine && tab === 'members' ? (
             <button className="ghost-button" onClick={() => setEditorOpen(true)}>
               <UserRound size={16} />
               {mine.directoryOptIn ? 'Edit your profile' : 'Add your profile'}
@@ -140,8 +142,23 @@ export function Community({ currentUserId }: { currentUserId?: string | null }) 
         }
       />
 
+      <nav className="tab-row admin-group-tabs" aria-label="Community sections">
+        <button className={tab === 'members' ? 'tab-chip tab-chip--active' : 'tab-chip'} onClick={() => setTab('members')}>
+          <Users size={13} style={{ marginRight: 5, verticalAlign: '-2px' }} />
+          Members
+        </button>
+        <button className={tab === 'events' ? 'tab-chip tab-chip--active' : 'tab-chip'} onClick={() => setTab('events')}>
+          <CalendarDays size={13} style={{ marginRight: 5, verticalAlign: '-2px' }} />
+          Events
+        </button>
+      </nav>
+
       {error ? <section className="panel"><p className="form-error">{error}</p></section> : null}
 
+      {tab === 'events' ? <EventsTab /> : null}
+
+      {tab === 'members' ? (
+      <>
       {/* Nudge: you can browse without being listed, but the directory only
           works if people join it. */}
       {mine && !mine.directoryOptIn ? (
@@ -232,6 +249,8 @@ export function Community({ currentUserId }: { currentUserId?: string | null }) 
           </button>
         ))}
       </div>
+      </>
+      ) : null}
 
       {/* Member detail */}
       {selected ? (

@@ -11,6 +11,7 @@ export async function purgeUser(tx: PrismaService, userId: string): Promise<void
   await tx.notification.deleteMany({ where });
   await tx.maintenanceRequest.deleteMany({ where });
   await tx.vehicleBooking.deleteMany({ where });
+  await tx.eventRsvp.deleteMany({ where });
   await tx.mealMenuItem.deleteMany({ where });
   await tx.cleaningSchedule.deleteMany({ where });
   await tx.supportTicket.deleteMany({ where });

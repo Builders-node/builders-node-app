@@ -4874,6 +4874,90 @@ body:has(.modal-overlay) .onboarding-toast { display: none; }
 :root[data-theme='dark'] .directory-card { background: #1a1c22; border-color: #23262c; }
 :root[data-theme='dark'] .directory-search { background: #1a1c22; border-color: #23262c; }
 
+/* ── Community events ─────────────────────────────────────────────────────── */
+.event-list { display: flex; flex-direction: column; gap: 10px; }
+.event-card {
+  display: flex;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line, #ebedf1);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+}
+.event-card--past { opacity: 0.72; }
+.event-card__date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+  background: rgba(229, 84, 31, 0.1);
+  color: #e5541f;
+  flex-shrink: 0;
+}
+.event-card__date span {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.event-card__date strong { font-size: 1.3rem; font-weight: 800; line-height: 1; }
+.event-card__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.event-card__title { font-size: 0.98rem; font-weight: 700; }
+.event-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.76rem;
+  color: var(--text-muted, #6b7280);
+}
+.event-card__meta span { display: inline-flex; align-items: center; gap: 4px; }
+.event-card__desc {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-muted, #5c6070);
+  white-space: pre-wrap;
+}
+.event-card__full {
+  align-self: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #c0392b;
+}
+.event-card__attended {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #2fae66;
+}
+
+.event-rsvp { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.event-rsvp__btn {
+  appearance: none;
+  border: 1px solid var(--line, #ebedf1);
+  background: var(--surface, #fff);
+  color: var(--text-muted, #5c6070);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.event-rsvp__btn:hover:not(:disabled) { border-color: rgba(229, 84, 31, 0.45); color: var(--text, #1c1e24); }
+.event-rsvp__btn--active {
+  background: #e5541f;
+  border-color: #e5541f;
+  color: #fff;
+}
+.event-rsvp__btn:disabled { opacity: 0.5; cursor: default; }
+
+:root[data-theme='dark'] .event-card { background: #1a1c22; border-color: #23262c; }
+:root[data-theme='dark'] .event-rsvp__btn { background: #1a1c22; border-color: #23262c; }
+
 /* ── Member pass: Home CTA + fullscreen QR sheet ──────────────────────────── */
 .pass-cta {
   display: flex;

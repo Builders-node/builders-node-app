@@ -70,7 +70,7 @@ type DesignationUser = AdminOverview['users'][number];
 type DesignationFilterId = 'all' | 'incomplete' | 'new' | 'members';
 type Applicant = AdminOverview['applications'][number];
 type ApplicantAction = { key: string; label: string; icon: ReactNode; tone?: 'ghost' | 'danger'; run: () => void };
-type AdminTab = 'overview' | 'applicants' | 'residency' | 'designations' | 'maintenance' | 'support' | 'payments' | 'notifications' | 'resources' | 'vehicles' | 'units' | 'settings';
+type AdminTab = 'overview' | 'applicants' | 'residency' | 'designations' | 'maintenance' | 'support' | 'payments' | 'notifications' | 'resources' | 'events' | 'vehicles' | 'units' | 'settings';
 
 type AdminVehicle = {
   id: string;
@@ -131,6 +131,21 @@ type AdminPayment = {
   description: string;
   receiptUrl?: string | null;
   adminNote?: string | null;
+};
+
+type AdminEvent = {
+  id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  startsAt: string;
+  endsAt: string | null;
+  capacity: number | null;
+  published: boolean;
+  goingCount: number;
+  maybeCount: number;
+  declinedCount: number;
+  attendees: Array<{ name: string; email: string; status: string }>;
 };
 
 type AdminNotificationLog = {
@@ -489,6 +504,19 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   const [supportFilter, setSupportFilter] = useState<'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'ALL'>('OPEN');
   const [payments, setPayments] = useState<AdminPayment[]>([]);
   const [paymentsFilter, setPaymentsFilter] = useState<'OVERDUE' | 'DUE' | 'PAID' | 'ALL'>('OVERDUE');
+  const [events, setEvents] = useState<AdminEvent[]>([]);
+  const [eventForm, setEventForm] = useState<{
+    id?: string;
+    title: string;
+    description: string;
+    location: string;
+    startsAt: string;
+    endsAt: string;
+    capacity: string;
+    published: boolean;
+  } | null>(null);
+  useEscapeToClose(Boolean(eventForm), () => setEventForm(null));
+  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
   const [notifRecent, setNotifRecent] = useState<AdminNotificationLog[]>([]);
   const [notifForm, setNotifForm] = useState<{
     audience: 'member' | 'all-members';
@@ -801,6 +829,55 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     }
   }
 
+  async function loadEvents() {
+    try {
+      setEvents(await apiRequest<AdminEvent[]>('/admin/events'));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not load events.');
+    }
+  }
+
+  /** `datetime-local` needs a local "YYYY-MM-DDTHH:mm", not an ISO/UTC string. */
+  function toLocalInput(iso: string | null): string {
+    if (!iso) return '';
+    const date = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  async function submitEvent() {
+    if (!eventForm) return;
+    const body = {
+      title: eventForm.title,
+      description: eventForm.description,
+      location: eventForm.location,
+      // The value is local wall-clock; toISOString applies the browser offset.
+      startsAt: eventForm.startsAt ? new Date(eventForm.startsAt).toISOString() : undefined,
+      endsAt: eventForm.endsAt ? new Date(eventForm.endsAt).toISOString() : null,
+      capacity: eventForm.capacity === '' ? null : Number(eventForm.capacity),
+      published: eventForm.published,
+    };
+    try {
+      const updated = eventForm.id
+        ? await apiRequest<AdminEvent[]>(`/admin/events/${eventForm.id}`, { method: 'PATCH', body: JSON.stringify(body) })
+        : await apiRequest<AdminEvent[]>('/admin/events', { method: 'POST', body: JSON.stringify(body) });
+      setEvents(updated);
+      setEventForm(null);
+      setCredentialMessage(eventForm.id ? 'Event updated.' : 'Event created.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not save the event.');
+    }
+  }
+
+  async function deleteEvent(id: string) {
+    if (!window.confirm('Delete this event? RSVPs are removed with it.')) return;
+    try {
+      setEvents(await apiRequest<AdminEvent[]>(`/admin/events/${id}`, { method: 'DELETE' }));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not delete the event.');
+    }
+  }
+
   async function loadNotifications() {
     try {
       setNotifRecent(await apiRequest<AdminNotificationLog[]>('/admin/notifications?limit=40'));
@@ -910,6 +987,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     if (adminTab === 'support') void loadSupport();
     if (adminTab === 'payments') void loadPayments();
     if (adminTab === 'notifications') void loadNotifications();
+    if (adminTab === 'events') void loadEvents();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adminTab, supportFilter, paymentsFilter]);
 
@@ -2138,6 +2216,95 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
           );
         })() : null}
 
+        {adminTab === 'events' ? (
+        <section className="panel admin-panel">
+          <div className="admin-panel__head">
+            <div>
+              <h2>Events</h2>
+              <p>Publishing an event notifies every member once. Drafts stay hidden until then.</p>
+            </div>
+            <button
+              className="primary-button compact-button"
+              onClick={() => setEventForm({ title: '', description: '', location: '', startsAt: '', endsAt: '', capacity: '', published: false })}
+            >
+              New event
+            </button>
+          </div>
+          <div className="maintenance-admin-list">
+            {events.length === 0 ? <div className="empty-state">No events yet — create the first one.</div> : null}
+            {events.map((event) => (
+              <article className="maintenance-admin-card" key={event.id}>
+                <div className="maintenance-admin-card__top">
+                  <div>
+                    <strong>{event.title}</strong>
+                    <span>
+                      {new Date(event.startsAt).toLocaleString()}
+                      {event.location ? ` · ${event.location}` : ''}
+                      {` · ${event.goingCount} going`}
+                      {event.maybeCount > 0 ? `, ${event.maybeCount} maybe` : ''}
+                      {event.capacity !== null ? ` · cap ${event.capacity}` : ''}
+                    </span>
+                  </div>
+                  <StatusBadge tone={event.published ? 'good' : 'neutral'}>
+                    {event.published ? 'Published' : 'Draft'}
+                  </StatusBadge>
+                </div>
+                {event.description ? <p className="maintenance-admin-card__desc">{event.description}</p> : null}
+                <div className="maintenance-admin-card__row">
+                  <button
+                    className="ghost-button compact-button"
+                    onClick={() => setEventForm({
+                      id: event.id,
+                      title: event.title,
+                      description: event.description ?? '',
+                      location: event.location ?? '',
+                      startsAt: toLocalInput(event.startsAt),
+                      endsAt: toLocalInput(event.endsAt),
+                      capacity: event.capacity === null ? '' : String(event.capacity),
+                      published: event.published,
+                    })}
+                  >
+                    Edit
+                  </button>
+                  {!event.published ? (
+                    <button
+                      className="primary-button compact-button"
+                      onClick={() => void apiRequest<AdminEvent[]>(`/admin/events/${event.id}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({ published: true }),
+                      }).then(setEvents).catch((e) => setError(e instanceof Error ? e.message : 'Could not publish.'))}
+                    >
+                      Publish
+                    </button>
+                  ) : null}
+                  {event.attendees.length > 0 ? (
+                    <button
+                      className="ghost-button compact-button"
+                      onClick={() => setExpandedEventId(expandedEventId === event.id ? null : event.id)}
+                    >
+                      {expandedEventId === event.id ? 'Hide' : 'Show'} attendees ({event.attendees.length})
+                    </button>
+                  ) : null}
+                  <button className="compact-button applicant-action--danger" onClick={() => void deleteEvent(event.id)}>
+                    Delete
+                  </button>
+                </div>
+                {expandedEventId === event.id ? (
+                  <div className="detail-box" style={{ marginTop: 10 }}>
+                    {event.attendees.map((attendee) => (
+                      <div key={attendee.email}>
+                        <span>{attendee.name}</span>
+                        <strong>{attendee.status === 'GOING' ? 'Going' : 'Maybe'}</strong>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        </section>
+        ) : null}
+
         {adminTab === 'vehicles' ? (() => {
           const q = vehiclesSearch.trim().toLowerCase();
           const filteredVehicles = vehicles.filter((v) => !q || v.name.toLowerCase().includes(q) || (v.description ?? '').toLowerCase().includes(q));
@@ -2621,6 +2788,63 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
               Active (visible to members)
             </label>
             <button className="primary-button" type="submit">Save vehicle</button>
+          </form>
+        </div>
+      ) : null}
+
+      {eventForm ? (
+        <div className="modal-overlay" role="presentation" onClick={() => setEventForm(null)}>
+          <form
+            className="profile-edit-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={eventForm.id ? 'Edit event' : 'New event'}
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={(event) => { event.preventDefault(); void submitEvent(); }}
+          >
+            <div className="modal-head">
+              <div>
+                <h2>{eventForm.id ? 'Edit event' : 'New event'}</h2>
+                <p>Members see published events in Community → Events.</p>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setEventForm(null)} aria-label="Close"><X size={18} /></button>
+            </div>
+
+            <label>
+              Title
+              <input value={eventForm.title} onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })} required placeholder="e.g. Friday founder dinner" />
+            </label>
+            <label>
+              Description
+              <textarea value={eventForm.description} onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })} rows={3} placeholder="What is it, who's it for?" />
+            </label>
+            <label>
+              Location
+              <input value={eventForm.location} onChange={(e) => setEventForm({ ...eventForm, location: e.target.value })} placeholder="e.g. Rooftop, Duna" />
+            </label>
+            <div className="form-grid">
+              <label>
+                Starts
+                <input type="datetime-local" value={eventForm.startsAt} onChange={(e) => setEventForm({ ...eventForm, startsAt: e.target.value })} required />
+              </label>
+              <label>
+                Ends (optional)
+                <input type="datetime-local" value={eventForm.endsAt} onChange={(e) => setEventForm({ ...eventForm, endsAt: e.target.value })} />
+              </label>
+            </div>
+            <label>
+              Capacity — leave empty for unlimited
+              <input type="number" min="1" value={eventForm.capacity} onChange={(e) => setEventForm({ ...eventForm, capacity: e.target.value })} placeholder="Unlimited" />
+            </label>
+            <label className="directory-optin">
+              <input type="checkbox" checked={eventForm.published} onChange={(e) => setEventForm({ ...eventForm, published: e.target.checked })} />
+              <span>
+                <strong>Published</strong>
+                <small>Members can see and RSVP. Publishing sends a one-time notification.</small>
+              </span>
+            </label>
+
+            <button className="primary-button" type="submit">{eventForm.id ? 'Save event' : 'Create event'}</button>
           </form>
         </div>
       ) : null}

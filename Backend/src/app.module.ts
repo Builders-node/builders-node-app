@@ -17,6 +17,7 @@ import { ResidencyModule } from './residency/residency.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { SupportModule } from './support/support.module';
 import { DirectoryModule } from './directory/directory.module';
+import { EventsModule } from './events/events.module';
 import { UsersModule } from './users/users.module';
 import { AppController } from './app.controller';
 import { ApplicationsModule } from './applications/applications.module';
@@ -48,6 +49,7 @@ import { AdminModule } from './admin/admin.module';
     ApartmentsModule,
     SupportModule,
     DirectoryModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

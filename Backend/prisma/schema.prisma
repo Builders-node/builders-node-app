@@ -47,6 +47,7 @@ model User {
   notifications         Notification[]
   maintenanceRequests   MaintenanceRequest[]
   vehicleBookings       VehicleBooking[]
+  eventRsvps            EventRsvp[]
 }
 
 // A community vehicle members can book (free of charge). Managed by admins.
@@ -95,6 +96,42 @@ model Resource {
   order     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// A community event members can RSVP to. Drafts stay unpublished until an
+// admin is ready; only published events are visible to members.
+model Event {
+  id          String      @id @default(uuid())
+  title       String
+  description String?
+  location    String?
+  startsAt    DateTime
+  endsAt      DateTime?
+  // null = unlimited. When set, GOING RSVPs are refused once it's reached.
+  capacity    Int?
+  published   Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  rsvps       EventRsvp[]
+
+  @@index([startsAt])
+  @@index([published])
+}
+
+// One row per member per event; status is GOING | MAYBE | DECLINED.
+// Unique on the pair so changing your answer updates rather than stacks.
+model EventRsvp {
+  id        String   @id @default(uuid())
+  eventId   String
+  userId    String
+  status    String   @default("GOING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId])
 }
 
 // A member-reported maintenance issue for their unit, worked through an admin queue.
