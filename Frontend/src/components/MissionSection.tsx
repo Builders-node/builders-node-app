@@ -2,7 +2,7 @@ import { FileText, Percent, Scale, Shield, Monitor, ChevronLeft, ChevronRight, A
 import { useRef, useState, useEffect } from "react";
 import { useGsapTitle } from "@/hooks/useGsapTitle";
 import communityImg1 from "@/assets/gallery-4.jpg";
-import communityImg2 from "@/assets/gallery-5.jpg";
+import communityImg2 from "@/assets/gallery-5.webp";
 import govClarity from "@/assets/governance-clarity.jpg";
 import govEfficiency from "@/assets/governance-efficiency.jpg";
 import govSupport from "@/assets/governance-support.jpg";
@@ -110,7 +110,7 @@ const MissionSection = () => {
           </div>
 
           <div className="w-full h-[50vh] rounded-2xl overflow-hidden">
-            <img
+            <img loading="lazy" decoding="async"
               src={communityImg1}
               alt="Community collaboration"
               className="w-full h-full object-cover"

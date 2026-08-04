@@ -35,21 +35,21 @@ const AboutSection = () => {
 
           <div className="flex gap-3 items-end">
             <div className="w-28 h-28 rounded-full overflow-hidden">
-              <img
+              <img loading="lazy" decoding="async"
                 src={about1}
                 alt="Community life"
                 className="w-full h-full object-cover"
               />
             </div>
             <div className="w-24 h-24 rounded-full overflow-hidden">
-              <img
+              <img loading="lazy" decoding="async"
                 src={about2}
                 alt="Community life"
                 className="w-full h-full object-cover"
               />
             </div>
             <div className="w-20 h-20 rounded-full overflow-hidden">
-              <img
+              <img loading="lazy" decoding="async"
                 src={about3}
                 alt="Community life"
                 className="w-full h-full object-cover"

@@ -1,12 +1,12 @@
 import { useGsapTitle } from "@/hooks/useGsapTitle";
-import timUrbanImg from "@/assets/tim-urban.png";
-import sidSijbrandijImg from "@/assets/sid-sijbrandij.png";
-import bryanJohnsonImg from "@/assets/bryan-johnson.png";
-import timDraperImg from "@/assets/tim-draper.png";
-import aubreyDeGreyImg from "@/assets/aubrey-de-grey.png";
-import navalRavikantImg from "@/assets/naval-ravikant.png";
-import balajiImg from "@/assets/balaji-srinivasan.png";
-import brianArmstrongImg from "@/assets/brian-armstrong.png";
+import timUrbanImg from "@/assets/tim-urban.webp";
+import sidSijbrandijImg from "@/assets/sid-sijbrandij.webp";
+import bryanJohnsonImg from "@/assets/bryan-johnson.webp";
+import timDraperImg from "@/assets/tim-draper.webp";
+import aubreyDeGreyImg from "@/assets/aubrey-de-grey.webp";
+import navalRavikantImg from "@/assets/naval-ravikant.webp";
+import balajiImg from "@/assets/balaji-srinivasan.webp";
+import brianArmstrongImg from "@/assets/brian-armstrong.webp";
 
 interface Speaker {
   name: string;
@@ -121,7 +121,7 @@ const SpeakersSection = () => {
                 className="group relative rounded-2xl overflow-hidden flex-shrink-0 w-[70vw] aspect-[3/4] flex flex-col justify-end snap-start"
                 style={{ background: gradient }}
               >
-                <img
+                <img loading="lazy" decoding="async"
                   src={speaker.imageUrl}
                   alt={speaker.name}
                   className="absolute inset-0 w-full h-full object-cover object-top"
@@ -161,7 +161,7 @@ const SpeakersSection = () => {
                 className="group relative rounded-2xl overflow-hidden aspect-[3/4] flex flex-col justify-end"
                 style={{ background: gradient }}
               >
-                <img
+                <img loading="lazy" decoding="async"
                   src={speaker.imageUrl}
                   alt={speaker.name}
                   className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"

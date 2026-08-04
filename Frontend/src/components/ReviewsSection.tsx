@@ -130,7 +130,7 @@ const ReviewsSection = () => {
         <div className="relative overflow-hidden" style={{ height: "850px" }}>
           {/* All background images stacked — only active one visible */}
           {reviews.map((r, i) => (
-            <img
+            <img loading="lazy" decoding="async"
               key={r.name}
               ref={(el) => { imgRefs.current[i] = el; }}
               src={r.image}
@@ -198,7 +198,7 @@ const ReviewsSection = () => {
                       boxShadow: i === active ? "0 0 20px rgba(255,255,255,0.3)" : "none",
                     }}
                   >
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={r.image}
                       alt={r.name}
                       className="w-full h-full object-cover"

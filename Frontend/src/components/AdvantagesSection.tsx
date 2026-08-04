@@ -7,12 +7,12 @@ import advRoom from "@/assets/adv-room.jpg";
 import advEresidency from "@/assets/adv-eresidency.jpg";
 import advCoworking from "@/assets/adv-coworking.jpg";
 import advGym from "@/assets/gallery-3.jpg";
-import advPool from "@/assets/adv-pool.jpg";
-import advTennis from "@/assets/adv-tennis.jpg";
+import advPool from "@/assets/adv-pool.webp";
+import advTennis from "@/assets/adv-tennis.webp";
 
-import advMeals from "@/assets/apply-food.png";
-import advFitness from "@/assets/adv-fitness.jpg";
-import advWorkshops from "@/assets/gallery-5.jpg";
+import advMeals from "@/assets/apply-food.webp";
+import advFitness from "@/assets/adv-fitness.webp";
+import advWorkshops from "@/assets/gallery-5.webp";
 
 const advantages = [
   { num: "/01", icon: Building2, title: "Duna Tower Service Room", tags: "ACCOMMODATION, PREMIUM", image: advRoom, description: "Fully furnished rooms designed for comfort and focus.\nLive in a space that supports both rest and productivity." },

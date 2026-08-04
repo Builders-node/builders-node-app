@@ -1,22 +1,35 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { AppShell } from './components/AppShell';
 import { AuthPanel } from './components/AuthPanel';
 import { PullToRefresh } from './components/PullToRefresh';
 import { ADMIN_SUB_PAGES, canonicalPathFor, pageForPath, type PageId } from './data/dashboard';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { AdminLogin } from './pages/AdminLogin';
-import { Landing } from './pages/Landing';
-import { Profile } from './pages/Profile';
-import { Security } from './pages/Security';
 import { apiRequest, ApiError, isTokenExpired } from './lib/api';
-import { AllUsers } from './pages/AllUsers';
-import { Units } from './pages/Units';
-import { Apply } from './pages/Apply';
-import { VerifyEmail } from './pages/VerifyEmail';
-import { Resources } from './pages/Resources';
-import { Pass } from './pages/Pass';
-import { Community } from './pages/Community';
-import { MyProfile } from './pages/MyProfile';
+
+// Eager: the member home is the first paint after login, so lazy-loading it
+// would only add a round trip to the most common path.
+import { Profile } from './pages/Profile';
+
+/**
+ * Everything else is split out. A member never opens the admin panel, an admin
+ * never re-reads the landing page, and only applicants see Apply — shipping all
+ * of it up front made every first load carry the whole product.
+ *
+ * Written out one by one rather than through a generic helper: these are named
+ * exports, and only the explicit `.then(m => ({ default: m.X }))` form lets
+ * TypeScript keep each component's prop types.
+ */
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
+const AllUsers = lazy(() => import('./pages/AllUsers').then((m) => ({ default: m.AllUsers })));
+const Units = lazy(() => import('./pages/Units').then((m) => ({ default: m.Units })));
+const Landing = lazy(() => import('./pages/Landing').then((m) => ({ default: m.Landing })));
+const Apply = lazy(() => import('./pages/Apply').then((m) => ({ default: m.Apply })));
+const AdminLogin = lazy(() => import('./pages/AdminLogin').then((m) => ({ default: m.AdminLogin })));
+const Security = lazy(() => import('./pages/Security').then((m) => ({ default: m.Security })));
+const Resources = lazy(() => import('./pages/Resources').then((m) => ({ default: m.Resources })));
+const Community = lazy(() => import('./pages/Community').then((m) => ({ default: m.Community })));
+const MyProfile = lazy(() => import('./pages/MyProfile').then((m) => ({ default: m.MyProfile })));
+const Pass = lazy(() => import('./pages/Pass').then((m) => ({ default: m.Pass })));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail').then((m) => ({ default: m.VerifyEmail })));
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'MODERATOR', 'COMMUNITY_LEADER'];
 
@@ -53,6 +66,11 @@ const PAGE_TITLES: Partial<Record<PageId, string>> = {
   adminSettings: 'Admin settings — Builders Node',
   pass: 'Member pass — Builders Node',
 };
+
+/** Shown only while a split page chunk is in flight. */
+function PageFallback() {
+  return <div className="page-stack" aria-busy="true" aria-live="polite" />;
+}
 
 function App() {
   const [activePage, setActivePage] = useState<PageId>(() => pageForPath(window.location.pathname) ?? 'landing');
@@ -281,7 +299,7 @@ function App() {
     return (
       <>
         <PullToRefresh />
-        {page}
+        <Suspense fallback={<PageFallback />}>{page}</Suspense>
       </>
     );
   }
@@ -306,7 +324,7 @@ function App() {
         setActivePage('landing');
       }}
     >
-      {page}
+      <Suspense fallback={<PageFallback />}>{page}</Suspense>
       <PullToRefresh />
     </AppShell>
   );

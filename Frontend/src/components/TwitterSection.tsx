@@ -143,7 +143,7 @@ const TweetCard = ({ tweet }: { tweet: Tweet }) => (
     }}
   >
     <div className="flex items-start gap-3 mb-4">
-      <img
+      <img loading="lazy" decoding="async"
         src={tweet.avatarUrl}
         alt={tweet.name}
         className="w-11 h-11 rounded-full object-cover flex-shrink-0"
@@ -170,7 +170,7 @@ const TweetCard = ({ tweet }: { tweet: Tweet }) => (
     </p>
 
     {tweet.postImageUrl && (
-      <img
+      <img loading="lazy" decoding="async"
         src={tweet.postImageUrl}
         alt=""
         className="w-full rounded-sm mt-4 object-cover"
