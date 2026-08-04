@@ -175,9 +175,24 @@ model Profile {
   phone     String?
   location  String?
   avatarUrl String?
+
+  // ── Community directory ────────────────────────────────────────────────────
+  // Opt-in, never on by default: members live here, so being listed is a
+  // deliberate choice rather than something to discover and switch off.
+  directoryOptIn Boolean @default(false)
+  // One-liner — "Building an AI copilot for surgeons".
+  headline       String?
+  bio            String?
+  // JSON arrays/objects kept as strings for SQLite/Postgres portability, the
+  // same convention the rest of the schema uses (photoUrlsJson, metadataJson).
+  skillsJson     String?
+  linksJson      String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([directoryOptIn])
 }
 
 model Membership {

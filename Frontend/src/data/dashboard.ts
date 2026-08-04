@@ -63,6 +63,7 @@ export type PageId =
   | 'dashboard'
   | 'profile'
   | 'pass'
+  | 'community'
   | 'resources'
   | 'security';
 
@@ -153,6 +154,7 @@ export const PAGE_PATHS: Record<PageId, string> = {
   dashboard: '/account',
   profile: '/account',
   pass: '/pass',
+  community: '/community',
   resources: '/resources',
   security: '/security',
 };
@@ -195,6 +197,7 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/admin/resources': 'adminResources',
   '/units': 'units',
   '/account': 'profile',
+  '/community': 'community',
   '/resources': 'resources',
   '/security': 'security',
 };
@@ -237,6 +240,7 @@ export const navSections: NavSection[] = [
     title: 'Members',
     items: [
       { id: 'profile', label: 'Home', icon: Home },
+      { id: 'community', label: 'Community', icon: UsersRound },
       { id: 'resources', label: 'Resources', icon: BookOpen },
       { id: 'security', label: 'Settings', icon: Settings },
     ],
