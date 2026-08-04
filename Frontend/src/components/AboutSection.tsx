@@ -1,10 +1,12 @@
 import { useGsapTitle } from "@/hooks/useGsapTitle";
+import { useBatch } from "@/lib/batch";
 import about1 from "@/assets/gallery-1.jpg";
 import about2 from "@/assets/gallery-2.jpg";
 import about3 from "@/assets/gallery-3.jpg";
 
 const AboutSection = () => {
   const titleRef = useGsapTitle<HTMLHeadingElement>();
+  const batch = useBatch();
   return (
     <section
       id="about"
@@ -78,7 +80,7 @@ const AboutSection = () => {
             className="text-base leading-relaxed mb-10"
             style={{ color: "hsl(0 0% 30%)" }}
           >
-            If you're accepted to Builders Node, membership starts at $1,950/month and includes everything from meals to gym to accommodations. We think of it as society-as-a-service. First arrivals join us from September 1, 2026 — you might be in the first batch.
+            If you're accepted to Builders Node, membership starts at $1,950/month and includes everything from meals to gym to accommodations. We think of it as society-as-a-service. First arrivals join us from {batch.longDate} — you might be in the first batch.
           </p>
 
           <a

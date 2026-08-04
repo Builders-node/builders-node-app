@@ -68,8 +68,8 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
   const visitOptions = useMemo(() => {
     const today = new Date();
     const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-    // Batch start from admin settings, falling back to September 1, 2026.
-    const firstArrival = batch.date ?? new Date(2026, 8, 1);
+    // Batch start from admin settings (useBatch supplies its own fallback).
+    const firstArrival = batch.date;
     const start = nextMonth > firstArrival ? nextMonth : firstArrival;
     return Array.from({ length: 12 }, (_, i) => {
       const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
@@ -483,7 +483,7 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
               </SelectContent>
             </Select>
             <p className="text-xs" style={{ color: "hsl(0 0% 45%)" }}>
-              First arrivals start September 1, 2026. Memberships begin on the first of each month.
+              First arrivals start {batch.longDate}. Memberships begin on the first of each month.
             </p>
           </div>
 

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import ApplyForm from '@/components/ApplyForm';
 import { Toaster } from '@/components/ui/toaster';
-import { BatchProvider } from '@/lib/batch';
 import logo from '@/assets/logo.svg';
 import featRoom from '@/assets/adv-room.jpg';
 import featMeals from '@/assets/apply-food.webp';
@@ -58,7 +57,7 @@ export function Apply({ currentUserId, setActivePage, setCurrentUserId, setCurre
   const goHome = () => setActivePage(currentUserId ? 'profile' : 'landing');
 
   return (
-    <BatchProvider>
+    <>
       <div className="landing-root" style={{ minHeight: '100vh', backgroundColor: 'hsl(30 30% 96%)', color: 'hsl(0 0% 10%)' }}>
         {/* Top nav */}
         <header className="border-b" style={{ borderColor: 'hsl(0 0% 88%)', backgroundColor: 'hsl(30 30% 96%)' }}>
@@ -148,6 +147,6 @@ export function Apply({ currentUserId, setActivePage, setCurrentUserId, setCurre
         </main>
       </div>
       <Toaster />
-    </BatchProvider>
+    </>
   );
 }

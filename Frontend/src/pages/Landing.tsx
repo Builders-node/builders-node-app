@@ -14,7 +14,6 @@ import SpeakersSection from '@/components/SpeakersSection';
 import EventsSection from '@/components/EventsSection';
 import FAQSection from '@/components/FAQSection';
 import Footer from '@/components/Footer';
-import { BatchProvider } from '@/lib/batch';
 import { ApplyNavProvider, AccountNavProvider } from '@/lib/applyNav';
 import type { PageId } from '../data/dashboard';
 
@@ -27,7 +26,6 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
   return (
       <MemoryRouter>
         <TooltipProvider>
-          <BatchProvider>
           <ApplyNavProvider openApply={() => setActivePage('apply')}>
           <AccountNavProvider
             value={{
@@ -52,7 +50,6 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
           </div>
           </AccountNavProvider>
           </ApplyNavProvider>
-          </BatchProvider>
           <Toaster />
           <Sonner />
         </TooltipProvider>

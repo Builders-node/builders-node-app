@@ -1,15 +1,16 @@
 import { Plus, Minus } from "lucide-react";
 import { useState } from "react";
 import { useGsapTitle } from "@/hooks/useGsapTitle";
+import { useBatch } from "@/lib/batch";
 
-const faqs = [
+const faqsFor = (firstArrival: string) => [
   {
     q: "What is Próspera?",
     a: "Próspera is a special economic zone and startup society in the Caribbean, designed for builders, creators, and entrepreneurs who want to live and work in a free, innovative environment.",
   },
   {
     q: "When can I move in?",
-    a: "Our first batch of residents arrives on September 1, 2026. After that, new memberships begin on the first of every month — pick the start date that works best for you when you apply.",
+    a: `Our first batch of residents arrives on ${firstArrival}. After that, new memberships begin on the first of every month — pick the start date that works best for you when you apply.`,
   },
   {
     q: "How do I apply?",
@@ -52,6 +53,8 @@ const borderLight = "hsl(0 0% 10% / 0.12)";
 const FAQSection = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const titleRef = useGsapTitle<HTMLHeadingElement>();
+  const batch = useBatch();
+  const faqs = faqsFor(batch.longDate);
 
   return (
     <section className="py-24 md:py-32 px-8 md:px-12">

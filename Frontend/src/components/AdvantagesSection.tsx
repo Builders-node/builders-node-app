@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useGsapTitle } from "@/hooks/useGsapTitle";
+import { useBatch } from "@/lib/batch";
 import { Building2, Globe, Laptop, Dumbbell, Waves, Trophy, Utensils, CircleDot, HeartPulse, BookOpen, Sparkles } from "lucide-react";
 
 import advRoom from "@/assets/adv-room.jpg";
@@ -38,6 +39,7 @@ const AdvantagesSection = () => {
   const [tappedIndex, setTappedIndex] = useState<number | null>(null);
   const isMobile = useIsMobile();
   const titleRef = useGsapTitle<HTMLHeadingElement>();
+  const batch = useBatch();
 
   return (
     <section className="py-24 md:py-32 px-8 md:px-12">
@@ -51,7 +53,7 @@ const AdvantagesSection = () => {
             Starting at $1,950/month
           </h2>
           <p className="text-base md:text-lg font-light max-w-lg" style={{ color: textMuted }}>
-            Your membership includes everything, from room to food to gym. First arrivals from September 1, 2026.
+            Your membership includes everything, from room to food to gym. First arrivals from {batch.longDate}.
           </p>
         </div>
 
