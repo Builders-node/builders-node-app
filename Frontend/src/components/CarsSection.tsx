@@ -26,8 +26,18 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000').
 /** The bookable window. Slots start on the hour; the last one ends at DAY_END. */
 const DAY_START_HOUR = 7;
 const DAY_END_HOUR = 22;
-/** One member can hold a car for at most this long — mirrored on the server. */
+/**
+ * Hours one member gets per day, across every car — mirrored on the server,
+ * which is what actually enforces it.
+ */
 const MAX_HOURS = 3;
+
+/** Shown before booking, so the terms aren't a surprise on return. */
+const RULES = [
+  'Bring it back clean inside.',
+  'Return it with a full tank.',
+  'Any damage during your booking is yours to cover.',
+];
 /** How far ahead the day strip runs. */
 const DAYS_AHEAD = 14;
 
@@ -113,18 +123,41 @@ export function CarsSection({ currentUserId }: { currentUserId: string }) {
     return out;
   }, [selected, day]);
 
-  /** Durations that fit in the free run after `startHour`, capped at MAX_HOURS. */
+  /**
+   * Hours this member has already booked on the chosen day, across every car.
+   * The cap is per person per day, not per booking — otherwise you just book
+   * 16:00-19:00 and then 19:00-22:00 and have the car for six hours.
+   */
+  const hoursUsedToday = useMemo(() => {
+    const dayStart = atHour(day, 0).getTime();
+    const dayEnd = dayStart + 24 * 3600 * 1000;
+    const ms = bookings
+      .filter((b) => b.status !== 'CANCELLED')
+      .reduce((sum, b) => {
+        const s = Math.max(new Date(b.startDate).getTime(), dayStart);
+        const e = Math.min(new Date(b.endDate).getTime(), dayEnd);
+        return sum + Math.max(0, e - s);
+      }, 0);
+    return ms / (3600 * 1000);
+  }, [bookings, day]);
+
+  const hoursLeftToday = Math.max(0, MAX_HOURS - hoursUsedToday);
+
+  /**
+   * Durations that fit in the free run after `startHour` — bounded by the free
+   * hours ahead, the end of the day, and what's left of the member's quota.
+   */
   const allowedHours = useMemo(() => {
     if (startHour === null) return [];
     const allowed: number[] = [];
-    for (let n = 1; n <= MAX_HOURS; n += 1) {
+    for (let n = 1; n <= Math.floor(hoursLeftToday); n += 1) {
       if (startHour + n > DAY_END_HOUR) break;
       const covered = slots.filter((s) => s.hour >= startHour && s.hour < startHour + n);
       if (covered.length !== n || covered.some((s) => s.taken || s.past)) break;
       allowed.push(n);
     }
     return allowed;
-  }, [startHour, slots]);
+  }, [startHour, slots, hoursLeftToday]);
 
   // Picking a new start (or a new day/car) can invalidate the chosen duration.
   useEffect(() => {
@@ -259,7 +292,7 @@ export function CarsSection({ currentUserId }: { currentUserId: string }) {
             <div className="modal-head">
               <div>
                 <h2>Rent a car</h2>
-                <p>Pick a car, then a free slot — up to {MAX_HOURS} hours.</p>
+                <p>Pick a car, then a free slot. {MAX_HOURS} hours a day per member.</p>
               </div>
               <button className="icon-button" type="button" onClick={() => setIsOpen(false)} aria-label="Close">
                 <X size={18} />
@@ -316,7 +349,7 @@ export function CarsSection({ currentUserId }: { currentUserId: string }) {
                 answer to "when is it free?" is on screen instead of guessed. */}
             <div className="cal-slots" role="group" aria-label="Pick a start time">
               {slots.map((slot) => {
-                const disabled = slot.taken || slot.past;
+                const disabled = slot.taken || slot.past || hoursLeftToday < 1;
                 const active = startHour === slot.hour;
                 const covered =
                   startHour !== null && slot.hour > startHour && slot.hour < startHour + hours;
@@ -342,8 +375,16 @@ export function CarsSection({ currentUserId }: { currentUserId: string }) {
               })}
             </div>
 
-            {slots.every((s) => s.taken || s.past) ? (
+            {hoursLeftToday < 1 ? (
+              <p className="form-hint">
+                You've used your {MAX_HOURS} hours for this day. Pick another day.
+              </p>
+            ) : slots.every((s) => s.taken || s.past) ? (
               <p className="form-hint">Nothing free left on this day — try another.</p>
+            ) : hoursUsedToday > 0 ? (
+              <p className="form-hint">
+                {hoursLeftToday}h of your {MAX_HOURS}h left for this day.
+              </p>
             ) : null}
 
             {startHour !== null && allowedHours.length > 0 ? (
@@ -368,6 +409,14 @@ export function CarsSection({ currentUserId }: { currentUserId: string }) {
             ) : null}
 
             {error ? <p className="form-error">{error}</p> : null}
+
+            {/* Above the button, not buried in a confirmation nobody reads. */}
+            <div className="car-rules">
+              <strong>When you bring it back</strong>
+              <ul>
+                {RULES.map((rule) => <li key={rule}>{rule}</li>)}
+              </ul>
+            </div>
 
             <label>Note (optional)<textarea value={note} onChange={(event) => setNote(event.target.value)} rows={2} placeholder="Anything the team should know…" /></label>
 

@@ -4229,6 +4229,25 @@ textarea {
 .cal-duration__label { font-size: 0.85rem; font-weight: 650; }
 .cal-duration__range { color: var(--muted); font-size: 0.85rem; margin-left: auto; }
 
+/* The terms of borrowing a shared car, stated before you take it. */
+.car-rules {
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  padding: 10px 12px;
+}
+.car-rules strong {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.car-rules ul { margin: 0; padding-left: 1.1rem; }
+.car-rules li + li { margin-top: 3px; }
+
 /* ── Pull-to-refresh indicator ──────────────────────────────────────────────── */
 .ptr {
   position: fixed;

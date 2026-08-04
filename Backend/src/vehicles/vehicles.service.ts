@@ -5,14 +5,39 @@ import { NotificationsService } from '../notifications/notifications.service';
 const MAX_PHOTO_BASE64_LENGTH = 3_500_000; // ~2.5 MB
 
 /**
- * One member can hold a car for at most three hours. There are a handful of
- * shared cars and a residence full of people; day-long bookings meant one
- * person could take a car off the board for everyone else.
+ * Three hours per member per day, across every car.
  *
- * Enforced here as well as in the UI — the UI only offers 1/2/3h, but the
- * endpoint is what actually protects the rule.
+ * A per-booking cap alone did nothing: you booked 16:00-19:00, then 19:00-22:00,
+ * and had the car for six hours anyway. There are a handful of shared cars and a
+ * residence full of people, so the limit has to be on the person's day, not on
+ * one row.
+ *
+ * Enforced here as well as in the UI — the UI stops offering slots once you're
+ * out of hours, but the endpoint is what actually protects the rule.
  */
 export const MAX_BOOKING_HOURS = 3;
+
+/**
+ * Próspera does not observe DST, so a fixed offset is exact rather than an
+ * approximation. The day that matters is the day where the car physically is:
+ * a member booking from another timezone still gets the residence's day.
+ */
+const RESIDENCE_UTC_OFFSET_HOURS = -6;
+
+/** Start of the residence-local day containing `instant`, as a UTC instant. */
+function residenceDayStart(instant: Date): Date {
+  const offsetMs = RESIDENCE_UTC_OFFSET_HOURS * 3600 * 1000;
+  const shifted = new Date(instant.getTime() + offsetMs);
+  shifted.setUTCHours(0, 0, 0, 0);
+  return new Date(shifted.getTime() - offsetMs);
+}
+
+/** Milliseconds of [aStart,aEnd] that fall inside [bStart,bEnd]. */
+function overlapMs(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): number {
+  const start = Math.max(aStart.getTime(), bStart.getTime());
+  const end = Math.min(aEnd.getTime(), bEnd.getTime());
+  return Math.max(0, end - start);
+}
 
 type VehicleInput = {
   name?: string;
@@ -152,6 +177,33 @@ export class VehiclesService {
     });
     if (overlap) {
       throw new BadRequestException("Those dates overlap another booking. Please pick a different range.");
+    }
+
+    // Daily quota, counted across every car: two back-to-back three-hour
+    // bookings are the exact thing this stops.
+    const dayStart = residenceDayStart(start);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 3600 * 1000);
+    const sameDay = await this.prisma.vehicleBooking.findMany({
+      where: {
+        userId,
+        status: 'ACTIVE',
+        startDate: { lt: dayEnd },
+        endDate: { gt: dayStart },
+      },
+      select: { startDate: true, endDate: true },
+    });
+    // Clipped to the day, so a booking that straddles midnight only spends the
+    // hours it actually uses on each side.
+    const usedMs = sameDay.reduce((sum, b) => sum + overlapMs(b.startDate, b.endDate, dayStart, dayEnd), 0);
+    const requestedMs = overlapMs(start, end, dayStart, dayEnd);
+    const limitMs = MAX_BOOKING_HOURS * 3600 * 1000;
+    if (usedMs + requestedMs > limitMs) {
+      const remainingHours = Math.max(0, (limitMs - usedMs) / (3600 * 1000));
+      throw new BadRequestException(
+        remainingHours === 0
+          ? `You've already used your ${MAX_BOOKING_HOURS} hours for that day.`
+          : `That would put you over ${MAX_BOOKING_HOURS} hours for the day — you have ${remainingHours}h left.`,
+      );
     }
 
     const booking = await this.prisma.vehicleBooking.create({
