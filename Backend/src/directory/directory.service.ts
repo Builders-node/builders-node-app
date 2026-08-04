@@ -1,13 +1,17 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../database/prisma.service';
+import {
+  avatarUrlFor,
+  MAX_BIO,
+  MAX_HEADLINE,
+  normalizeLinks,
+  normalizeSkills,
+  parseJsonArray,
+  parseLinks,
+  type ProfileLinks,
+} from '../common/profile-fields';
 
-/** Links a member can attach to their directory profile. */
-export type ProfileLinks = {
-  website?: string;
-  twitter?: string;
-  linkedin?: string;
-  github?: string;
-};
+export type { ProfileLinks };
+import { PrismaService } from '../database/prisma.service';
 
 export type DirectoryProfileInput = {
   directoryOptIn?: boolean;
@@ -16,55 +20,6 @@ export type DirectoryProfileInput = {
   skills?: string[];
   links?: ProfileLinks;
 };
-
-const MAX_SKILLS = 12;
-const MAX_SKILL_LENGTH = 32;
-const MAX_HEADLINE = 120;
-const MAX_BIO = 600;
-
-function parseJsonArray(raw: string | null | undefined): string[] {
-  if (!raw) return [];
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
-  } catch {
-    return [];
-  }
-}
-
-function parseLinks(raw: string | null | undefined): ProfileLinks {
-  if (!raw) return {};
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-    const source = parsed as Record<string, unknown>;
-    const out: ProfileLinks = {};
-    for (const key of ['website', 'twitter', 'linkedin', 'github'] as const) {
-      const value = source[key];
-      if (typeof value === 'string' && value.trim()) out[key] = value.trim();
-    }
-    return out;
-  } catch {
-    return {};
-  }
-}
-
-/** Trim, drop empties, dedupe case-insensitively, and cap length + count. */
-function normalizeSkills(skills: string[] | undefined): string[] {
-  if (!Array.isArray(skills)) return [];
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const raw of skills) {
-    const value = String(raw ?? '').trim().slice(0, MAX_SKILL_LENGTH);
-    if (!value) continue;
-    const key = value.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(value);
-    if (out.length >= MAX_SKILLS) break;
-  }
-  return out;
-}
 
 @Injectable()
 export class DirectoryService {
@@ -99,6 +54,8 @@ export class DirectoryService {
         fullName: true,
         location: true,
         avatarUrl: true,
+        avatarData: true,
+        avatarFileType: true,
         headline: true,
         skillsJson: true,
         user: { select: { membership: { select: { activatedAt: true } } } },
@@ -113,7 +70,7 @@ export class DirectoryService {
         userId: profile.userId,
         fullName: profile.fullName ?? 'Member',
         location: profile.location,
-        avatarUrl: profile.avatarUrl,
+        avatarUrl: avatarUrlFor(profile),
         headline: profile.headline,
         skills: parseJsonArray(profile.skillsJson),
         memberSince: profile.user.membership?.activatedAt ?? null,
@@ -156,6 +113,8 @@ export class DirectoryService {
         fullName: true,
         location: true,
         avatarUrl: true,
+        avatarData: true,
+        avatarFileType: true,
         headline: true,
         bio: true,
         skillsJson: true,
@@ -181,7 +140,7 @@ export class DirectoryService {
       userId: profile.userId,
       fullName: profile.fullName ?? 'Member',
       location: profile.location,
-      avatarUrl: profile.avatarUrl,
+      avatarUrl: avatarUrlFor(profile),
       headline: profile.headline,
       bio: profile.bio,
       skills: parseJsonArray(profile.skillsJson),
@@ -200,6 +159,8 @@ export class DirectoryService {
         fullName: true,
         location: true,
         avatarUrl: true,
+        avatarData: true,
+        avatarFileType: true,
         headline: true,
         bio: true,
         skillsJson: true,
@@ -211,7 +172,7 @@ export class DirectoryService {
     return {
       fullName: profile?.fullName ?? null,
       location: profile?.location ?? null,
-      avatarUrl: profile?.avatarUrl ?? null,
+      avatarUrl: avatarUrlFor(profile),
       headline: profile?.headline ?? null,
       bio: profile?.bio ?? null,
       skills: parseJsonArray(profile?.skillsJson),
@@ -233,14 +194,7 @@ export class DirectoryService {
     if (input.headline !== undefined) data.headline = input.headline.trim().slice(0, MAX_HEADLINE) || null;
     if (input.bio !== undefined) data.bio = input.bio.trim().slice(0, MAX_BIO) || null;
     if (input.skills !== undefined) data.skillsJson = JSON.stringify(normalizeSkills(input.skills));
-    if (input.links !== undefined) {
-      const links: ProfileLinks = {};
-      for (const key of ['website', 'twitter', 'linkedin', 'github'] as const) {
-        const value = input.links?.[key];
-        if (typeof value === 'string' && value.trim()) links[key] = value.trim().slice(0, 200);
-      }
-      data.linksJson = JSON.stringify(links);
-    }
+    if (input.links !== undefined) data.linksJson = JSON.stringify(normalizeLinks(input.links));
 
     // The row may not exist yet for a member who never edited their profile.
     await this.prisma.profile.upsert({

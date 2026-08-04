@@ -211,7 +211,13 @@ model Profile {
   fullName  String?
   phone     String?
   location  String?
-  avatarUrl String?
+  // Avatar is stored inline (base64) like Vehicle.photoData and
+  // MaintenanceRequest.photoData — avatars are small and it keeps the stack
+  // free of an object store. The API exposes it as a URL pointing at
+  // GET /users/:id/avatar, so clients never handle the blob.
+  avatarUrl      String?
+  avatarData     String?
+  avatarFileType String?
 
   // ── Community directory ────────────────────────────────────────────────────
   // Opt-in, never on by default: members live here, so being listed is a

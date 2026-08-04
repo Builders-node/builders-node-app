@@ -297,15 +297,10 @@ export function AppShell({
 
                   <button
                     className="account-dropdown__item"
-                    onClick={() => {
-                      setAccountOpen(false);
-                      // Land on the account page, then ask it to open the edit modal.
-                      go('profile');
-                      setTimeout(() => window.dispatchEvent(new Event('profile:edit')), 30);
-                    }}
+                    onClick={() => { setAccountOpen(false); go('myProfile'); }}
                   >
                     <Pencil size={16} />
-                    Edit account
+                    Your profile
                   </button>
                   <button className="account-dropdown__item" onClick={() => { setAccountOpen(false); go('security'); }}>
                     <SettingsIcon size={16} />

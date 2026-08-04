@@ -4,6 +4,7 @@ import { PageHeader } from '../components/PageHeader';
 import { apiRequest } from '../lib/api';
 import { useEscapeToClose } from '../lib/useModalA11y';
 import { EventsTab } from './CommunityEvents';
+import type { PageId } from '../data/dashboard';
 
 type DirectoryItem = {
   userId: string;
@@ -32,17 +33,17 @@ type MyProfile = {
 };
 
 const LINK_META = [
-  { key: 'website', label: 'Website', icon: Globe, placeholder: 'https://yoursite.com' },
-  { key: 'twitter', label: 'X / Twitter', icon: Twitter, placeholder: 'https://x.com/you' },
-  { key: 'linkedin', label: 'LinkedIn', icon: Linkedin, placeholder: 'https://linkedin.com/in/you' },
-  { key: 'github', label: 'GitHub', icon: Github, placeholder: 'https://github.com/you' },
+  { key: 'website', label: 'Website', icon: Globe },
+  { key: 'twitter', label: 'X / Twitter', icon: Twitter },
+  { key: 'linkedin', label: 'LinkedIn', icon: Linkedin },
+  { key: 'github', label: 'GitHub', icon: Github },
 ] as const;
 
 function initials(name: string): string {
   return name.trim().split(/\s+/).slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join('') || '?';
 }
 
-export function Community({ currentUserId }: { currentUserId?: string | null }) {
+export function Community({ currentUserId, setActivePage }: { currentUserId?: string | null; setActivePage?: (page: PageId) => void }) {
   const [tab, setTab] = useState<'members' | 'events'>('members');
   const [items, setItems] = useState<DirectoryItem[]>([]);
   const [skills, setSkills] = useState<Array<{ name: string; count: number }>>([]);
@@ -55,10 +56,6 @@ export function Community({ currentUserId }: { currentUserId?: string | null }) 
   useEscapeToClose(Boolean(selected), () => setSelected(null));
 
   const [mine, setMine] = useState<MyProfile | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
-  useEscapeToClose(editorOpen, () => setEditorOpen(false));
-  const [saving, setSaving] = useState(false);
-  const [skillDraft, setSkillDraft] = useState('');
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -102,31 +99,6 @@ export function Community({ currentUserId }: { currentUserId?: string | null }) 
     }
   }
 
-  async function saveMine(next: Partial<MyProfile>) {
-    if (!currentUserId || !mine) return;
-    setSaving(true);
-    try {
-      const updated = await apiRequest<MyProfile>(`/users/${currentUserId}/directory-profile`, {
-        method: 'PATCH',
-        body: JSON.stringify(next),
-      });
-      setMine(updated);
-      await load();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not save your profile.');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function addSkill() {
-    const value = skillDraft.trim();
-    if (!value || !mine) return;
-    if (mine.skills.some((s) => s.toLowerCase() === value.toLowerCase())) { setSkillDraft(''); return; }
-    setMine({ ...mine, skills: [...mine.skills, value] });
-    setSkillDraft('');
-  }
-
   return (
     <div className="page-stack">
       <PageHeader
@@ -134,7 +106,7 @@ export function Community({ currentUserId }: { currentUserId?: string | null }) 
         description="The people building alongside you, and what's happening this week."
         action={
           mine && tab === 'members' ? (
-            <button className="ghost-button" onClick={() => setEditorOpen(true)}>
+            <button className="ghost-button" onClick={() => setActivePage?.('myProfile')}>
               <UserRound size={16} />
               {mine.directoryOptIn ? 'Edit your profile' : 'Add your profile'}
             </button>
@@ -168,7 +140,7 @@ export function Community({ currentUserId }: { currentUserId?: string | null }) 
             <strong>You're not in the directory yet</strong>
             <span>Add a short profile so other members know what you're working on.</span>
           </span>
-          <button className="primary-button compact-button" onClick={() => setEditorOpen(true)}>Add profile</button>
+          <button className="primary-button compact-button" onClick={() => setActivePage?.('myProfile')}>Add profile</button>
         </div>
       ) : null}
 
@@ -307,106 +279,6 @@ export function Community({ currentUserId }: { currentUserId?: string | null }) 
         </div>
       ) : null}
 
-      {/* Your own profile */}
-      {editorOpen && mine ? (
-        <div className="modal-overlay" role="presentation" onClick={() => setEditorOpen(false)}>
-          <form
-            className="profile-edit-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Your directory profile"
-            onClick={(event) => event.stopPropagation()}
-            onSubmit={(event) => { event.preventDefault(); void saveMine(mine).then(() => setEditorOpen(false)); }}
-          >
-            <div className="modal-head">
-              <div>
-                <h2>Your directory profile</h2>
-                <p>Shown to other active members only — never public, never to applicants.</p>
-              </div>
-              <button className="icon-button" type="button" onClick={() => setEditorOpen(false)} aria-label="Close"><X size={18} /></button>
-            </div>
-
-            <label className="directory-optin">
-              <input
-                type="checkbox"
-                checked={mine.directoryOptIn}
-                onChange={(event) => setMine({ ...mine, directoryOptIn: event.target.checked })}
-              />
-              <span>
-                <strong>List me in the directory</strong>
-                <small>Turn this off any time and you disappear from it immediately.</small>
-              </span>
-            </label>
-
-            <label>
-              What are you building?
-              <input
-                value={mine.headline ?? ''}
-                onChange={(event) => setMine({ ...mine, headline: event.target.value })}
-                placeholder="e.g. An AI copilot for surgeons"
-                maxLength={120}
-              />
-            </label>
-
-            <label>
-              About you
-              <textarea
-                value={mine.bio ?? ''}
-                onChange={(event) => setMine({ ...mine, bio: event.target.value })}
-                rows={4}
-                maxLength={600}
-                placeholder="A couple of sentences — background, what you're looking for, what you can help with."
-              />
-            </label>
-
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: '0.85rem' }}>
-                Skills — what could someone ask you about?
-              </label>
-              <div className="directory-card__skills" style={{ marginBottom: 8 }}>
-                {mine.skills.map((skill) => (
-                  <button
-                    type="button"
-                    className="directory-skill directory-skill--removable"
-                    key={skill}
-                    onClick={() => setMine({ ...mine, skills: mine.skills.filter((s) => s !== skill) })}
-                  >
-                    {skill} <X size={11} />
-                  </button>
-                ))}
-              </div>
-              <div className="directory-skill-input">
-                <input
-                  value={skillDraft}
-                  onChange={(event) => setSkillDraft(event.target.value)}
-                  onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addSkill(); } }}
-                  placeholder="Add a skill and press Enter"
-                  maxLength={32}
-                  disabled={mine.skills.length >= 12}
-                />
-                <button type="button" className="ghost-button compact-button" onClick={addSkill} disabled={mine.skills.length >= 12}>
-                  Add
-                </button>
-              </div>
-            </div>
-
-            {LINK_META.map(({ key, label, placeholder }) => (
-              <label key={key}>
-                {label}
-                <input
-                  value={mine.links[key] ?? ''}
-                  onChange={(event) => setMine({ ...mine, links: { ...mine.links, [key]: event.target.value } })}
-                  placeholder={placeholder}
-                />
-              </label>
-            ))}
-
-            <button className="primary-button" type="submit" disabled={saving}>
-              {saving ? 'Saving…' : 'Save profile'}
-            </button>
-          </form>
-        </div>
-      ) : null}
     </div>
   );
 }

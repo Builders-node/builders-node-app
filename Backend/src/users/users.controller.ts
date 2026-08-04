@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { UsersService } from './users.service';
+import { UsersService, type ProfileUpdateInput } from './users.service';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -18,13 +18,12 @@ export class UsersController {
     return this.users.findReferrals(userId);
   }
 
+  /** Single write path for the whole profile page — see ProfileUpdateInput. */
   @Patch(':userId/profile')
-  updateProfile(
-    @Param('userId') userId: string,
-    @Body() body: { fullName?: string; phone?: string; location?: string },
-  ) {
+  updateProfile(@Param('userId') userId: string, @Body() body: ProfileUpdateInput) {
     return this.users.updateProfile(userId, body);
   }
+
 
   // GDPR data portability. The guard already restricts :userId to the owner
   // (admins may also access it).

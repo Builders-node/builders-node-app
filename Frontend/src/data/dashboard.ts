@@ -65,6 +65,7 @@ export type PageId =
   | 'profile'
   | 'pass'
   | 'community'
+  | 'myProfile'
   | 'resources'
   | 'security';
 
@@ -160,6 +161,7 @@ export const PAGE_PATHS: Record<PageId, string> = {
   profile: '/account',
   pass: '/pass',
   community: '/community',
+  myProfile: '/profile',
   resources: '/resources',
   security: '/security',
 };
@@ -204,6 +206,7 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/units': 'units',
   '/account': 'profile',
   '/community': 'community',
+  '/profile': 'myProfile',
   '/resources': 'resources',
   '/security': 'security',
 };

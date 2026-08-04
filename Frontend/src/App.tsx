@@ -16,6 +16,7 @@ import { VerifyEmail } from './pages/VerifyEmail';
 import { Resources } from './pages/Resources';
 import { Pass } from './pages/Pass';
 import { Community } from './pages/Community';
+import { MyProfile } from './pages/MyProfile';
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'MODERATOR', 'COMMUNITY_LEADER'];
 
@@ -33,6 +34,7 @@ const PAGE_TITLES: Partial<Record<PageId, string>> = {
   profile: 'Account — Builders Node',
   resources: 'Resources — Builders Node',
   community: 'Community — Builders Node',
+  myProfile: 'Your profile — Builders Node',
   security: 'Security — Builders Node',
   dashboard: 'Home — Builders Node',
   allUsers: 'Users — Builders Node',
@@ -220,9 +222,13 @@ function App() {
       if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
       return <Profile currentUserId={currentUserId} setActivePage={setActivePage} />;
     }
+    if (activePage === 'myProfile') {
+      if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+      return <MyProfile currentUserId={currentUserId} />;
+    }
     if (activePage === 'community') {
       if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
-      return <Community currentUserId={currentUserId} />;
+      return <Community currentUserId={currentUserId} setActivePage={setActivePage} />;
     }
     if (activePage === 'resources') {
       if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
@@ -266,7 +272,7 @@ function App() {
   // Full-screen views (no app shell): the landing, every auth screen, and any
   // protected page viewed while logged out (which falls back to the login panel).
   const AUTH_PAGES: PageId[] = ['apply', 'login', 'signup', 'setupPassword', 'forgotPassword', 'resetPassword', 'verifyEmail', 'adminLogin', 'pass'];
-  const PROTECTED_PAGES: PageId[] = ['profile', 'community', 'resources', 'security', 'allUsers', 'units', ...ADMIN_SUB_PAGES];
+  const PROTECTED_PAGES: PageId[] = ['profile', 'community', 'myProfile', 'resources', 'security', 'allUsers', 'units', ...ADMIN_SUB_PAGES];
   if (
     showLanding ||
     AUTH_PAGES.includes(activePage) ||

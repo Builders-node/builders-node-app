@@ -4740,6 +4740,94 @@ body:has(.modal-overlay) .onboarding-toast { display: none; }
 }
 .day-chip--active:hover { background: #cf4a1a; border-color: #cf4a1a; }
 
+/* ── Your profile page ────────────────────────────────────────────────────── */
+.profile-identity { display: flex; gap: 18px; align-items: flex-start; }
+.profile-identity__fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+
+.profile-avatar {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: rgba(229, 84, 31, 0.12);
+  color: #e5541f;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 700;
+  overflow: hidden;
+}
+.profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.profile-avatar__edit {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 2px solid var(--surface, #fff);
+  background: #e5541f;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.profile-avatar__edit:disabled { opacity: 0.6; cursor: default; }
+.profile-avatar__remove {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  font-size: 0.78rem;
+}
+
+.profile-section__head { margin-bottom: 4px; }
+.profile-visibility {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.profile-visibility--shared { background: rgba(47, 174, 102, 0.12); color: #23935a; }
+.profile-visibility--private { background: rgba(107, 114, 128, 0.12); color: #6b7280; }
+
+.profile-hint { font-size: 0.78rem; color: var(--text-muted, #9ea3ad); }
+
+.directory-card--preview { cursor: default; pointer-events: none; max-width: 340px; }
+.directory-card--preview:hover { transform: none; border-color: var(--line, #ebedf1); }
+
+.profile-savebar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--line, #ebedf1);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+  backdrop-filter: blur(8px);
+}
+
+@media (max-width: 600px) {
+  .profile-identity { flex-direction: column; align-items: center; text-align: center; }
+  .profile-identity__fields { width: 100%; }
+}
+
+:root[data-theme='dark'] .profile-savebar { background: #1a1c22; border-color: #23262c; }
+
 /* ── Community directory ──────────────────────────────────────────────────── */
 .directory-search {
   display: flex;

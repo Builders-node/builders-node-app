@@ -118,13 +118,8 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
   const [residencyMessage, setResidencyMessage] = useState<string | null>(null);
   const [isResidencyLoading, setIsResidencyLoading] = useState(false);
   const proofInputRef = useRef<HTMLInputElement>(null);
-  const [isEditOpen, setIsEditOpen] = useState(false);
   const [onboardingModalOpen, setOnboardingModalOpen] = useState(false);
   useEscapeToClose(onboardingModalOpen, () => setOnboardingModalOpen(false));
-  useEscapeToClose(isEditOpen, () => setIsEditOpen(false));
-  const [editFullName, setEditFullName] = useState('');
-  const [editPhone, setEditPhone] = useState('');
-  const [editLocation, setEditLocation] = useState('');
   const [cleaningModalOpen, setCleaningModalOpen] = useState(false);
   useEscapeToClose(cleaningModalOpen, () => setCleaningModalOpen(false));
   const [beachClubPassOpen, setBeachClubPassOpen] = useState(false);
@@ -231,9 +226,6 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
   async function loadProfile(userId: string) {
     const data = await apiRequest<ProfileData>(`/users/${userId}/profile`);
     setProfile(data);
-    setEditFullName(data.profile?.fullName ?? '');
-    setEditPhone(data.profile?.phone ?? '');
-    setEditLocation(data.profile?.location ?? '');
   }
 
   useEffect(() => {
@@ -245,27 +237,6 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
     ])
       .catch((caught) => setError(caught instanceof Error ? caught.message : 'Could not load profile.'));
   }, [currentUserId]);
-
-  async function saveProfile() {
-    if (!currentUserId) return;
-    setError(null);
-    setProfileMessage(null);
-    try {
-      await apiRequest(`/users/${currentUserId}/profile`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          fullName: editFullName,
-          phone: editPhone,
-          location: editLocation,
-        }),
-      });
-      await loadProfile(currentUserId);
-      setIsEditOpen(false);
-      setProfileMessage('Profile updated.');
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not update profile.');
-    }
-  }
 
   async function connectDiscord() {
     if (!currentUserId) return;
@@ -303,12 +274,6 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // The header account dropdown fires this to open the edit-profile modal.
-  useEffect(() => {
-    const onOpen = () => setIsEditOpen(true);
-    window.addEventListener('profile:edit', onOpen);
-    return () => window.removeEventListener('profile:edit', onOpen);
-  }, []);
 
   async function submitProof(file: File) {
     if (!currentUserId) return;
@@ -353,7 +318,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
       done: Boolean(profile?.profile?.fullName && profile?.profile?.phone && profile?.profile?.location),
       show: true,
       actionLabel: 'Complete',
-      action: () => setIsEditOpen(true),
+      action: () => setActivePage?.('myProfile'),
     },
     {
       key: 'email',
@@ -532,39 +497,6 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
             </>
           )}
         </section>
-      ) : null}
-
-      {isEditOpen ? (
-        <div className="modal-overlay" role="presentation" onClick={() => setIsEditOpen(false)}>
-          <form
-            className="profile-edit-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Edit profile"
-            onClick={(event) => event.stopPropagation()}
-            onSubmit={(event) => {
-              event.preventDefault();
-              void saveProfile();
-            }}
-          >
-            <div className="modal-head">
-              <div>
-                <h2>Edit account</h2>
-                <p>Update the editable profile fields.</p>
-              </div>
-              <button className="icon-button" type="button" onClick={() => setIsEditOpen(false)} aria-label="Close edit profile">
-                <X size={18} />
-              </button>
-            </div>
-            <div className="form-grid">
-              <label>Full name<input value={editFullName} onChange={(event) => setEditFullName(event.target.value)} placeholder="Full name" /></label>
-              <label>Phone<input value={editPhone} onChange={(event) => setEditPhone(event.target.value)} placeholder="Phone number" /></label>
-              <label>Location<input value={editLocation} onChange={(event) => setEditLocation(event.target.value)} placeholder="Location" /></label>
-            </div>
-            <p className="modal-hint">Your email and membership details aren&apos;t editable here — contact us if they need to change.</p>
-            <button className="primary-button" type="submit">Save changes</button>
-          </form>
-        </div>
       ) : null}
 
       {showMemberSections ? (() => {
