@@ -603,6 +603,8 @@ textarea {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* The rail is a fixed 88px — nothing inside it may scroll sideways. */
+  overflow-x: hidden;
   /* Slim scrollbar so long admin sections don't clip off-screen. */
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
@@ -645,13 +647,25 @@ textarea {
   font-weight: 760;
   gap: 6px;
   justify-content: center;
-  line-height: 1.05;
+  line-height: 1.15;
   min-height: 58px;
+  /* Visible so the count pill can sit on the edge — the label below is what
+     gets constrained, otherwise long words ("Designations") push the rail wide. */
   overflow: visible;
   padding: 7px 4px;
   position: relative;
   text-align: center;
   width: 100%;
+  min-width: 0;
+}
+
+/* Labels wrap inside the rail rather than overflowing it. Wrapping beats
+   truncation here: "Designa/tions" still reads, "Design…" doesn't.
+   The count pill is excluded — it's absolutely positioned and must not wrap. */
+.nav-item > span:not(.nav-item__badge) {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 /* Pending-count pill on grouped nav items (Inbox). */
@@ -3193,6 +3207,9 @@ textarea {
     justify-content: center;
     min-height: 52px;
     padding: 6px 2px;
+    /* Without this a flex child won't shrink below its content, so the
+       ellipsis below never kicks in and the bar overflows sideways. */
+    min-width: 0;
   }
   .bottom-nav__item span {
     line-height: 1;
