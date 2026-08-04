@@ -13,6 +13,12 @@ export class AdminController {
     return this.admin.overview();
   }
 
+  /** Counts only — what the sidebar badge polls. See AdminService.counters(). */
+  @Get('counters')
+  counters() {
+    return this.admin.counters();
+  }
+
   @Get('users/:userId')
   userDetail(@Param('userId') userId: string) {
     return this.admin.userDetail(userId);

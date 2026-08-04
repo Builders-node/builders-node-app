@@ -88,7 +88,11 @@ export function Community({ currentUserId, setActivePage }: { currentUserId?: st
     if (!currentUserId) return;
     apiRequest<MyProfile>(`/users/${currentUserId}/directory-profile`)
       .then(setMine)
-      .catch(() => undefined);
+      // Swallowing this used to hide the "Add your profile" prompt entirely,
+      // so a member whose request failed simply never learned they could join.
+      .catch((caught) =>
+        setError(caught instanceof Error ? caught.message : 'Could not load your directory profile.'),
+      );
   }, [currentUserId]);
 
   async function openMember(userId: string) {

@@ -48,6 +48,29 @@ export class AdminService {
     private readonly notifications: NotificationsService,
   ) {}
 
+  /**
+   * Just the five Inbox counts. The sidebar badge polls this every minute, and
+   * `overview()` is far too heavy for that — it returns every application,
+   * every user with six nested includes, and every paid payment.
+   *
+   * Five COUNT queries, no rows.
+   */
+  async counters() {
+    const now = new Date();
+    const TERMINAL = ['APPROVED', 'FIRST_REJECTED', 'MEETING_REJECTED'];
+
+    const [pendingApplications, pendingResidency, openTickets, overduePayments, openMaintenance] =
+      await Promise.all([
+        this.prisma.application.count({ where: { status: { notIn: TERMINAL } } }),
+        this.prisma.residencyApplication.count({ where: { status: 'PENDING_REVIEW' } }),
+        this.prisma.supportTicket.count({ where: { status: 'OPEN' } }),
+        this.prisma.payment.count({ where: { status: { in: ['DUE', 'OVERDUE'] }, dueDate: { lt: now } } }),
+        this.prisma.maintenanceRequest.count({ where: { status: { not: 'RESOLVED' } } }),
+      ]);
+
+    return { pendingApplications, pendingResidency, openTickets, overduePayments, openMaintenance };
+  }
+
   async overview() {
     const now = new Date();
     const weekStart = this.startOfWeek(now);

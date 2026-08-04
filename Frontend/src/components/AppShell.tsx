@@ -65,11 +65,17 @@ export function AppShell({
   const isNavActive = (item: NavItem) => (item.matches ?? [item.id]).includes(activePage);
   const currentLabel = allNavItems.find(isNavActive)?.label ?? 'Dashboard';
 
-  // Pending counts for the sidebar badges. Admin-only; refreshed on the same
-  // cadence as notifications so the Inbox pill stays roughly live.
-  const [attention, setAttention] = useState<Record<string, number>>({});
-  const badgeFor = (item: NavItem) =>
-    (item.badgeKeys ?? []).reduce((sum, key) => sum + (attention[key] ?? 0), 0);
+  // Pending counts for the sidebar badges. Admin-only, refreshed on the same
+  // cadence as notifications.
+  //
+  // `null` means "we don't know" — a failed request must not render as 0, or an
+  // admin reads a broken fetch as "nothing to do" and walks away from real work.
+  const [attention, setAttention] = useState<Record<string, number> | null>(null);
+  const badgeFor = (item: NavItem): number | null => {
+    if (!item.badgeKeys?.length) return null;
+    if (!attention) return null;
+    return item.badgeKeys.reduce((sum, key) => sum + (attention[key] ?? 0), 0);
+  };
 
   const [accountOpen, setAccountOpen] = useState(false);
   const [referralOpen, setReferralOpen] = useState(false);
@@ -129,22 +135,38 @@ export function AppShell({
     };
   }, [currentUserId]);
 
-  // Sidebar badge counts. Cheap enough to piggyback on the notifications
-  // interval; failures are silent (the badge just stays hidden).
+  // Sidebar badge counts, from the counts-only endpoint — /admin/overview
+  // returns every application, user and payment, which is far too much to poll
+  // for five numbers.
   useEffect(() => {
     if (!isAdmin || !currentUserId) return;
     let alive = true;
+
     const load = () =>
-      apiRequest<{ attention?: Record<string, number> }>('/admin/overview')
-        .then((data) => {
-          if (alive && data.attention) setAttention(data.attention);
-        })
+      apiRequest<Record<string, number>>('/admin/counters')
+        .then((data) => { if (alive) setAttention(data); })
+        // Keep the last known counts rather than zeroing them; if we've never
+        // had any, `attention` stays null and the badge shows nothing.
         .catch(() => undefined);
+
     void load();
-    const timer = setInterval(load, 60000);
+
+    // Don't poll a tab nobody is looking at, and refresh on return so the
+    // counts are current the moment it's focused again.
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const start = () => { timer ??= setInterval(load, 60000); };
+    const stop = () => { clearInterval(timer); timer = undefined; };
+    const onVisibility = () => {
+      if (document.hidden) stop();
+      else { void load(); start(); }
+    };
+    if (!document.hidden) start();
+    document.addEventListener('visibilitychange', onVisibility);
+
     return () => {
       alive = false;
-      clearInterval(timer);
+      stop();
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [isAdmin, currentUserId]);
 
@@ -204,7 +226,9 @@ export function AppShell({
                   >
                     <Icon size={20} />
                     <span>{item.label}</span>
-                    {badge > 0 ? <span className="nav-item__badge">{badge > 99 ? '99+' : badge}</span> : null}
+                    {badge !== null && badge > 0 ? (
+                      <span className="nav-item__badge">{badge > 99 ? '99+' : badge}</span>
+                    ) : null}
                   </button>
                 );
               })}

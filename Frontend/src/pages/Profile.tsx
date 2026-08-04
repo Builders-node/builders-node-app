@@ -230,10 +230,13 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
 
   useEffect(() => {
     if (!currentUserId) return;
+    // No per-call catch: each loader sets its own state before the rejection
+    // propagates, so a failure still renders what did load — and now says so,
+    // instead of leaving membership and apartment silently blank.
     Promise.all([
       loadProfile(currentUserId),
       loadResidency(currentUserId),
-      loadHome(currentUserId).catch(() => undefined),
+      loadHome(currentUserId),
     ])
       .catch((caught) => setError(caught instanceof Error ? caught.message : 'Could not load profile.'));
   }, [currentUserId]);
