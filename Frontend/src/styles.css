@@ -3830,6 +3830,10 @@ textarea {
   overflow-x: auto;
   padding-bottom: 8px;
   margin-top: 0.5rem;
+  /* Without this every column stretches to the height of the fullest one, so a
+     board with one busy stage becomes a screen of tall empty boxes and the
+     column that actually has people in it is the hardest one to spot. */
+  align-items: start;
 }
 .pipeline-col { background: rgba(0, 0, 0, 0.025); border: 1px solid var(--line, #edeef1); border-radius: 12px; padding: 10px; min-width: 0; }
 :root[data-theme='dark'] .pipeline-col { background: rgba(255, 255, 255, 0.03); }

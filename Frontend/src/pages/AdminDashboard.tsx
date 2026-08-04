@@ -1,5 +1,5 @@
 import { ArrowLeft, Check, FileText, Home, Link as LinkIcon, Search, Send, ShieldCheck, Users, X } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import {
@@ -341,7 +341,11 @@ type ApplicantFilterId = 'all' | ApplicantBucket;
 const APPLICANTS_PER_PAGE = 8;
 
 // Index of the stage the applicant is currently AT (stages before it are done).
-// 6 = fully onboarded, -1 = rejected / no apartment.
+// 6 = fully onboarded, -1 = rejected.
+//
+// This has to agree with TERMINAL_APPLICATION_STATUSES on the server — the
+// sidebar badge counts with the server's list and these chips count with this
+// one, so any disagreement shows up as a badge that contradicts the filters.
 function applicantStageIndex(status: string, apartmentAvailable?: boolean | null): number {
   switch (status) {
     case 'SUBMITTED':
@@ -353,12 +357,19 @@ function applicantStageIndex(status: string, apartmentAvailable?: boolean | null
     case 'APARTMENT_AVAILABLE':
     case 'PAYMENT_LINK_SENT':
       return 4;
+    // Still sitting on the Apartment step, waiting for an admin to propose a new
+    // date. It used to be bucketed as rejected, which hid a live task under a
+    // filter nobody checks.
+    case 'NO_APARTMENT_AVAILABLE':
+      return 3;
     case 'PAYMENT_CONFIRMED':
       return 5;
+    // Both ends of the pipeline: the current one, and the legacy direct approval.
     case 'CREDENTIALS_SENT':
+    case 'APPROVED':
       return 6;
     default:
-      return status.includes('REJECTED') || status === 'NO_APARTMENT_AVAILABLE' ? -1 : 1;
+      return status.includes('REJECTED') ? -1 : 1;
   }
 }
 
@@ -661,6 +672,22 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     setApplicantPage(0);
   }, [applicantFilter, applicantSearch]);
 
+  /**
+   * Seven stages don't fit across the pane, so the board scrolls. Land it on the
+   * first column that actually has someone in it — otherwise a pipeline whose
+   * work sits in a later stage opens on a row of empty boxes and reads as if
+   * there are no applicants at all.
+   */
+  const pipelineBoardRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const board = pipelineBoardRef.current;
+    if (!board) return;
+    const firstFilled = board.querySelector('.pipeline-col:has(.pipeline-card)');
+    if (firstFilled instanceof HTMLElement) {
+      board.scrollLeft = Math.max(0, firstFilled.offsetLeft - board.offsetLeft - 8);
+    }
+  }, [applicantView, overview]);
+
   const metrics = [
     { label: 'Applications', value: overview?.metrics.applications ?? 0, tone: 'neutral' as StatusTone },
     { label: 'Users', value: overview?.metrics.users ?? 0, tone: 'good' as StatusTone },
@@ -698,14 +725,20 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   const allApplicants = overview?.applications ?? [];
   const applicantQuery = applicantSearch.trim().toLowerCase();
   const activeApplicantFilter = applicantFilters.find((filter) => filter.id === applicantFilter) ?? applicantFilters[0];
-  const filteredApplicants = allApplicants
-    .filter(activeApplicantFilter.matches)
-    .filter(
-      (app) =>
-        !applicantQuery ||
-        (app.fullName ?? '').toLowerCase().includes(applicantQuery) ||
-        app.email.toLowerCase().includes(applicantQuery),
-    );
+  const searchedApplicants = allApplicants.filter(
+    (app) =>
+      !applicantQuery ||
+      (app.fullName ?? '').toLowerCase().includes(applicantQuery) ||
+      app.email.toLowerCase().includes(applicantQuery),
+  );
+  /**
+   * The board draws one column per pipeline stage, so applying the bucket chips
+   * on top of it was filtering a view that already partitions by the same thing:
+   * pick "Action needed" and the Onboarded column could only ever read 0, while
+   * the chip beside it said 3. The chips belong to the list.
+   */
+  const filteredApplicants =
+    applicantView === 'board' ? searchedApplicants : searchedApplicants.filter(activeApplicantFilter.matches);
   const applicantPageCount = Math.max(1, Math.ceil(filteredApplicants.length / APPLICANTS_PER_PAGE));
   const safeApplicantPage = Math.min(applicantPage, applicantPageCount - 1);
   const pagedApplicants = filteredApplicants.slice(
@@ -1705,22 +1738,24 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                 aria-label="Search applicants"
               />
             </div>
-            <div className="designation-filter-bar" role="group" aria-label="Applicant filters">
-              {applicantFilters.map((filter) => (
-                <button
-                  className={applicantFilter === filter.id ? 'designation-filter designation-filter--active' : 'designation-filter'}
-                  key={filter.id}
-                  onClick={() => setApplicantFilter(filter.id)}
-                >
-                  <span>{filter.label}</span>
-                  <strong>{applicantCountFor(filter.id)}</strong>
-                </button>
-              ))}
-            </div>
+            {applicantView === 'list' ? (
+              <div className="designation-filter-bar" role="group" aria-label="Applicant filters">
+                {applicantFilters.map((filter) => (
+                  <button
+                    className={applicantFilter === filter.id ? 'designation-filter designation-filter--active' : 'designation-filter'}
+                    key={filter.id}
+                    onClick={() => setApplicantFilter(filter.id)}
+                  >
+                    <span>{filter.label}</span>
+                    <strong>{applicantCountFor(filter.id)}</strong>
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           {applicantView === 'board' ? (
-            <div className="pipeline-board">
+            <div className="pipeline-board" ref={pipelineBoardRef}>
               {PIPELINE_COLUMNS.map((column) => {
                 const cards = filteredApplicants.filter(
                   (app) => pipelineStage(app.status, app.apartmentAvailable) === column.stage,

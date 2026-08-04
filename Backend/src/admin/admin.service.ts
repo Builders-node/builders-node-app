@@ -30,6 +30,24 @@ const MEMBERSHIP_STATUSES = new Set([
   'SUSPENDED',
 ]);
 
+/**
+ * Application statuses with nothing left for an admin to decide.
+ *
+ * `APPROVED` is the legacy direct-approval path; `CREDENTIALS_SENT` is where the
+ * current pipeline ends. Leaving CREDENTIALS_SENT out is what made the Inbox
+ * badge read "3 waiting" while the Action-needed filter correctly showed none —
+ * every onboarded applicant was still being counted as pending forever.
+ *
+ * NO_APARTMENT_AVAILABLE is deliberately absent: that one is waiting on an admin
+ * to propose a new date.
+ */
+export const TERMINAL_APPLICATION_STATUSES = [
+  'APPROVED',
+  'CREDENTIALS_SENT',
+  'FIRST_REJECTED',
+  'MEETING_REJECTED',
+];
+
 const APARTMENT_AVAILABILITY = new Set([
   'AVAILABLE',
   'AVAILABLE_SOON',
@@ -57,11 +75,10 @@ export class AdminService {
    */
   async counters() {
     const now = new Date();
-    const TERMINAL = ['APPROVED', 'FIRST_REJECTED', 'MEETING_REJECTED'];
 
     const [pendingApplications, pendingResidency, openTickets, overduePayments, openMaintenance] =
       await Promise.all([
-        this.prisma.application.count({ where: { status: { notIn: TERMINAL } } }),
+        this.prisma.application.count({ where: { status: { notIn: TERMINAL_APPLICATION_STATUSES } } }),
         this.prisma.residencyApplication.count({ where: { status: 'PENDING_REVIEW' } }),
         this.prisma.supportTicket.count({ where: { status: 'OPEN' } }),
         this.prisma.payment.count({ where: { status: { in: ['DUE', 'OVERDUE'] }, dueDate: { lt: now } } }),
@@ -108,9 +125,9 @@ export class AdminService {
     ]);
     const income = this.buildIncomeSummary(paidPayments, { weekStart, monthStart, yearStart });
 
-    // Applications still awaiting an admin decision (not approved, not rejected).
-    const TERMINAL = new Set(['APPROVED', 'FIRST_REJECTED', 'MEETING_REJECTED']);
-    const pendingApplications = applications.filter((app) => !TERMINAL.has(app.status)).length;
+    // Applications still awaiting an admin decision (not onboarded, not rejected).
+    const terminal = new Set(TERMINAL_APPLICATION_STATUSES);
+    const pendingApplications = applications.filter((app) => !terminal.has(app.status)).length;
 
     return {
       metrics: {
