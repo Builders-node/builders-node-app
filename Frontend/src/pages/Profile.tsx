@@ -5,6 +5,7 @@ import type { PageId } from '../data/dashboard';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import { apiRequest } from '../lib/api';
+import { useCleaningSlots, useHome, useProfile, useResidency } from '../lib/queries';
 import { useEscapeToClose } from '../lib/useModalA11y';
 import { MaintenanceSection } from '../components/MaintenanceSection';
 import { CarsSection } from '../components/CarsSection';
@@ -27,49 +28,6 @@ function membershipTone(status?: string): 'good' | 'attention' | 'danger' | 'neu
   return 'attention'; // APPLICANT / unknown
 }
 
-type ProfileData = {
-  email: string;
-  referralCode?: string | null;
-  role: string;
-  emailVerifiedAt?: string | null;
-  discordId?: string | null;
-  discordUsername?: string | null;
-  discordEnabled?: boolean;
-  profile?: {
-    fullName?: string | null;
-    phone?: string | null;
-    location?: string | null;
-  } | null;
-  membership?: {
-    status: string;
-    startingDate?: string | null;
-    dueDate?: string | null;
-    finishDate?: string | null;
-  } | null;
-  communityPlans?: Array<{
-    id: string;
-    planName: string;
-    status: string;
-    amountCents: number;
-    currency: string;
-    purchasedAt: string;
-    startsAt?: string | null;
-    endsAt?: string | null;
-    renewalDate?: string | null;
-    source: string;
-  }>;
-};
-
-type ResidencyData = {
-  status: string; // NOT_STARTED | PENDING_REVIEW | VERIFIED | REJECTED
-  applyUrl: string;
-  hasProof: boolean;
-  proofFileName?: string | null;
-  submittedAt?: string | null;
-  reviewedAt?: string | null;
-  reviewNote?: string | null;
-};
-
 const RESIDENCY_LABELS: Record<string, string> = {
   NOT_STARTED: 'Not started',
   PENDING_REVIEW: 'Pending review',
@@ -83,14 +41,6 @@ function toneForResidency(status?: string): 'good' | 'attention' | 'danger' | 'n
   if (status === 'PENDING_REVIEW') return 'attention';
   return 'neutral';
 }
-
-type HomeMemberData = {
-  account?: { externalMemberId?: string | null };
-  membership?: { status: string; hasApplied: boolean; applicationStatus?: string | null };
-  apartment: { name: string; status: string; moveInDate?: string | null; details: string } | null;
-  meals: { items: Array<{ id: string; day: string; meal: string }> };
-  cleaning: { nextCleaning?: string | null; frequency?: string | null; notes?: string | null } | null;
-};
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -110,9 +60,6 @@ function formatMoney(cents?: number, currency = 'USD') {
 }
 
 export function Profile({ currentUserId, setActivePage }: ProfileProps) {
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [residency, setResidency] = useState<ResidencyData | null>(null);
-  const [home, setHome] = useState<HomeMemberData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
   const [residencyMessage, setResidencyMessage] = useState<string | null>(null);
@@ -193,53 +140,27 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
   }
 
   const CLEANING_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
-  const [cleaningSlots, setCleaningSlots] = useState<string[]>([]);
-  const [cleaningSlotsSource, setCleaningSlotsSource] = useState<'prospera' | 'default' | null>(null);
-  const [cleaningSlotsLoading, setCleaningSlotsLoading] = useState(false);
+  const FALLBACK_SLOTS = ['09:00', '11:00', '13:00', '15:00', '17:00'];
 
-  // Load slots from ProsperaSub the first time the modal opens.
-  useEffect(() => {
-    if (!cleaningModalOpen || cleaningSlots.length > 0 || cleaningSlotsLoading) return;
-    setCleaningSlotsLoading(true);
-    apiRequest<{ slots: string[]; source: 'prospera' | 'default' }>('/public/cleaning-slots')
-      .then((data) => {
-        setCleaningSlots(data.slots);
-        setCleaningSlotsSource(data.source);
-      })
-      .catch(() => {
-        setCleaningSlots(['09:00', '11:00', '13:00', '15:00', '17:00']);
-        setCleaningSlotsSource('default');
-      })
-      .finally(() => setCleaningSlotsLoading(false));
-  }, [cleaningModalOpen, cleaningSlots.length, cleaningSlotsLoading]);
+  // Slots come from ProsperaSub, fetched the first time the modal opens and
+  // cached from then on. If that call fails the picker still works — an empty
+  // list would make the whole reschedule flow unusable.
+  const slotsQuery = useCleaningSlots(cleaningModalOpen);
+  const cleaningSlots = slotsQuery.data?.slots ?? (slotsQuery.isError ? FALLBACK_SLOTS : []);
+  const cleaningSlotsSource = slotsQuery.data?.source ?? (slotsQuery.isError ? 'default' : null);
+  const cleaningSlotsLoading = slotsQuery.isFetching;
 
-  async function loadResidency(userId: string) {
-    const data = await apiRequest<ResidencyData>(`/users/${userId}/residency`);
-    setResidency(data);
-  }
+  // Three independent reads. Each renders as soon as it lands, so one failure
+  // still leaves the rest of the page useful — and now says so, instead of
+  // leaving membership and apartment silently blank.
+  const profileQuery = useProfile(currentUserId);
+  const residencyQuery = useResidency(currentUserId);
+  const homeQuery = useHome(currentUserId);
 
-  async function loadHome(userId: string) {
-    const data = await apiRequest<HomeMemberData>(`/users/${userId}/home`);
-    setHome(data);
-  }
-
-  async function loadProfile(userId: string) {
-    const data = await apiRequest<ProfileData>(`/users/${userId}/profile`);
-    setProfile(data);
-  }
-
-  useEffect(() => {
-    if (!currentUserId) return;
-    // No per-call catch: each loader sets its own state before the rejection
-    // propagates, so a failure still renders what did load — and now says so,
-    // instead of leaving membership and apartment silently blank.
-    Promise.all([
-      loadProfile(currentUserId),
-      loadResidency(currentUserId),
-      loadHome(currentUserId),
-    ])
-      .catch((caught) => setError(caught instanceof Error ? caught.message : 'Could not load profile.'));
-  }, [currentUserId]);
+  const profile = profileQuery.data ?? null;
+  const residency = residencyQuery.data ?? null;
+  const home = homeQuery.data ?? null;
+  const loadError = profileQuery.error ?? residencyQuery.error ?? homeQuery.error ?? null;
 
   async function connectDiscord() {
     if (!currentUserId) return;
@@ -257,7 +178,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
     setError(null);
     try {
       await apiRequest(`/users/${currentUserId}/discord`, { method: 'DELETE' });
-      await loadProfile(currentUserId);
+      await profileQuery.refetch();
       setProfileMessage('Discord disconnected.');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not disconnect Discord.');
@@ -273,7 +194,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
     if (status === 'error') setError('Discord verification failed. Please try again.');
     // Clean the query so it doesn't re-fire on refresh.
     window.history.replaceState(null, '', '/account');
-    if (currentUserId) void loadProfile(currentUserId);
+    if (currentUserId) void profileQuery.refetch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -289,7 +210,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
         method: 'POST',
         body: JSON.stringify({ fileName: file.name, fileType: file.type || 'application/octet-stream', dataBase64 }),
       });
-      await loadResidency(currentUserId);
+      await residencyQuery.refetch();
       setResidencyMessage('Proof uploaded — our team will review it shortly.');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not upload proof.');
@@ -311,7 +232,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
   const hasApplied = Boolean(home?.membership?.hasApplied);
   const showMemberSections = Boolean(profile && member);
   const showApplyPrompt = Boolean(profile && !member && !isStaff);
-  const isLoading = Boolean(currentUserId) && !profile && !error;
+  const isLoading = Boolean(currentUserId) && !profile && !error && !loadError;
 
   // Onboarding checklist — derived purely from data already loaded.
   const onboardingSteps = [
@@ -358,7 +279,11 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
         description="Your Builders Node account, E-Residency, and residence."
       />
       {!currentUserId ? <section className="panel empty-state">Log in to load account details.</section> : null}
-      {error ? <section className="panel"><p className="form-error">{error}</p></section> : null}
+      {error || loadError ? (
+        <section className="panel">
+          <p className="form-error">{error ?? loadError?.message ?? 'Could not load profile.'}</p>
+        </section>
+      ) : null}
       {profileMessage ? <section className="panel"><p className="form-success">{profileMessage}</p></section> : null}
       {residencyMessage ? <section className="panel"><p className="form-success">{residencyMessage}</p></section> : null}
 

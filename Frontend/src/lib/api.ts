@@ -35,6 +35,11 @@ export function isTokenExpired(token: string | null): boolean {
   }
 }
 
+/**
+ * `options.signal` is honoured, which is what lets React Query cancel a request
+ * that's been superseded — a slow earlier response can no longer overwrite a
+ * newer one (the directory search used to do exactly that).
+ */
 export async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('terminus_access_token');
   const response = await fetch(`${API_BASE_URL}${path}`, {

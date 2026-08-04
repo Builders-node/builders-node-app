@@ -1,4 +1,3 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
@@ -24,11 +23,8 @@ type LandingProps = {
   currentUserId?: string | null;
 };
 
-const queryClient = new QueryClient();
-
 export function Landing({ setActivePage, currentUserId }: LandingProps) {
   return (
-    <QueryClientProvider client={queryClient}>
       <MemoryRouter>
         <TooltipProvider>
           <BatchProvider>
@@ -61,6 +57,5 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
           <Sonner />
         </TooltipProvider>
       </MemoryRouter>
-    </QueryClientProvider>
   );
 }

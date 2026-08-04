@@ -3,7 +3,9 @@ import { AppShell } from './components/AppShell';
 import { AuthPanel } from './components/AuthPanel';
 import { PullToRefresh } from './components/PullToRefresh';
 import { ADMIN_SUB_PAGES, canonicalPathFor, pageForPath, type PageId } from './data/dashboard';
-import { apiRequest, ApiError, isTokenExpired } from './lib/api';
+import { ApiError, isTokenExpired } from './lib/api';
+import { useProfile } from './lib/queries';
+import { queryClient } from './lib/queryClient';
 
 // Eager: the member home is the first paint after login, so lazy-loading it
 // would only add a round trip to the most common path.
@@ -124,6 +126,7 @@ function App() {
       setCurrentUserEmail(null);
       setCurrentUserReferral(null);
       setActivePage('login');
+      queryClient.clear();
     };
     window.addEventListener('auth:unauthorized', onUnauthorized);
     return () => window.removeEventListener('auth:unauthorized', onUnauthorized);
@@ -179,32 +182,36 @@ function App() {
     }
   }
 
+  // A stored user id with no token is a broken session — drop it.
   useEffect(() => {
-    if (!currentUserId) return;
-    // A stored user id with no token is a broken session — drop it.
-    if (!localStorage.getItem('terminus_access_token')) {
+    if (currentUserId && !localStorage.getItem('terminus_access_token')) updateCurrentUserId(null);
+  }, [currentUserId]);
+
+  // The session profile. Every other screen reads the same cache entry, so this
+  // is one request per session rather than one per page that needs the name.
+  const { data: sessionProfile, error: sessionProfileError } = useProfile(
+    currentUserId && localStorage.getItem('terminus_access_token') ? currentUserId : null,
+  );
+
+  useEffect(() => {
+    if (!sessionProfile) return;
+    updateCurrentUserRole(sessionProfile.role);
+    updateCurrentUserLabel(sessionProfile.profile?.fullName?.trim() || sessionProfile.email);
+    setCurrentUserEmail(sessionProfile.email);
+    setCurrentUserReferral(sessionProfile.referralCode ?? null);
+  }, [sessionProfile]);
+
+  useEffect(() => {
+    if (!sessionProfileError) return;
+    // Stale session: the stored user no longer exists / token is invalid.
+    // Sign out so we show the landing/login instead of a broken account page.
+    if (sessionProfileError instanceof ApiError && (sessionProfileError.status === 401 || sessionProfileError.status === 404)) {
       updateCurrentUserId(null);
+      setActivePage((current) => (current === 'apply' ? 'apply' : 'landing'));
       return;
     }
-
-    apiRequest<{ role: string; email: string; referralCode?: string | null; profile?: { fullName?: string | null } }>(`/users/${currentUserId}/profile`)
-      .then((profile) => {
-        updateCurrentUserRole(profile.role);
-        updateCurrentUserLabel(profile.profile?.fullName?.trim() || profile.email);
-        setCurrentUserEmail(profile.email);
-        setCurrentUserReferral(profile.referralCode ?? null);
-      })
-      .catch((error) => {
-        // Stale session: the stored user no longer exists / token is invalid.
-        // Sign out so we show the landing/login instead of a broken account page.
-        if (error instanceof ApiError && (error.status === 401 || error.status === 404)) {
-          updateCurrentUserId(null);
-          setActivePage((current) => (current === 'apply' ? 'apply' : 'landing'));
-          return;
-        }
-        updateCurrentUserRole(null);
-      });
-  }, [currentUserId]);
+    updateCurrentUserRole(null);
+  }, [sessionProfileError]);
 
   // Logged-in users never see the landing: render their home instead while the
   // redirect effect switches activePage. Guests see the real landing.
@@ -322,6 +329,8 @@ function App() {
         setCurrentUserEmail(null);
         setCurrentUserReferral(null);
         setActivePage('landing');
+        // Nothing cached belongs to the next person to sign in on this device.
+        queryClient.clear();
       }}
     >
       <Suspense fallback={<PageFallback />}>{page}</Suspense>

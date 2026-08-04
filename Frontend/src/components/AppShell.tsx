@@ -1,19 +1,9 @@
 import { Bell, LayoutGrid, LogOut, Menu, Moon, Pencil, Settings as SettingsIcon, Share2, Sun, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ADMIN_ROLES, allNavItems, navSections, pageForPath, type NavItem, type PageId } from '../data/dashboard';
-import { apiRequest } from '../lib/api';
+import { useAdminCounters, useMarkNotificationsRead, useNotifications } from '../lib/queries';
 import { useEscapeToClose } from '../lib/useModalA11y';
 import { ReferralModal } from './ReferralModal';
-
-type NotificationItem = {
-  id: string;
-  type: 'info' | 'success' | 'warning';
-  title: string;
-  body?: string | null;
-  link?: string | null;
-  readAt?: string | null;
-  createdAt: string;
-};
 
 function formatWhen(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -68,9 +58,10 @@ export function AppShell({
   // Pending counts for the sidebar badges. Admin-only, refreshed on the same
   // cadence as notifications.
   //
-  // `null` means "we don't know" — a failed request must not render as 0, or an
-  // admin reads a broken fetch as "nothing to do" and walks away from real work.
-  const [attention, setAttention] = useState<Record<string, number> | null>(null);
+  // Undefined means "we don't know" — a failed request must not render as 0, or
+  // an admin reads a broken fetch as "nothing to do" and walks away from real
+  // work. React Query keeps the last good counts through a failed refetch.
+  const { data: attention } = useAdminCounters(isAdmin && Boolean(currentUserId));
   const badgeFor = (item: NavItem): number | null => {
     if (!item.badgeKeys?.length) return null;
     if (!attention) return null;
@@ -89,9 +80,11 @@ export function AppShell({
   const adminItems = navSections.find((section) => section.id === 'admin')?.items ?? [];
 
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifItems, setNotifItems] = useState<NotificationItem[]>([]);
-  const [unread, setUnread] = useState(0);
   const notifRef = useRef<HTMLDivElement>(null);
+  const { data: notifications } = useNotifications(currentUserId);
+  const notifItems = notifications?.items ?? [];
+  const unread = notifications?.unread ?? 0;
+  const markRead = useMarkNotificationsRead(currentUserId);
 
   useEffect(() => {
     if (!accountOpen) return;
@@ -115,73 +108,15 @@ export function AppShell({
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [notifOpen]);
 
-  // Load notifications on mount and refresh the unread count periodically.
-  useEffect(() => {
-    if (!currentUserId) return;
-    let alive = true;
-    const load = () =>
-      apiRequest<{ items: NotificationItem[]; unread: number }>(`/users/${currentUserId}/notifications`)
-        .then((data) => {
-          if (!alive) return;
-          setNotifItems(data.items);
-          setUnread(data.unread);
-        })
-        .catch(() => undefined);
-    void load();
-    const timer = setInterval(load, 60000);
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, [currentUserId]);
+  // Polling, background pausing and refresh-on-return all come from the query
+  // layer now (see useNotifications / useAdminCounters) — the hand-rolled
+  // intervals and visibilitychange listeners this used to keep are gone.
 
-  // Sidebar badge counts, from the counts-only endpoint — /admin/overview
-  // returns every application, user and payment, which is far too much to poll
-  // for five numbers.
-  useEffect(() => {
-    if (!isAdmin || !currentUserId) return;
-    let alive = true;
-
-    const load = () =>
-      apiRequest<Record<string, number>>('/admin/counters')
-        .then((data) => { if (alive) setAttention(data); })
-        // Keep the last known counts rather than zeroing them; if we've never
-        // had any, `attention` stays null and the badge shows nothing.
-        .catch(() => undefined);
-
-    void load();
-
-    // Don't poll a tab nobody is looking at, and refresh on return so the
-    // counts are current the moment it's focused again.
-    let timer: ReturnType<typeof setInterval> | undefined;
-    const start = () => { timer ??= setInterval(load, 60000); };
-    const stop = () => { clearInterval(timer); timer = undefined; };
-    const onVisibility = () => {
-      if (document.hidden) stop();
-      else { void load(); start(); }
-    };
-    if (!document.hidden) start();
-    document.addEventListener('visibilitychange', onVisibility);
-
-    return () => {
-      alive = false;
-      stop();
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [isAdmin, currentUserId]);
-
-  async function toggleNotifications() {
+  function toggleNotifications() {
     const opening = !notifOpen;
     setNotifOpen(opening);
-    if (opening && unread > 0 && currentUserId) {
-      setUnread(0);
-      setNotifItems((items) => items.map((item) => ({ ...item, readAt: item.readAt ?? new Date().toISOString() })));
-      try {
-        await apiRequest(`/users/${currentUserId}/notifications/read`, { method: 'POST', body: '{}' });
-      } catch {
-        /* non-critical */
-      }
-    }
+    // Opening the panel marks everything read; the badge clears optimistically.
+    if (opening && unread > 0 && currentUserId) markRead.mutate();
   }
 
   const inviteLink = referralCode ? `${window.location.origin}/?ref=${referralCode}` : '';

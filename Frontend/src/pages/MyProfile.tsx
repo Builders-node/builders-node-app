@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, Eye, EyeOff, Github, Globe, Linkedin, Lock, MapPin, Trash2, Twitter, X } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
-import { apiRequest } from '../lib/api';
-
-type Links = { website?: string; twitter?: string; linkedin?: string; github?: string };
+import { useProfile, useSaveProfile, type Links } from '../lib/queries';
 
 type ProfileForm = {
   fullName: string;
@@ -15,21 +13,6 @@ type ProfileForm = {
   links: Links;
   directoryOptIn: boolean;
   avatarUrl: string | null;
-};
-
-type ProfileResponse = {
-  email: string;
-  profile?: {
-    fullName?: string | null;
-    phone?: string | null;
-    location?: string | null;
-    headline?: string | null;
-    bio?: string | null;
-    skills?: string[];
-    links?: Links;
-    directoryOptIn?: boolean;
-    avatarUrl?: string | null;
-  } | null;
 };
 
 const LINK_FIELDS = [
@@ -80,36 +63,36 @@ function resizeToAvatar(file: File): Promise<string> {
 
 export function MyProfile({ currentUserId }: { currentUserId?: string | null }) {
   const [form, setForm] = useState<ProfileForm>(EMPTY);
-  const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [skillDraft, setSkillDraft] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const { data, isPending, error: loadError } = useProfile(currentUserId);
+  const saveProfile = useSaveProfile(currentUserId);
+  const saving = saveProfile.isPending;
+  const email = data?.email ?? '';
+
+  // Seed the form from the server once. Re-seeding on every cache update would
+  // wipe whatever the member is in the middle of typing.
+  const seeded = useRef(false);
   useEffect(() => {
-    if (!currentUserId) return;
-    apiRequest<ProfileResponse>(`/users/${currentUserId}/profile`)
-      .then((data) => {
-        setEmail(data.email);
-        const p = data.profile;
-        setForm({
-          fullName: p?.fullName ?? '',
-          phone: p?.phone ?? '',
-          location: p?.location ?? '',
-          headline: p?.headline ?? '',
-          bio: p?.bio ?? '',
-          skills: p?.skills ?? [],
-          links: p?.links ?? {},
-          directoryOptIn: p?.directoryOptIn ?? false,
-          avatarUrl: p?.avatarUrl ?? null,
-        });
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Could not load your profile.'))
-      .finally(() => setLoading(false));
-  }, [currentUserId]);
+    if (!data || seeded.current) return;
+    seeded.current = true;
+    const p = data.profile;
+    setForm({
+      fullName: p?.fullName ?? '',
+      phone: p?.phone ?? '',
+      location: p?.location ?? '',
+      headline: p?.headline ?? '',
+      bio: p?.bio ?? '',
+      skills: p?.skills ?? [],
+      links: p?.links ?? {},
+      directoryOptIn: p?.directoryOptIn ?? false,
+      avatarUrl: p?.avatarUrl ?? null,
+    });
+  }, [data]);
 
   function patch(next: Partial<ProfileForm>) {
     setForm((current) => ({ ...current, ...next }));
@@ -120,30 +103,24 @@ export function MyProfile({ currentUserId }: { currentUserId?: string | null }) 
   async function save(overrides: Partial<ProfileForm> = {}) {
     if (!currentUserId) return;
     const payload = { ...form, ...overrides };
-    setSaving(true);
     setError(null);
     try {
-      await apiRequest(`/users/${currentUserId}/profile`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          fullName: payload.fullName,
-          phone: payload.phone,
-          location: payload.location,
-          headline: payload.headline,
-          bio: payload.bio,
-          skills: payload.skills,
-          links: payload.links,
-          directoryOptIn: payload.directoryOptIn,
-        }),
+      await saveProfile.mutateAsync({
+        fullName: payload.fullName,
+        phone: payload.phone,
+        location: payload.location,
+        headline: payload.headline,
+        bio: payload.bio,
+        skills: payload.skills,
+        links: payload.links,
+        directoryOptIn: payload.directoryOptIn,
       });
       setDirty(false);
       setNotice('Profile saved.');
-      // The header avatar/name are cached at the app level — nudge a refresh.
-      window.dispatchEvent(new Event('profile:updated'));
+      // The mutation invalidates the profile cache, so the header name/avatar
+      // and the directory card update on their own.
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not save your profile.');
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -154,37 +131,24 @@ export function MyProfile({ currentUserId }: { currentUserId?: string | null }) 
     setError(null);
     try {
       const dataUrl = await resizeToAvatar(file);
-      setSaving(true);
-      await apiRequest(`/users/${currentUserId}/profile`, {
-        method: 'PATCH',
-        body: JSON.stringify({ avatarBase64: dataUrl, avatarFileType: 'image/jpeg' }),
-      });
+      await saveProfile.mutateAsync({ avatarBase64: dataUrl, avatarFileType: 'image/jpeg' });
       patch({ avatarUrl: dataUrl });
       setDirty(false);
       setNotice('Photo updated.');
-      window.dispatchEvent(new Event('profile:updated'));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not upload that photo.');
-    } finally {
-      setSaving(false);
     }
   }
 
   async function removeAvatar() {
     if (!currentUserId) return;
-    setSaving(true);
+    setError(null);
     try {
-      await apiRequest(`/users/${currentUserId}/profile`, {
-        method: 'PATCH',
-        body: JSON.stringify({ avatarBase64: null }),
-      });
+      await saveProfile.mutateAsync({ avatarBase64: null });
       patch({ avatarUrl: null });
       setDirty(false);
-      window.dispatchEvent(new Event('profile:updated'));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not remove the photo.');
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -196,7 +160,7 @@ export function MyProfile({ currentUserId }: { currentUserId?: string | null }) 
     setSkillDraft('');
   }
 
-  if (loading) {
+  if (isPending) {
     return (
       <div className="page-stack">
         <PageHeader title="Your profile" description="Loading…" />
@@ -211,7 +175,11 @@ export function MyProfile({ currentUserId }: { currentUserId?: string | null }) 
         description="One place for everything about you — what other members see, and what stays private."
       />
 
-      {error ? <section className="panel"><p className="form-error">{error}</p></section> : null}
+      {error || loadError ? (
+        <section className="panel">
+          <p className="form-error">{error ?? loadError?.message ?? 'Could not load your profile.'}</p>
+        </section>
+      ) : null}
       {notice ? <section className="panel"><p className="form-success">{notice}</p></section> : null}
 
       {/* Identity */}

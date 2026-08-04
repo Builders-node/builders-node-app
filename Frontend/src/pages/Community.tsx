@@ -1,36 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CalendarDays, Github, Globe, Linkedin, MapPin, Search, Twitter, UserRound, Users, X } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { apiRequest } from '../lib/api';
+import { useDirectory, useDirectoryProfile, type DirectoryDetail } from '../lib/queries';
 import { useEscapeToClose } from '../lib/useModalA11y';
 import { EventsTab } from './CommunityEvents';
 import type { PageId } from '../data/dashboard';
-
-type DirectoryItem = {
-  userId: string;
-  fullName: string;
-  location: string | null;
-  avatarUrl: string | null;
-  headline: string | null;
-  skills: string[];
-  memberSince: string | null;
-  isSelf: boolean;
-};
-
-type DirectoryDetail = DirectoryItem & {
-  bio: string | null;
-  links: { website?: string; twitter?: string; linkedin?: string; github?: string };
-  discordUsername: string | null;
-};
-
-type MyProfile = {
-  fullName: string | null;
-  headline: string | null;
-  bio: string | null;
-  skills: string[];
-  links: { website?: string; twitter?: string; linkedin?: string; github?: string };
-  directoryOptIn: boolean;
-};
 
 const LINK_META = [
   { key: 'website', label: 'Website', icon: Globe },
@@ -45,61 +20,47 @@ function initials(name: string): string {
 
 export function Community({ currentUserId, setActivePage }: { currentUserId?: string | null; setActivePage?: (page: PageId) => void }) {
   const [tab, setTab] = useState<'members' | 'events'>('members');
-  const [items, setItems] = useState<DirectoryItem[]>([]);
-  const [skills, setSkills] = useState<Array<{ name: string; count: number }>>([]);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeSkill, setActiveSkill] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [openError, setOpenError] = useState<string | null>(null);
 
   const [selected, setSelected] = useState<DirectoryDetail | null>(null);
   useEscapeToClose(Boolean(selected), () => setSelected(null));
 
-  const [mine, setMine] = useState<MyProfile | null>(null);
-
-  const load = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (search.trim()) params.set('search', search.trim());
-      if (activeSkill) params.set('skill', activeSkill);
-      const qs = params.toString();
-      const data = await apiRequest<{ items: DirectoryItem[]; skills: Array<{ name: string; count: number }> }>(
-        `/directory${qs ? `?${qs}` : ''}`,
-      );
-      setItems(data.items);
-      // Only refresh the chip list on an unfiltered load, so filtering doesn't
-      // shrink the very chips you're filtering with.
-      if (!search.trim() && !activeSkill) setSkills(data.skills);
-      setError(null);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not load the directory.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [search, activeSkill]);
-
+  // Debounce typing into the query key, not the request — that way a superseded
+  // search is cancelled outright instead of racing the one that replaced it.
   useEffect(() => {
-    const timer = setTimeout(() => void load(), 200); // debounce typing
+    const timer = setTimeout(() => setDebouncedSearch(search), 200);
     return () => clearTimeout(timer);
-  }, [load]);
+  }, [search]);
 
-  useEffect(() => {
-    if (!currentUserId) return;
-    apiRequest<MyProfile>(`/users/${currentUserId}/directory-profile`)
-      .then(setMine)
-      // Swallowing this used to hide the "Add your profile" prompt entirely,
-      // so a member whose request failed simply never learned they could join.
-      .catch((caught) =>
-        setError(caught instanceof Error ? caught.message : 'Could not load your directory profile.'),
-      );
-  }, [currentUserId]);
+  const directory = useDirectory(debouncedSearch, activeSkill);
+  // The chip list comes from the *unfiltered* query, so filtering never shrinks
+  // the very chips you're filtering with. When nothing is filtered this is the
+  // same cache entry as above — one request, not two.
+  const unfiltered = useDirectory('', null);
+  // Swallowing this used to hide the "Add your profile" prompt entirely, so a
+  // member whose request failed simply never learned they could join.
+  const { data: mine, error: mineError } = useDirectoryProfile(currentUserId);
+
+  const items = directory.data?.items ?? [];
+  const skills = unfiltered.data?.skills ?? [];
+  const isLoading = directory.isPending;
+  const firstError = openError ?? directory.error ?? mineError ?? null;
+  const error =
+    firstError === null
+      ? null
+      : typeof firstError === 'string'
+        ? firstError
+        : firstError.message || 'Could not load the directory.';
 
   async function openMember(userId: string) {
+    setOpenError(null);
     try {
       setSelected(await apiRequest<DirectoryDetail>(`/directory/${userId}`));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not open this profile.');
+      setOpenError(caught instanceof Error ? caught.message : 'Could not open this profile.');
     }
   }
 
