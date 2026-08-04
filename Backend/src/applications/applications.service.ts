@@ -8,11 +8,27 @@ import { createTemporaryPassword } from '../auth/temporary-password';
 import { PrismaService } from '../database/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { linksFromUrls, MAX_BIO } from '../common/profile-fields';
 import { createReferralCode } from '../users/referral-code';
 import { ApplyDto, ConfirmApplicationDto, CreateAccountDto, SendCredentialsDto } from './dto';
 
 const CODE_TTL_MS = 1000 * 60 * 10; // 10 minutes
 const MAX_CODE_ATTEMPTS = 5;
+
+/**
+ * The profile fields an application can seed.
+ *
+ * Everything here is a starting point, not a lock: the member edits all of it
+ * on /profile afterwards. Nothing is directory-visible until they opt in.
+ */
+function profileSeedFrom(application: { fullName: string; phone?: string | null; about?: string | null; socialLinksJson?: string | null }) {
+  return {
+    fullName: application.fullName,
+    phone: application.phone ?? undefined,
+    bio: application.about ?? undefined,
+    linksJson: application.socialLinksJson ?? undefined,
+  };
+}
 
 @Injectable()
 export class ApplicationsService {
@@ -112,7 +128,9 @@ export class ApplicationsService {
         passwordHash,
         referralCode: createReferralCode(),
         emailVerifiedAt: new Date(), // verified via the apply code they just entered
-        profile: { create: { fullName: application.fullName } },
+        // Carry the application over so the new member's profile isn't a blank
+        // form asking for what they just typed on the way in.
+        profile: { create: profileSeedFrom(application) },
         membership: { create: { status: 'APPLICANT' } },
       },
     });
@@ -140,12 +158,15 @@ export class ApplicationsService {
         })
       : null;
 
+    const links = linksFromUrls(dto.socials);
     const application = await this.prisma.application.create({
       data: {
         fullName: dto.fullName,
         email: dto.email.toLowerCase(),
         phone: dto.phone,
         note: dto.note,
+        about: dto.about?.trim().slice(0, MAX_BIO) || null,
+        socialLinksJson: Object.keys(links).length > 0 ? JSON.stringify(links) : null,
         referralCode,
         referredByUserId: referrer?.id,
         status: 'SUBMITTED',
@@ -179,12 +200,7 @@ export class ApplicationsService {
         passwordHash,
         referralCode: createReferralCode(),
         mustChangePassword: true,
-        profile: {
-          create: {
-            fullName: application.fullName,
-            phone: application.phone,
-          },
-        },
+        profile: { create: profileSeedFrom(application) },
         membership: { create: { status: 'APPROVED', approvedAt: new Date() } },
       },
       update: {
@@ -192,7 +208,11 @@ export class ApplicationsService {
         mustChangePassword: true,
         profile: {
           upsert: {
-            create: { fullName: application.fullName, phone: application.phone },
+            create: profileSeedFrom(application),
+            // Only name and phone are refreshed on an existing profile. Bio and
+            // links are the member's to maintain once they have an account —
+            // re-seeding here would overwrite their edits with the application
+            // they wrote months ago.
             update: { fullName: application.fullName, phone: application.phone },
           },
         },

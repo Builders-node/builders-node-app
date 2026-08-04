@@ -79,6 +79,39 @@ export function normalizeLinks(links: unknown): ProfileLinks {
 }
 
 /**
+ * Turn a loose list of URLs into keyed profile links.
+ *
+ * The apply form asks for "your socials" as two free-text URL fields, so the
+ * key has to come from the hostname rather than the position — someone can put
+ * GitHub in the first box and a personal site in the second. Anything
+ * unrecognised becomes `website`, and the first value wins so a second URL of
+ * the same kind can't silently overwrite the first.
+ */
+export function linksFromUrls(urls: unknown): ProfileLinks {
+  if (!Array.isArray(urls)) return {};
+  const out: ProfileLinks = {};
+  for (const raw of urls) {
+    const value = String(raw ?? '').trim();
+    if (!value) continue;
+    let host = '';
+    try {
+      host = new URL(value.startsWith('http') ? value : `https://${value}`).hostname.toLowerCase();
+    } catch {
+      continue; // not a URL at all — drop it rather than store junk
+    }
+    const key: keyof ProfileLinks = host.includes('twitter.') || host.includes('x.com')
+      ? 'twitter'
+      : host.includes('linkedin.')
+        ? 'linkedin'
+        : host.includes('github.')
+          ? 'github'
+          : 'website';
+    if (!out[key]) out[key] = value.slice(0, 200);
+  }
+  return out;
+}
+
+/**
  * The avatar is exposed as something an <img src> can use directly.
  *
  * Deliberately a `data:` URL rather than a separate endpoint: an <img> tag

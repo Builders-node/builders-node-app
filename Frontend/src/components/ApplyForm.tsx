@@ -112,7 +112,13 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
       body: JSON.stringify({
         fullName,
         email,
+        // `note` stays the readable summary admins scan in the Inbox. `about`
+        // and `socials` go alongside it as real fields, because they seed the
+        // member's profile once the account exists — parsing them back out of
+        // the note blob would have been guesswork.
         note: buildNote(),
+        about: aboutText,
+        socials: [social1, social2].filter(Boolean),
         referralCode: referralCode || undefined,
       }),
     });

@@ -176,6 +176,12 @@ model Application {
   email      String            @unique
   phone      String?
   note       String?
+  // What the applicant wrote about themselves, and the links they gave, kept
+  // separately from the flattened `note` blob. These seed the member's profile
+  // bio and links when their account is created, so nobody has to retype what
+  // they already told us — see seedProfileFromApplication.
+  about      String?
+  socialLinksJson String?
   adminNote  String?
   referralCode String?
   referredByUserId String?
