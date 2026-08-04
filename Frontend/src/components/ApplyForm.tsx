@@ -9,6 +9,7 @@ import { Mail, User, Loader2, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/api";
 import { useBatch } from "@/lib/batch";
+import { clearStoredReferral, storedReferralCode } from "@/lib/referral";
 
 interface ApplyFormProps {
   onClose?: () => void;
@@ -51,7 +52,10 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
   const [social2, setSocial2] = useState("");
   const [aboutText, setAboutText] = useState("");
   const [referralSource, setReferralSource] = useState("");
-  const [referralCode, setReferralCode] = useState("");
+  // Prefilled from the invite link they arrived on, still editable — someone
+  // who was told a code by hand can type it over the top.
+  const [referralCode, setReferralCode] = useState(storedReferralCode);
+  const [arrivedWithReferral] = useState(() => Boolean(storedReferralCode()));
   const maxChars = 1000;
 
   // Flow: form → confirm emailed 6-digit code → (set password if no account) → success.
@@ -219,6 +223,10 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
       } catch (trackingError) {
         console.error("Tracking error:", trackingError);
       }
+
+      // The application exists now, so the invite has done its job. Forget the
+      // code — the next person to apply on this browser isn't their recruit.
+      clearStoredReferral();
 
       if (result.accountExists) {
         // Already has a login — nothing to set up, go straight to success.
@@ -636,6 +644,13 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
               className="border-0 bg-white shadow-sm focus-visible:ring-1"
               style={{ borderColor: "hsl(0 0% 80%)", color: "hsl(0 0% 10%)" }}
             />
+            {/* Say where it came from, so a filled-in field doesn't look like
+                something they typed and forgot. */}
+            {arrivedWithReferral ? (
+              <p className="text-xs" style={{ color: "hsl(0 0% 45%)" }}>
+                Filled in from the invite link you followed.
+              </p>
+            ) : null}
           </div>
 
 
