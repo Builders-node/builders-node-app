@@ -16,6 +16,11 @@ export type StatusTone = 'good' | 'attention' | 'danger' | 'neutral';
 export type NavItem = {
   id: PageId;
   label: string;
+  /**
+   * Used in the mobile tab bar, where a slot is ~70px wide and anything longer
+   * gets an ellipsis. Only set it where the full label doesn't fit.
+   */
+  shortLabel?: string;
   icon: LucideIcon;
   /**
    * Pages that should light this nav item up. Used by the grouped admin items
@@ -85,6 +90,20 @@ export const ADMIN_SUB_PAGES: PageId[] = [
   'adminSettings',
   'units',
 ];
+
+/**
+ * Every page that belongs to the admin area.
+ *
+ * This is what decides which mode the shell is in. Deriving the mode from the
+ * current page (rather than storing a separate flag) means a deep link, a
+ * bookmark or the back button can't leave the sidebar showing one area while
+ * the content shows the other.
+ */
+export const ADMIN_AREA_PAGES: PageId[] = [...ADMIN_SUB_PAGES, 'allUsers'];
+
+export function isAdminPage(page: PageId): boolean {
+  return ADMIN_AREA_PAGES.includes(page);
+}
 
 /** Which internal admin tab each PageId corresponds to. */
 export const ADMIN_PAGE_TO_TAB: Record<string, string> = {
@@ -269,8 +288,9 @@ export const navSections: NavSection[] = [
         badgeKeys: INBOX_TABS.map((tab) => tab.attentionKey),
       },
       { id: 'allUsers', label: 'Members', icon: UsersRound },
-      { id: 'adminDesignations', label: 'Designations', icon: UserCheck },
-      { id: 'adminNotifications', label: 'Notifications', icon: Megaphone },
+      // "Assign" is what the page does — assign apartment, meal and cleaning plan.
+      { id: 'adminDesignations', label: 'Designations', shortLabel: 'Assign', icon: UserCheck },
+      { id: 'adminNotifications', label: 'Notifications', shortLabel: 'Notify', icon: Megaphone },
       {
         // Fronts the rarely-touched CRUD (plans, vehicles, units, resources).
         id: 'adminSettings',

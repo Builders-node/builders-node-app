@@ -565,7 +565,10 @@ textarea {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
+  /* Wide enough for the longest label ("Designations", 81px) to sit on one
+     line. It used to be 88px, which left every long word broken mid-syllable —
+     affordable now that each mode shows one area's items instead of both. */
+  grid-template-columns: 112px minmax(0, 1fr);
   min-height: 100vh;
 }
 
@@ -636,6 +639,15 @@ textarea {
   margin-bottom: 2px;
   text-align: center;
   text-transform: uppercase;
+}
+
+/* Way out of the admin area. Sits apart from the nav items above it so it
+   doesn't read as one more destination in the same list. */
+.nav-item--exit {
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 10px;
+  padding-top: 14px;
 }
 
 .nav-item {
@@ -3382,6 +3394,21 @@ textarea {
 }
 .account-dropdown__item--danger {
   color: #e5484d;
+}
+/* Entry into the admin area — brand-coloured so it reads as a mode switch
+   rather than another account setting. */
+.account-dropdown__item--admin {
+  color: var(--accent);
+}
+.account-dropdown__count {
+  background: var(--accent);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  margin-left: auto;
+  padding: 4px 7px;
 }
 
 /* ── Referral modal ────────────────────────────────────────────────────────── */

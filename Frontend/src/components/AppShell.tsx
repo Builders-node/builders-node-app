@@ -1,6 +1,6 @@
-import { Bell, LayoutGrid, LogOut, Menu, Moon, Pencil, Settings as SettingsIcon, Share2, Sun, X } from 'lucide-react';
+import { ArrowLeft, Bell, LayoutGrid, LogOut, Menu, Moon, Pencil, Settings as SettingsIcon, Share2, ShieldCheck, Sun, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ADMIN_ROLES, allNavItems, navSections, pageForPath, type NavItem, type PageId } from '../data/dashboard';
+import { ADMIN_ROLES, allNavItems, isAdminPage, navSections, pageForPath, type NavItem, type PageId } from '../data/dashboard';
 import { useAdminCounters, useMarkNotificationsRead, useNotifications } from '../lib/queries';
 import { useEscapeToClose } from '../lib/useModalA11y';
 import { ReferralModal } from './ReferralModal';
@@ -50,7 +50,19 @@ export function AppShell({
 }: AppShellProps) {
   const isAdmin = ADMIN_ROLES.includes(currentUserRole ?? '');
   const avatarInitial = currentUserLabel?.trim().charAt(0).toUpperCase() || '?';
-  const visibleSections = navSections.filter((section) => !section.adminOnly || isAdmin);
+
+  /**
+   * Admin is a separate mode, not extra rows bolted onto the member sidebar.
+   * Showing both areas at once made a ten-item rail where every label wrapped,
+   * and left an admin permanently looking at navigation they weren't using.
+   * You're in whichever area the current page belongs to; the avatar menu is
+   * how you cross between them.
+   */
+  const inAdminMode = isAdmin && isAdminPage(activePage);
+  const memberItems = navSections.find((section) => section.id === 'members')?.items ?? [];
+  const adminItems = navSections.find((section) => section.id === 'admin')?.items ?? [];
+  const navItems = inAdminMode ? adminItems : memberItems;
+
   // A grouped item (Inbox / Settings) owns several sub-pages — match on those too.
   const isNavActive = (item: NavItem) => (item.matches ?? [item.id]).includes(activePage);
   const currentLabel = allNavItems.find(isNavActive)?.label ?? 'Dashboard';
@@ -68,16 +80,19 @@ export function AppShell({
     return item.badgeKeys.reduce((sum, key) => sum + (attention[key] ?? 0), 0);
   };
 
+  // Total waiting work, shown on the "Admin panel" entry. Without it, an admin
+  // in member view would have no sign that a queue needs them — the sidebar
+  // badges that used to say so aren't on screen in this mode.
+  const adminPending = attention ? Object.values(attention).reduce((sum, n) => sum + n, 0) : null;
+
   const [accountOpen, setAccountOpen] = useState(false);
   const [referralOpen, setReferralOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
 
-  // Admin "More" sheet on mobile — secondary functions (Admin, Users, Units)
-  // live behind one grid button so the bottom tab bar stays uncluttered.
+  // Overflow sheet on mobile: the bottom bar holds five tabs, and the admin area
+  // has six. The sheet lists all of them so nothing is reachable only from it.
   const [adminSheetOpen, setAdminSheetOpen] = useState(false);
   useEscapeToClose(adminSheetOpen, () => setAdminSheetOpen(false));
-  const memberItems = navSections.find((section) => section.id === 'members')?.items ?? [];
-  const adminItems = navSections.find((section) => section.id === 'admin')?.items ?? [];
 
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -139,36 +154,42 @@ export function AppShell({
           </button>
           <div className="brand-copy">
             <strong>Builders Node</strong>
-            <span>Community OS</span>
+            <span>{inAdminMode ? 'Admin' : 'Community OS'}</span>
           </div>
           <button className="icon-button sidebar-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">
             <X size={18} />
           </button>
         </div>
 
-        <nav className="nav-list" aria-label="Main navigation">
-          {visibleSections.map((section) => (
-            <div className="nav-section" key={section.id}>
-              <span className="nav-section__title">{section.title}</span>
-              {section.items.map((item) => {
-                const Icon = item.icon;
-                const badge = badgeFor(item);
-                return (
-                  <button
-                    key={item.id}
-                    className={isNavActive(item) ? 'nav-item nav-item--active' : 'nav-item'}
-                    onClick={() => go(item.id)}
-                  >
-                    <Icon size={20} />
-                    <span>{item.label}</span>
-                    {badge !== null && badge > 0 ? (
-                      <span className="nav-item__badge">{badge > 99 ? '99+' : badge}</span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+        <nav className="nav-list" aria-label={inAdminMode ? 'Admin navigation' : 'Main navigation'}>
+          <div className="nav-section">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const badge = badgeFor(item);
+              return (
+                <button
+                  key={item.id}
+                  className={isNavActive(item) ? 'nav-item nav-item--active' : 'nav-item'}
+                  onClick={() => go(item.id)}
+                >
+                  <Icon size={20} />
+                  <span>{item.label}</span>
+                  {badge !== null && badge > 0 ? (
+                    <span className="nav-item__badge">{badge > 99 ? '99+' : badge}</span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* The way back out of the admin area, always in reach — not only in
+              the avatar menu, which is easy to miss once you're deep in a queue. */}
+          {inAdminMode ? (
+            <button className="nav-item nav-item--exit" onClick={() => go('profile')}>
+              <ArrowLeft size={20} />
+              <span>Member view</span>
+            </button>
+          ) : null}
         </nav>
       </aside>
 
@@ -252,6 +273,34 @@ export function AppShell({
                     </button>
                   ) : null}
 
+                  {/* Crossing between the two areas. The pending count is here so
+                      an admin working in member view still sees a queue filling up. */}
+                  {isAdmin ? (
+                    <>
+                      <div className="account-dropdown__sep" />
+                      {inAdminMode ? (
+                        <button
+                          className="account-dropdown__item"
+                          onClick={() => { setAccountOpen(false); go('profile'); }}
+                        >
+                          <ArrowLeft size={16} />
+                          Member view
+                        </button>
+                      ) : (
+                        <button
+                          className="account-dropdown__item account-dropdown__item--admin"
+                          onClick={() => { setAccountOpen(false); go('adminDashboard'); }}
+                        >
+                          <ShieldCheck size={16} />
+                          Admin panel
+                          {adminPending !== null && adminPending > 0 ? (
+                            <span className="account-dropdown__count">{adminPending > 99 ? '99+' : adminPending}</span>
+                          ) : null}
+                        </button>
+                      )}
+                    </>
+                  ) : null}
+
                   <div className="account-dropdown__sep" />
 
                   <button
@@ -287,11 +336,11 @@ export function AppShell({
         <div className="main-content">{children}</div>
       </main>
 
-      {/* Mobile-first bottom tab bar (primary navigation on small screens).
-          Member tabs live here; admin tabs are secondary and collapse into a
-          "More" button that opens a grid sheet (ClickUp-style). */}
+      {/* Mobile bottom tab bar. It carries whichever area you're in — the member
+          tabs, or the admin ones. Admin has six entries and the bar holds five,
+          so the last slot opens a sheet with the full set. */}
       <nav className="bottom-nav" aria-label="Primary">
-        {memberItems.map((item) => {
+        {(inAdminMode ? navItems.slice(0, 4) : navItems).map((item) => {
           const Icon = item.icon;
           const active = isNavActive(item);
           return (
@@ -302,13 +351,13 @@ export function AppShell({
               aria-current={active ? 'page' : undefined}
             >
               <Icon size={20} />
-              <span>{item.label}</span>
+              <span>{item.shortLabel ?? item.label}</span>
             </button>
           );
         })}
-        {isAdmin && adminItems.length > 0 ? (
+        {inAdminMode ? (
           <button
-            className={adminItems.some(isNavActive) ? 'bottom-nav__item bottom-nav__item--active' : 'bottom-nav__item'}
+            className={adminItems.slice(4).some(isNavActive) ? 'bottom-nav__item bottom-nav__item--active' : 'bottom-nav__item'}
             onClick={() => setAdminSheetOpen(true)}
             aria-haspopup="dialog"
             aria-expanded={adminSheetOpen}
@@ -338,6 +387,13 @@ export function AppShell({
                   </button>
                 );
               })}
+              <button
+                className="admin-sheet__item"
+                onClick={() => { setAdminSheetOpen(false); go('profile'); }}
+              >
+                <span className="admin-sheet__icon"><ArrowLeft size={22} /></span>
+                <span className="admin-sheet__label">Member view</span>
+              </button>
             </div>
           </div>
         </div>

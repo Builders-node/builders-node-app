@@ -1510,16 +1510,10 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   return (
     <div className="admin-shell">
       <div className="page-stack admin-page">
-        <PageHeader
-          title={header.title}
-          description={header.description}
-          action={
-            <button className="ghost-button" onClick={() => setActivePage('profile')}>
-              <Home size={16} />
-              Member home
-            </button>
-          }
-        />
+        {/* No "member home" button here any more — leaving the admin area is the
+            shell's job (sidebar and avatar menu), and three buttons doing the
+            same thing on one screen just made it unclear which one to use. */}
+        <PageHeader title={header.title} description={header.description} />
 
         {inInbox ? (
           <nav className="tab-row admin-group-tabs" aria-label="Inbox sections">
