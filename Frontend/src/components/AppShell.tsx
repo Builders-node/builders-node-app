@@ -181,15 +181,6 @@ export function AppShell({
               );
             })}
           </div>
-
-          {/* The way back out of the admin area, always in reach — not only in
-              the avatar menu, which is easy to miss once you're deep in a queue. */}
-          {inAdminMode ? (
-            <button className="nav-item nav-item--exit" onClick={() => go('profile')}>
-              <ArrowLeft size={20} />
-              <span>Member view</span>
-            </button>
-          ) : null}
         </nav>
       </aside>
 

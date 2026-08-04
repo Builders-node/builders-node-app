@@ -641,15 +641,6 @@ textarea {
   text-transform: uppercase;
 }
 
-/* Way out of the admin area. Sits apart from the nav items above it so it
-   doesn't read as one more destination in the same list. */
-.nav-item--exit {
-  border-top: 1px solid rgba(255, 255, 255, 0.18);
-  color: rgba(255, 255, 255, 0.7);
-  margin-top: 10px;
-  padding-top: 14px;
-}
-
 .nav-item {
   background: transparent;
   border-radius: 11px;
