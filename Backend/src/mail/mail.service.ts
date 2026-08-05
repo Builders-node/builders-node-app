@@ -210,6 +210,81 @@ export class MailService {
     });
   }
 
+  /**
+   * Sent after the video call goes well. Deliberately does not promise a date:
+   * the payment link only goes out once an apartment is confirmed available, and
+   * that check can take days. This exists so the applicant isn't sitting in that
+   * gap wondering how the call went.
+   */
+  async sendMeetingApproved(to: string, fullName: string): Promise<void> {
+    const name = firstNameOf(fullName);
+    await this.send({
+      to,
+      subject: 'Great speaking with you — Builders Node',
+      text:
+        `Hi ${name},\n\n` +
+        'Thank you for taking the time to speak with us — we enjoyed the conversation and would love to have you with us.\n\n' +
+        "We're now confirming apartment availability for your dates. As soon as that's done we'll send you a payment link to secure your place.\n\n" +
+        "There's nothing you need to do until then.\n\n" +
+        'Best regards,\nBuilders Node',
+      html: layout(
+        'Great speaking with you',
+        `<p>Hi ${escapeHtml(name)},</p>
+         <p>Thank you for taking the time to speak with us — we enjoyed the conversation and would love to have you with us.</p>
+         <p>We're now confirming apartment availability for your dates. As soon as that's done we'll send you a payment link to secure your place.</p>
+         <p>There's nothing you need to do until then.</p>
+         <p>Best regards,<br />Builders Node</p>`,
+      ),
+    });
+  }
+
+  /** Receipt for a payment an admin has confirmed landed. */
+  async sendPaymentConfirmed(to: string, fullName: string): Promise<void> {
+    const name = firstNameOf(fullName);
+    await this.send({
+      to,
+      subject: 'Payment confirmed — welcome to Builders Node',
+      text:
+        `Hi ${name},\n\n` +
+        "We've received your payment — your place at Builders Node is secured.\n\n" +
+        "We're setting up your membership now and will email you once your account is fully active, with everything you need before arrival.\n\n" +
+        'Best regards,\nBuilders Node',
+      html: layout(
+        'Payment confirmed',
+        `<p>Hi ${escapeHtml(name)},</p>
+         <p>We've received your payment — your place at Builders Node is secured.</p>
+         <p>We're setting up your membership now and will email you once your account is fully active, with everything you need before arrival.</p>
+         <p>Best regards,<br />Builders Node</p>`,
+      ),
+    });
+  }
+
+  /** The end of the pipeline: membership is live and the dashboard is theirs. */
+  async sendMembershipActivated(to: string, fullName: string): Promise<void> {
+    const name = firstNameOf(fullName);
+    const dashboardUrl = `${this.frontendBaseUrl()}/home`;
+    await this.send({
+      to,
+      subject: "You're now a Builders Node member 🎉",
+      text:
+        `Hi ${name},\n\n` +
+        'Your membership is now active — welcome to Builders Node.\n\n' +
+        `You can sign in to your dashboard here: ${dashboardUrl}\n\n` +
+        'Inside you can see your apartment, book cleaning, reserve the community car, browse the member directory and join upcoming events.\n\n' +
+        "If anything is unclear, just reply to this email — we're here.\n\n" +
+        'Best regards,\nBuilders Node',
+      html: layout(
+        'Welcome to Builders Node',
+        `<p>Hi ${escapeHtml(name)},</p>
+         <p>Your membership is now active — welcome to Builders Node.</p>
+         ${button('Open your dashboard', dashboardUrl)}
+         <p>Inside you can see your apartment, book cleaning, reserve the community car, browse the member directory and join upcoming events.</p>
+         <p>If anything is unclear, just reply to this email — we're here.</p>
+         <p>Best regards,<br />Builders Node</p>`,
+      ),
+    });
+  }
+
   async sendInvitation(invitation: InvitationEmail): Promise<void> {
     await this.send({
       to: invitation.to,

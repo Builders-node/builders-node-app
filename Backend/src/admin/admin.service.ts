@@ -413,7 +413,7 @@ export class AdminService {
       throw new BadRequestException('First check rejected this application.');
     }
 
-    return this.prisma.application.update({
+    const updated = await this.prisma.application.update({
       where: { id: application.id },
       data: approved
         ? {
@@ -424,6 +424,14 @@ export class AdminService {
             status: 'MEETING_REJECTED',
           },
     });
+
+    // Same guard as firstCheck: only on approval, and only the first time, so a
+    // double click doesn't thank the same person for the same call twice.
+    if (approved && !application.meetingApprovedAt) {
+      await this.mail.sendMeetingApproved(application.email, application.fullName);
+    }
+
+    return updated;
   }
 
   async sendPaymentLink(applicationId: string, paymentLink?: string) {
@@ -463,7 +471,7 @@ export class AdminService {
       throw new BadRequestException('Send a payment link before confirming payment.');
     }
 
-    return this.prisma.application.update({
+    const updated = await this.prisma.application.update({
       where: { id: application.id },
       data: {
         status: 'PAYMENT_CONFIRMED',
@@ -471,6 +479,12 @@ export class AdminService {
         paymentConfirmedAt: new Date(),
       },
     });
+
+    if (!application.paymentConfirmedAt) {
+      await this.mail.sendPaymentConfirmed(application.email, application.fullName);
+    }
+
+    return updated;
   }
 
   /**
@@ -521,6 +535,12 @@ export class AdminService {
       where: { id: application.id },
       data: { status: 'CREDENTIALS_SENT', approvedAt: application.approvedAt ?? new Date() },
     });
+
+    // This method is deliberately safe to run twice, so the welcome mail keys off
+    // the status it just moved past rather than off reaching this line.
+    if (application.status !== 'CREDENTIALS_SENT') {
+      await this.mail.sendMembershipActivated(application.email, application.fullName);
+    }
 
     return { activated: true, userExisted: Boolean(user) };
   }
