@@ -714,7 +714,11 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
               </select>
               {cleaning?.slotsSource === 'default' ? (
                 <small style={{ display: 'block', marginTop: 4, color: '#6b7280', fontSize: '0.72rem' }}>
-                  Standard times — the team may propose alternatives.
+                  {/* Say plainly that these aren't the provider's live times.
+                      The soft old wording read as a normal footnote, so a
+                      provider outage looked like an ordinary list of hours. */}
+                  Couldn&apos;t reach the cleaning provider — these are our standard times.
+                  The team will confirm your slot.
                 </small>
               ) : null}
             </label>

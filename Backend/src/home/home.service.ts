@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { resolveFrontendBaseUrl } from '../common/frontend-url';
 import { PrismaService } from '../database/prisma.service';
 import { ProsperaSubClient } from '../subscriptions/prospera-sub.client';
@@ -45,6 +45,8 @@ export function nextOccurrence(weekday: number, timeSlot: string, from = new Dat
 
 @Injectable()
 export class HomeService {
+  private readonly logger = new Logger(HomeService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly prosperaSub: ProsperaSubClient,
@@ -316,8 +318,20 @@ export class HomeService {
       if (slots.length > 0) {
         return { slots, source: 'prospera', packageId: active?.id ?? null };
       }
-    } catch {
-      /* fall through to default */
+      // Reached the provider, but the package carries no times. Different
+      // problem from the provider being down, and worth saying which.
+      this.logger.warn(
+        `ProsperaSub returned no cleaning time slots (package ${active?.id ?? 'none'}); serving defaults.`,
+      );
+    } catch (error) {
+      // This used to be swallowed in silence. When ProsperaSub is down every
+      // member is quietly shown times nobody scheduled, and nothing anywhere
+      // says so — the outage is invisible until someone compares by hand.
+      this.logger.error(
+        `ProsperaSub cleaning packages unavailable; serving default slots. ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
     }
     return { slots: DEFAULT_CLEANING_SLOTS, source: 'default', packageId: globalCleaningPlan?.id ?? null };
   }
