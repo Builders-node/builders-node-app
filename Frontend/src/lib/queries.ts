@@ -212,6 +212,8 @@ export type MyCleaning = {
   frequency: string | null;
   notes: string | null;
   slots: string[];
+  /** Start + end of each bookable window — a cleaning visit is ~1h45, not a point. */
+  windows: Array<{ startTime: string; endTime: string | null }>;
   slotsSource: 'prospera' | 'default';
 };
 

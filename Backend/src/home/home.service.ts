@@ -10,8 +10,20 @@ import {
   parseGlobalMealPlan,
 } from '../admin/global-settings';
 
-/** Fallback used when ProsperaSub's package doesn't list slots yet. */
-const DEFAULT_CLEANING_SLOTS = ['09:00', '11:00', '13:00', '15:00', '17:00'];
+/**
+ * Used only when ProsperaSub can't be reached.
+ *
+ * These mirror the windows actually published in cleaning_available_slots
+ * (08:00-09:45, 10:00-11:45, 12:00-13:45, 14:00-15:45). The previous defaults
+ * — 09/11/13/15/17 — were invented, so a member picking one chose an hour no
+ * cleaner works, and 17:00 doesn't exist at all.
+ */
+const DEFAULT_CLEANING_SLOTS: Array<{ startTime: string; endTime: string | null }> = [
+  { startTime: '08:00', endTime: '09:45' },
+  { startTime: '10:00', endTime: '11:45' },
+  { startTime: '12:00', endTime: '13:45' },
+  { startTime: '14:00', endTime: '15:45' },
+];
 
 /** Sunday-first, matching JS `Date.getDay()`. */
 export const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -297,43 +309,50 @@ export class HomeService {
   }
 
   /**
-   * Return the time slots the member can book for cleaning. Reads them from
-   * ProsperaSub's cleaning_packages catalog — specifically from the active
-   * global cleaning plan (if set) so both member's plan and slots stay in
-   * sync. Falls back to a default list so the UI is always usable, and
-   * always includes `source: 'prospera' | 'default'` so the frontend can
-   * hint the user when it's a stale fallback.
+   * The windows a member can book cleaning in.
+   *
+   * Read from ProsperaSub's `cleaning_available_slots` — the table the cleaning
+   * team actually publishes availability into. It used to read `time_slots` off
+   * `cleaning_packages`, a column that has never existed, so the real times were
+   * never once shown: every member saw the hardcoded fallback.
+   *
+   * `source` tells the frontend whether these are live or our stand-in, so an
+   * outage can be said out loud instead of silently changing what people book.
    */
-  async getCleaningSlots(): Promise<{ slots: string[]; source: 'prospera' | 'default'; packageId: string | null }> {
+  async getCleaningSlots(): Promise<{
+    slots: string[];
+    windows: Array<{ startTime: string; endTime: string | null }>;
+    source: 'prospera' | 'default';
+    packageId: string | null;
+  }> {
     const globalCleaningRow = await this.prisma.globalSetting.findUnique({ where: { key: GLOBAL_CLEANING_PLAN_KEY } });
     const globalCleaningPlan = parseGlobalCleaningPlan(globalCleaningRow?.value);
+    const packageId = globalCleaningPlan?.id ?? null;
 
     try {
-      const packages = await this.prosperaSub.getCleaningSchedule('public');
-      // Prefer the package the admin picked globally; otherwise the first one.
-      const active = (globalCleaningPlan
-        ? packages.find((p) => p.id === globalCleaningPlan.id)
-        : null) ?? packages[0] ?? null;
-      const slots = active?.timeSlots ?? [];
-      if (slots.length > 0) {
-        return { slots, source: 'prospera', packageId: active?.id ?? null };
+      const windows = await this.prosperaSub.getCleaningTimeSlots();
+      if (windows.length > 0) {
+        return { slots: windows.map((w) => w.startTime), windows, source: 'prospera', packageId };
       }
-      // Reached the provider, but the package carries no times. Different
-      // problem from the provider being down, and worth saying which.
-      this.logger.warn(
-        `ProsperaSub returned no cleaning time slots (package ${active?.id ?? 'none'}); serving defaults.`,
-      );
+      // Reached the provider, but nothing is published. Different problem from
+      // the provider being down, and worth saying which.
+      this.logger.warn('ProsperaSub published no active cleaning slots; serving defaults.');
     } catch (error) {
-      // This used to be swallowed in silence. When ProsperaSub is down every
-      // member is quietly shown times nobody scheduled, and nothing anywhere
-      // says so — the outage is invisible until someone compares by hand.
+      // When ProsperaSub is down every member is quietly shown times nobody
+      // scheduled, and without this nothing anywhere says so.
       this.logger.error(
-        `ProsperaSub cleaning packages unavailable; serving default slots. ${
+        `ProsperaSub cleaning slots unavailable; serving defaults. ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
     }
-    return { slots: DEFAULT_CLEANING_SLOTS, source: 'default', packageId: globalCleaningPlan?.id ?? null };
+
+    return {
+      slots: DEFAULT_CLEANING_SLOTS.map((w) => w.startTime),
+      windows: DEFAULT_CLEANING_SLOTS,
+      source: 'default',
+      packageId,
+    };
   }
 
   /**
@@ -358,6 +377,9 @@ export class HomeService {
       frequency: schedule?.frequency ?? null,
       notes: schedule?.notes ?? null,
       slots: catalog.slots,
+      // The end times too, so the picker can show "08:00 – 09:45" rather than
+      // implying a cleaner turns up for an unspecified length of time.
+      windows: catalog.windows,
       slotsSource: catalog.source,
     };
   }

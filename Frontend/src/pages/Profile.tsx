@@ -102,7 +102,14 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
   // Sunday-first, matching the weekday numbers the server stores.
   const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
   const WEEKDAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
-  const FALLBACK_SLOTS = ['09:00', '11:00', '13:00', '15:00', '17:00'];
+  // Only reached if /cleaning itself fails; mirrors the windows ProsperaSub
+  // publishes, so a member never picks an hour no cleaner works.
+  const FALLBACK_WINDOWS = [
+    { startTime: '08:00', endTime: '09:45' },
+    { startTime: '10:00', endTime: '11:45' },
+    { startTime: '12:00', endTime: '13:45' },
+    { startTime: '14:00', endTime: '15:45' },
+  ];
 
   /**
    * The standing weekly slot and the times on offer, in one read. Times come
@@ -111,7 +118,10 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
    */
   const cleaningQuery = useMyCleaning(currentUserId);
   const cleaning = cleaningQuery.data ?? null;
-  const cleaningSlots = cleaning?.slots?.length ? cleaning.slots : (cleaningQuery.isError ? FALLBACK_SLOTS : []);
+  const cleaningWindows = cleaning?.windows?.length
+    ? cleaning.windows
+    : (cleaningQuery.isError ? FALLBACK_WINDOWS : []);
+  const cleaningSlots = cleaningWindows.map((w) => w.startTime);
   const setCleaning = useSetCleaning(currentUserId);
 
   /** What the member is about to commit to, shown before they commit to it. */
@@ -708,8 +718,10 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
                 <option value="">
                   {cleaningSlots.length === 0 ? 'Loading times…' : '— pick a time —'}
                 </option>
-                {cleaningSlots.map((time) => (
-                  <option key={time} value={time}>{time}</option>
+                {cleaningWindows.map((w) => (
+                  <option key={w.startTime} value={w.startTime}>
+                    {w.endTime ? `${w.startTime} – ${w.endTime}` : w.startTime}
+                  </option>
                 ))}
               </select>
               {cleaning?.slotsSource === 'default' ? (

@@ -127,18 +127,32 @@ function normalizeTimeSlots(raw: unknown): string[] {
 }
 
 /**
- * ProsperaSub's real schema stores per-package booking config in a jsonb
- * column called `booking_settings` (not `time_slots`). Slots — if / when
- * the team adds them — will most likely land as booking_settings.time_slots
- * or booking_settings.slots. Look in both places so we pick them up without
- * a code change once they're populated.
+ * Slots never lived on `cleaning_packages`.
+ *
+ * This used to read `time_slots` (a column that has never existed) and then
+ * `booking_settings.time_slots` / `.slots` on a guess that the team would put
+ * them there one day. They didn't: `booking_settings` is null on every cleaning
+ * package. So this returned [] for every package and the member-facing picker
+ * always fell back to invented times.
+ *
+ * The real availability is `cleaning_available_slots` — see
+ * getCleaningTimeSlots below.
  */
-function extractTimeSlots(row: Record<string, unknown>): string[] {
-  const topLevel = normalizeTimeSlots(row.time_slots);
-  if (topLevel.length > 0) return topLevel;
-  const booking = row.booking_settings as Record<string, unknown> | null | undefined;
-  if (!booking || typeof booking !== 'object') return [];
-  return normalizeTimeSlots(booking.time_slots ?? booking.slots);
+function extractTimeSlots(): string[] {
+  return [];
+}
+
+/** A bookable window: cleaners work 08:00-09:45, not a single instant. */
+export interface CleaningTimeSlot {
+  startTime: string;
+  endTime: string | null;
+}
+
+/** "08:00:00" / "08:00" → "08:00"; anything else → null. */
+function toHhMm(raw: unknown): string | null {
+  const value = String(raw ?? '').trim();
+  const match = /^([01]\d|2[0-3]):([0-5]\d)/.exec(value);
+  return match ? `${match[1]}:${match[2]}` : null;
 }
 
 export interface CreatePaymentInput {
@@ -292,8 +306,33 @@ export class ProsperaSubClient {
       cleaningsPerMonth: (row.cleanings_per_month as number) ?? null,
       serviceFrequency: (row.service_frequency as string) ?? null,
       apartmentType: (row.apartment_type as string) ?? null,
-      timeSlots: extractTimeSlots(row),
+      timeSlots: extractTimeSlots(),
     }));
+  }
+
+  /**
+   * The times cleaners actually work, from `cleaning_available_slots`.
+   *
+   * That table is per-date (one row per day per window, with capacity), but the
+   * member picks a standing weekly slot, so what we want is the distinct set of
+   * windows — the template behind those rows. Selecting only the two time
+   * columns keeps this cheap even though the table has a row per day.
+   */
+  async getCleaningTimeSlots(): Promise<CleaningTimeSlot[]> {
+    if (!this.configured) return [];
+
+    const rows = await this.request<Record<string, unknown>[]>(
+      'GET',
+      '/v1/data/cleaning_available_slots?select=start_time,end_time&is_active=eq.true&order=start_time.asc',
+    );
+
+    const seen = new Map<string, CleaningTimeSlot>();
+    for (const row of rows ?? []) {
+      const startTime = toHhMm(row.start_time);
+      if (!startTime || seen.has(startTime)) continue;
+      seen.set(startTime, { startTime, endTime: toHhMm(row.end_time) });
+    }
+    return [...seen.values()].sort((a, b) => a.startTime.localeCompare(b.startTime));
   }
 
   /**
