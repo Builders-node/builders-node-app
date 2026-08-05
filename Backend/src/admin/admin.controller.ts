@@ -244,7 +244,8 @@ export class AdminController {
   updateUserRole(
     @Param('userId') userId: string,
     @Body() body: { role?: string },
-    @Req() request: Request & { adminAccess?: { role: string; via: 'key' | 'session' } },
+    // userId matters here: a Super Admin must not be able to demote themselves.
+    @Req() request: Request & { adminAccess?: { userId?: string; role: string; via: 'key' | 'session' } },
   ) {
     return this.admin.updateUserRole(userId, body.role, request.adminAccess);
   }

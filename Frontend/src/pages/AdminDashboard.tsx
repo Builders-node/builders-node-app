@@ -324,7 +324,11 @@ function nextStepFor(status: string, apartmentAvailable?: boolean | null, paymen
 }
 
 // Ordered pipeline shown as a per-applicant progress stepper.
-const APPLICANT_STAGES = ['Apply', 'First check', 'Meeting', 'Apartment', 'Payment', 'Password'];
+// No "Password" step. The applicant creates their own account and picks their
+// own password on the way in, during apply — it was left over from when an
+// admin mailed out credentials at the end, and it showed every applicant a
+// sixth hurdle that nobody has had to clear in a long time.
+const APPLICANT_STAGES = ['Apply', 'First check', 'Meeting', 'Apartment', 'Payment'];
 
 // Kanban columns for the pipeline board, keyed by the applicant's current stage.
 const PIPELINE_COLUMNS: { stage: number; title: string }[] = [
@@ -332,14 +336,13 @@ const PIPELINE_COLUMNS: { stage: number; title: string }[] = [
   { stage: 2, title: 'Meeting' },
   { stage: 3, title: 'Apartment' },
   { stage: 4, title: 'Payment' },
-  { stage: 5, title: 'Credentials' },
-  { stage: 6, title: 'Onboarded' },
+  { stage: 5, title: 'Onboarded' },
   { stage: -1, title: 'Rejected' },
 ];
 
 function pipelineStage(status: string, apartmentAvailable?: boolean | null): number {
   const index = applicantStageIndex(status, apartmentAvailable);
-  return index < 0 ? -1 : Math.min(index, 6);
+  return index < 0 ? -1 : Math.min(index, 5);
 }
 
 type ApplicantBucket = 'action' | 'onboarded' | 'rejected';
@@ -347,7 +350,7 @@ type ApplicantFilterId = 'all' | ApplicantBucket;
 const APPLICANTS_PER_PAGE = 8;
 
 // Index of the stage the applicant is currently AT (stages before it are done).
-// 6 = fully onboarded, -1 = rejected.
+// 5 = fully onboarded, -1 = rejected.
 //
 // This has to agree with TERMINAL_APPLICATION_STATUSES on the server — the
 // sidebar badge counts with the server's list and these chips count with this
@@ -368,12 +371,16 @@ function applicantStageIndex(status: string, apartmentAvailable?: boolean | null
     // filter nobody checks.
     case 'NO_APARTMENT_AVAILABLE':
       return 3;
+    // Paid, but an admin still has to click "Complete onboarding" — so they stay
+    // on the Payment step rather than moving to a step of their own. Keeping
+    // them here is what keeps them under "Action needed" instead of quietly
+    // counting as onboarded before anyone finished them.
     case 'PAYMENT_CONFIRMED':
-      return 5;
+      return 4;
     // Both ends of the pipeline: the current one, and the legacy direct approval.
     case 'CREDENTIALS_SENT':
     case 'APPROVED':
-      return 6;
+      return 5;
     default:
       return status.includes('REJECTED') ? -1 : 1;
   }
@@ -1184,22 +1191,6 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     }
   }
 
-  async function sendCredentials(applicationId: string) {
-    setError(null);
-    setCredentialMessage(null);
-    try {
-      const result = await apiRequest<{
-        invitation: { to: string; setupUrl: string; temporaryPassword: string };
-      }>(`/admin/applications/${applicationId}/send-credentials`, {
-        method: 'POST',
-      });
-      setCredentialMessage(`Credentials for ${result.invitation.to}: ${result.invitation.setupUrl} temporary password ${result.invitation.temporaryPassword}`);
-      await refreshOverview();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not send credentials.');
-    }
-  }
-
   async function updateApplication(applicationId: string, path: string, body?: object, success?: string) {
     setError(null);
     setCredentialMessage(null);
@@ -1824,7 +1815,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
           <div className="admin-panel__head">
             <div>
               <h2>Applicants</h2>
-              <p>Follow the pipeline: checks, apartment availability, payment, then password creation.</p>
+              <p>Follow the pipeline: checks, apartment availability, then payment.</p>
             </div>
             <div className="view-toggle" role="group" aria-label="View mode">
               <button
@@ -2029,7 +2020,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                   <div className="applicant-card__footer">
                     <span className="applicant-card__next">
                       {onboarded
-                        ? 'Onboarded — member can create their password'
+                        ? 'Onboarded — membership is active'
                         : `Next step: ${nextStepFor(application.status, application.apartmentAvailable, application.paymentStatus)}`}
                     </span>
                     <div className="applicant-card__actions">

@@ -8,7 +8,7 @@ import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { createReferralCode } from '../users/referral-code';
 import { purgeUser } from '../users/purge-user';
-import { isUserRole } from '../users/roles';
+import { isAdminRole, isUserRole } from '../users/roles';
 import { ProsperaSubClient } from '../subscriptions/prospera-sub.client';
 import {
   BATCH_KEY,
@@ -1373,16 +1373,66 @@ export class AdminService {
     return this.getGlobalSettings();
   }
 
-  async updateUserRole(userId: string, role: string | undefined, actor?: { role: string; via: 'key' | 'session' }) {
+  /**
+   * Every role change goes through here, from both doors — this endpoint and the
+   * role field on the user edit form.
+   *
+   * There are two ways to lock everyone out of the admin panel and neither can
+   * be undone from inside the product: demote yourself, or demote the last Super
+   * Admin there is. Both are refused.
+   */
+  private async assertRoleChangeAllowed(
+    userId: string,
+    currentRole: string,
+    nextRole: string | undefined,
+    actor?: { userId?: string; role: string; via: 'key' | 'session' },
+  ) {
     if (actor?.via !== 'key' && actor?.role !== 'SUPER_ADMIN') {
       throw new ForbiddenException('Only Super Admin can change roles.');
     }
-
-    if (!isUserRole(role)) {
+    if (!isUserRole(nextRole)) {
       throw new BadRequestException('Choose a valid role.');
     }
+    if (actor?.userId && actor.userId === userId) {
+      throw new BadRequestException('You cannot change your own role. Ask another Super Admin to do it.');
+    }
+    if (currentRole === 'SUPER_ADMIN' && nextRole !== 'SUPER_ADMIN') {
+      const others = await this.prisma.user.count({ where: { role: 'SUPER_ADMIN', id: { not: userId } } });
+      if (others === 0) {
+        throw new BadRequestException('This is the last Super Admin. Promote someone else first.');
+      }
+    }
+  }
 
-    return this.prisma.user.update({
+  /** Record the change and, when someone gains admin access, tell them. */
+  private async afterRoleChange(user: { id: string; email: string }, from: string, to: string, actor?: { userId?: string }) {
+    await this.prisma.auditEvent.create({
+      data: {
+        userId: actor?.userId ?? null,
+        action: 'user_role_change',
+        metadataJson: JSON.stringify({ targetUserId: user.id, email: user.email, from, to }),
+      },
+    });
+
+    if (isAdminRole(to) && !isAdminRole(from)) {
+      await this.notifications.notify(user.id, {
+        type: 'success',
+        title: 'You now have admin access',
+        body: `Your role is ${to.split('_').join(' ').toLowerCase()}. The admin dashboard is in your account menu.`,
+        link: '/admin',
+      });
+    }
+  }
+
+  async updateUserRole(userId: string, role: string | undefined, actor?: { userId?: string; role: string; via: 'key' | 'session' }) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, role: true } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    await this.assertRoleChangeAllowed(userId, user.role, role, actor);
+
+    const updated = await this.prisma.user.update({
       where: { id: userId },
       data: { role },
       select: {
@@ -1393,6 +1443,12 @@ export class AdminService {
         membership: true,
       },
     });
+
+    if (updated.role !== user.role) {
+      await this.afterRoleChange(user, user.role, updated.role, actor);
+    }
+
+    return updated;
   }
 
   /**
@@ -1411,12 +1467,7 @@ export class AdminService {
 
     const roleChanged = typeof body.role === 'string' && body.role !== user.role;
     if (roleChanged) {
-      if (actor?.via !== 'key' && actor?.role !== 'SUPER_ADMIN') {
-        throw new ForbiddenException('Only Super Admin can change roles.');
-      }
-      if (!isUserRole(body.role)) {
-        throw new BadRequestException('Choose a valid role.');
-      }
+      await this.assertRoleChangeAllowed(userId, user.role, body.role, actor);
     }
 
     const membershipStatus = body.membershipStatus?.trim();
@@ -1452,6 +1503,10 @@ export class AdminService {
         await tx.user.update({ where: { id: userId }, data: { role: body.role } });
       }
     });
+
+    if (roleChanged && body.role) {
+      await this.afterRoleChange(user, user.role, body.role, actor);
+    }
 
     return this.userDetail(userId);
   }

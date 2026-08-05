@@ -1308,6 +1308,40 @@ textarea {
   width: auto;
 }
 
+/* Who has admin access, visible without opening anyone. Outlined rather than
+   filled so it doesn't compete with the accent-coloured NEW badge next to it. */
+.badge-role {
+  align-items: center;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  padding: 3px 7px;
+  text-transform: uppercase;
+  width: auto;
+}
+
+.role-select {
+  font: inherit;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 4px 8px;
+  max-width: 60%;
+}
+.role-select:disabled { opacity: 0.6; }
+.role-hint {
+  color: var(--muted);
+  font-weight: 500;
+  margin-left: 8px;
+}
+
 .all-users-search {
   flex: 1 1 auto;
   margin-bottom: 14px;

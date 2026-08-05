@@ -2,7 +2,7 @@ import { FileText, Pencil, Search, Trash2, UserPlus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
-import type { StatusTone } from '../data/dashboard';
+import { ADMIN_ROLES, type StatusTone } from '../data/dashboard';
 import { apiRequest } from '../lib/api';
 import { useEscapeToClose } from '../lib/useModalA11y';
 
@@ -180,6 +180,7 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
   const [createdInvite, setCreatedInvite] = useState<{ to: string; setupUrl: string; temporaryPassword: string } | null>(null);
   useEscapeToClose(showAddForm, () => setShowAddForm(false));
   useEscapeToClose(Boolean(selectedUser), () => setSelectedUser(null));
+  const [isSavingRole, setIsSavingRole] = useState(false);
   const isSuperAdmin = currentUserRole === 'SUPER_ADMIN';
 
   useEffect(() => {
@@ -291,6 +292,43 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
       setUsers(data.users);
     } catch {
       /* keep existing list on refresh failure */
+    }
+  }
+
+  /**
+   * Change a member's role from the Account tab, without going through Edit.
+   *
+   * Granting admin is not the same kind of act as fixing someone's phone number,
+   * so it doesn't live in the same form: it applies on its own and asks first.
+   * The Super Admin gate is enforced on the server; this only decides what's
+   * worth rendering.
+   */
+  async function changeRole(nextRole: string) {
+    if (!selectedUser || nextRole === selectedUser.role) return;
+    const who = selectedUser.profile?.fullName ?? selectedUser.email;
+    const gaining = ADMIN_ROLES.includes(nextRole);
+    const losing = ADMIN_ROLES.includes(selectedUser.role) && !gaining;
+    const question = gaining
+      ? `Give ${who} ${roleLabel(nextRole)} access? They will be able to see and act on every member's data.`
+      : losing
+        ? `Remove admin access from ${who}?`
+        : `Change ${who}'s role to ${roleLabel(nextRole)}?`;
+    if (!window.confirm(question)) return;
+
+    setIsSavingRole(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await apiRequest(`/admin/users/${selectedUser.id}/role`, {
+        method: 'PATCH',
+        body: JSON.stringify({ role: nextRole }),
+      });
+      setNotice(`${who} is now ${roleLabel(nextRole)}.`);
+      await Promise.all([refreshSelected(), refreshUsers()]);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not change the role.');
+    } finally {
+      setIsSavingRole(false);
     }
   }
 
@@ -621,6 +659,10 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
                   <strong>
                     {user.fullName ?? user.email}
                     {isNewUser(user.createdAt) ? <span className="badge-new">NEW</span> : null}
+                    {/* Only for admins. Tagging every ordinary member "MEMBER"
+                        would put a badge on almost every row and tell you
+                        nothing — the point is spotting who has access. */}
+                    {ADMIN_ROLES.includes(user.role) ? <span className="badge-role">{roleLabel(user.role)}</span> : null}
                   </strong>
                   <small>{user.email} · Joined {formatDate(user.createdAt)}</small>
                 </span>
@@ -733,7 +775,30 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
                     <section className="panel">
                       <h2>Account</h2>
                       <div className="detail-box">
-                        <div><span>Role</span><strong>{roleLabel(selectedUser.role)}</strong></div>
+                        <div>
+                          <span>Role</span>
+                          {isSuperAdmin && currentUserId !== selectedUser.id ? (
+                            <select
+                              className="role-select"
+                              value={selectedUser.role}
+                              disabled={isSavingRole}
+                              onChange={(event) => void changeRole(event.target.value)}
+                              aria-label="Role"
+                            >
+                              {roleOptions.map((role) => (
+                                <option key={role} value={role}>{roleLabel(role)}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <strong>
+                              {roleLabel(selectedUser.role)}
+                              {/* Says why the control isn't there, rather than
+                                  leaving a Super Admin wondering where it went
+                                  when they open their own card. */}
+                              {currentUserId === selectedUser.id ? <small className="role-hint">your own role</small> : null}
+                            </strong>
+                          )}
+                        </div>
                         <div><span>Email verified</span><strong>{selectedUser.emailVerifiedAt ? 'Yes' : 'No'}</strong></div>
                         <div><span>Membership</span><strong>{selectedUser.membership?.status ?? '-'}</strong></div>
                         <div><span>Joined</span><strong>{formatDate(selectedUser.createdAt)}</strong></div>
