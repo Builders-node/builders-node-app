@@ -384,7 +384,7 @@ export class AdminService {
     const application = await this.requireApplication(applicationId);
     const now = new Date();
 
-    return this.prisma.application.update({
+    const updated = await this.prisma.application.update({
       where: { id: application.id },
       data: approved
         ? {
@@ -396,6 +396,15 @@ export class AdminService {
             status: 'FIRST_REJECTED',
           },
     });
+
+    // Invite them to book the call. Only on approval, and only on the first one:
+    // re-approving an already-approved application (a double click, a bulk run
+    // over a mixed selection) shouldn't email the same person twice.
+    if (approved && !application.firstApprovedAt) {
+      await this.mail.sendFirstCheckApproved(application.email, application.fullName);
+    }
+
+    return updated;
   }
 
   async onlineMeetingCheck(applicationId: string, approved: boolean) {

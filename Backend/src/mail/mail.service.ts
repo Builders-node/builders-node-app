@@ -5,6 +5,10 @@ import { resolveFrontendBaseUrl } from '../common/frontend-url';
 
 type Email = { to: string; subject: string; html: string; text: string };
 
+/** Builders Node's Google appointment schedule; override with MEETING_BOOKING_URL. */
+const DEFAULT_MEETING_BOOKING_URL =
+  'https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ2-5XDVVLfQfx0r_nqtDttfQV00lCZcIvMg-0B-RG7XYnTALuq2_XY2Q55U8s4J6UdeZjPHbIp9';
+
 /**
  * Transactional email.
  *
@@ -106,6 +110,46 @@ export class MailService {
     });
   }
 
+  /**
+   * Sent when an applicant clears the first check. Its whole job is to get a
+   * call booked, so the calendar link is the only thing to act on.
+   *
+   * The URL is configurable because a Google appointment schedule can be
+   * recreated or moved, and a hardcoded one would silently send applicants to a
+   * dead page until somebody redeployed.
+   */
+  async sendFirstCheckApproved(to: string, fullName: string): Promise<void> {
+    const calendarUrl = this.config.get<string>('MEETING_BOOKING_URL') ?? DEFAULT_MEETING_BOOKING_URL;
+    // First name only — "Hi Robert" reads like a person wrote it, "Hi Robert
+    // Neufeld" reads like a mail merge.
+    const name = fullName.trim().split(/\s+/)[0] || 'there';
+
+    await this.send({
+      to,
+      subject: 'Next step: book a call with Builders Node',
+      text:
+        `Hi ${name},\n\n` +
+        'Thank you for applying to our community.\n\n' +
+        'We were impressed by your background and experience.\n\n' +
+        'The next step in our selection process is a short video call so we can get to know each other ' +
+        'better and answer any questions you may have.\n\n' +
+        `You can book a time that works best for you using the following calendar: ${calendarUrl}\n\n` +
+        'We look forward to speaking with you!\n\n' +
+        'Best regards,\nBuilders Node',
+      html: layout(
+        'Thank you for applying',
+        `<p>Hi ${escapeHtml(name)},</p>
+         <p>Thank you for applying to our community.</p>
+         <p>We were impressed by your background and experience.</p>
+         <p>The next step in our selection process is a short video call so we can get to know each other better and answer any questions you may have.</p>
+         <p>You can book a time that works best for you:</p>
+         ${button('Book your call', calendarUrl)}
+         <p>We look forward to speaking with you!</p>
+         <p>Best regards,<br />Builders Node</p>`,
+      ),
+    });
+  }
+
   async sendInvitation(invitation: InvitationEmail): Promise<void> {
     await this.send({
       to: invitation.to,
@@ -121,6 +165,19 @@ export class MailService {
       ),
     });
   }
+}
+
+/**
+ * The applicant's own name goes into HTML. It came from a public form, so an
+ * apostrophe or an angle bracket must not be able to break the markup.
+ */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function button(label: string, url: string): string {
