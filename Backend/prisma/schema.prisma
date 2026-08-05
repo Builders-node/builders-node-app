@@ -413,7 +413,11 @@ model CleaningSchedule {
   bookedAt               DateTime?
   nextCleaning           DateTime?
   frequency              String?
+  // `notes` is the admin's — it carries the designated plan name. What the
+  // member writes for the cleaner (pets, door code, "please skip the study")
+  // gets its own column so booking a slot can't wipe the plan.
   notes                  String?
+  memberNote             String?
   source                 String   @default("ProsperaSub.com")
   // ProsperaSub cleaning_subscriptions row id, once mirrored.
   externalSubscriptionId String?  @unique

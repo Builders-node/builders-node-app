@@ -142,6 +142,15 @@ function extractTimeSlots(): string[] {
   return [];
 }
 
+/**
+ * How many upcoming dates a window must appear on to count as part of the
+ * standing schedule. The real recurring windows are published across months
+ * (90+ dates); a one-off opened for a single day has one. Four is comfortably
+ * between the two, and erring high is the safe direction: leaving a genuinely
+ * new window out for a week beats offering a weekly slot that happens once.
+ */
+const MIN_DATES_FOR_RECURRING_SLOT = 4;
+
 /** A bookable window: cleaners work 08:00-09:45, not a single instant. */
 export interface CleaningTimeSlot {
   startTime: string;
@@ -311,28 +320,44 @@ export class ProsperaSubClient {
   }
 
   /**
-   * The times cleaners actually work, from `cleaning_available_slots`.
+   * The windows cleaners work every week, from `cleaning_available_slots`.
    *
-   * That table is per-date (one row per day per window, with capacity), but the
-   * member picks a standing weekly slot, so what we want is the distinct set of
-   * windows — the template behind those rows. Selecting only the two time
-   * columns keeps this cheap even though the table has a row per day.
+   * That table is per-date — one row per day per window — and mixes two kinds of
+   * entry: the standing schedule, published across months, and one-off slots
+   * opened for a single day. A member here is choosing a slot they'll keep every
+   * week, so only the recurring ones belong in the picker. Offering a one-off
+   * would hand someone a weekly booking against a window that exists once and
+   * never again.
+   *
+   * Recurrence is judged on upcoming dates: the question is whether the window
+   * will keep happening, not whether it used to.
    */
   async getCleaningTimeSlots(): Promise<CleaningTimeSlot[]> {
     if (!this.configured) return [];
 
+    const today = new Date().toISOString().slice(0, 10);
     const rows = await this.request<Record<string, unknown>[]>(
       'GET',
-      '/v1/data/cleaning_available_slots?select=start_time,end_time&is_active=eq.true&order=start_time.asc',
+      `/v1/data/cleaning_available_slots?select=start_time,end_time,date&is_active=eq.true&date=gte.${today}&order=start_time.asc`,
     );
 
-    const seen = new Map<string, CleaningTimeSlot>();
+    const byWindow = new Map<string, { slot: CleaningTimeSlot; dates: Set<string> }>();
     for (const row of rows ?? []) {
       const startTime = toHhMm(row.start_time);
-      if (!startTime || seen.has(startTime)) continue;
-      seen.set(startTime, { startTime, endTime: toHhMm(row.end_time) });
+      const date = String(row.date ?? '').slice(0, 10);
+      if (!startTime || !date) continue;
+      const entry = byWindow.get(startTime) ?? {
+        slot: { startTime, endTime: toHhMm(row.end_time) },
+        dates: new Set<string>(),
+      };
+      entry.dates.add(date);
+      byWindow.set(startTime, entry);
     }
-    return [...seen.values()].sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    return [...byWindow.values()]
+      .filter((e) => e.dates.size >= MIN_DATES_FOR_RECURRING_SLOT)
+      .map((e) => e.slot)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
   }
 
   /**

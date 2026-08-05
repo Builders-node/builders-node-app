@@ -62,7 +62,10 @@ export class HomeController {
    */
   @UseGuards(JwtAuthGuard)
   @Put('users/:userId/cleaning')
-  setMyCleaning(@Param('userId') userId: string, @Body() body: { weekday?: unknown; timeSlot?: unknown }) {
+  setMyCleaning(
+    @Param('userId') userId: string,
+    @Body() body: { weekday?: unknown; timeSlot?: unknown; memberNote?: unknown },
+  ) {
     return this.home.setMyCleaning(userId, body);
   }
 }

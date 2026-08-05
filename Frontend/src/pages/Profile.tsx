@@ -97,6 +97,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
   }
   const [cleaningWeekday, setCleaningWeekday] = useState<number | null>(null);
   const [cleaningTime, setCleaningTime] = useState<string>('');
+  const [cleaningNote, setCleaningNote] = useState('');
   const [cleaningError, setCleaningError] = useState<string | null>(null);
 
   // Sunday-first, matching the weekday numbers the server stores.
@@ -140,6 +141,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
     // Seed from the current slot so "change" starts where they left off.
     setCleaningWeekday(cleaning?.weekday ?? null);
     setCleaningTime(cleaning?.timeSlot ?? '');
+    setCleaningNote(cleaning?.memberNote ?? '');
     setCleaningError(null);
     setCleaningModalOpen(true);
   }
@@ -151,7 +153,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
     }
     setCleaningError(null);
     try {
-      await setCleaning.mutateAsync({ weekday: cleaningWeekday, timeSlot: cleaningTime });
+      await setCleaning.mutateAsync({ weekday: cleaningWeekday, timeSlot: cleaningTime, memberNote: cleaningNote });
       setCleaningModalOpen(false);
       setResidencyMessage(`Cleaning booked for every ${WEEKDAY_FULL[cleaningWeekday]} at ${cleaningTime}.`);
     } catch (caught) {
@@ -740,6 +742,17 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
                 Every {WEEKDAY_FULL[cleaningWeekday]} at {cleaningTime}, starting {formatDate(nextCleaningPreview)}.
               </p>
             ) : null}
+
+            <label>
+              Note for the cleaner (optional)
+              <textarea
+                value={cleaningNote}
+                onChange={(event) => setCleaningNote(event.target.value)}
+                rows={2}
+                maxLength={500}
+                placeholder="Pets, door code, a room to skip…"
+              />
+            </label>
 
             {cleaningError ? <p className="form-error">{cleaningError}</p> : null}
             <button

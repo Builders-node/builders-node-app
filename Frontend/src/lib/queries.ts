@@ -211,6 +211,8 @@ export type MyCleaning = {
   nextCleaning: string | null;
   frequency: string | null;
   notes: string | null;
+  /** What the member wants the cleaner to know — theirs, not the admin's `notes`. */
+  memberNote: string | null;
   slots: string[];
   /** Start + end of each bookable window — a cleaning visit is ~1h45, not a point. */
   windows: Array<{ startTime: string; endTime: string | null }>;
@@ -233,7 +235,7 @@ export function useMyCleaning(userId: string | null | undefined) {
 export function useSetCleaning(userId: string | null | undefined) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (body: { weekday: number; timeSlot: string }) =>
+    mutationFn: (body: { weekday: number; timeSlot: string; memberNote: string }) =>
       apiRequest<MyCleaning>(`/users/${userId}/cleaning`, { method: 'PUT', body: JSON.stringify(body) }),
     onSuccess: (data) => {
       if (!userId) return;

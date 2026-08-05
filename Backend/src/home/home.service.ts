@@ -35,6 +35,9 @@ export const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thurs
  */
 const RESIDENCE_UTC_OFFSET_HOURS = -6;
 
+/** Long enough for door codes and pet instructions, short enough to stay a note. */
+const MAX_MEMBER_NOTE = 500;
+
 /**
  * The next time the given weekly slot comes round, as a UTC instant.
  *
@@ -376,6 +379,7 @@ export class HomeService {
       nextCleaning: booked ? nextOccurrence(schedule!.weekday!, schedule!.timeSlot!) : (schedule?.nextCleaning ?? null),
       frequency: schedule?.frequency ?? null,
       notes: schedule?.notes ?? null,
+      memberNote: schedule?.memberNote ?? null,
       slots: catalog.slots,
       // The end times too, so the picker can show "08:00 – 09:45" rather than
       // implying a cleaner turns up for an unspecified length of time.
@@ -389,7 +393,7 @@ export class HomeService {
    * standing arrangement, not a queue of requests, so booking again replaces
    * the slot instead of stacking up another one.
    */
-  async setMyCleaning(userId: string, input: { weekday?: unknown; timeSlot?: unknown }) {
+  async setMyCleaning(userId: string, input: { weekday?: unknown; timeSlot?: unknown; memberNote?: unknown }) {
     const weekday = Number(input.weekday);
     if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
       throw new BadRequestException('Pick a day of the week.');
@@ -409,9 +413,14 @@ export class HomeService {
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
+    // Anything the cleaner should know. Capped so a stray paste can't fill the
+    // column; blank clears it rather than leaving a note the member deleted.
+    const memberNote = String(input.memberNote ?? '').trim().slice(0, MAX_MEMBER_NOTE) || null;
+
     const data = {
       weekday,
       timeSlot,
+      memberNote,
       bookedAt: new Date(),
       nextCleaning: nextOccurrence(weekday, timeSlot),
       frequency: 'Weekly',
