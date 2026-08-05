@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { resolveFrontendBaseUrl } from '../common/frontend-url';
 import { PrismaService } from '../database/prisma.service';
 import { ProsperaSubClient } from '../subscriptions/prospera-sub.client';
@@ -12,6 +12,36 @@ import {
 
 /** Fallback used when ProsperaSub's package doesn't list slots yet. */
 const DEFAULT_CLEANING_SLOTS = ['09:00', '11:00', '13:00', '15:00', '17:00'];
+
+/** Sunday-first, matching JS `Date.getDay()`. */
+export const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/**
+ * Próspera is UTC-6 with no DST, so a fixed offset is exact. The slot the member
+ * picks is a wall-clock time at the residence — where the cleaner actually
+ * turns up — not a time in whatever timezone their laptop is set to.
+ */
+const RESIDENCE_UTC_OFFSET_HOURS = -6;
+
+/**
+ * The next time the given weekly slot comes round, as a UTC instant.
+ *
+ * Derived rather than stored: a standing weekly booking has no single "next
+ * date" to keep up to date, and a stored one goes stale the moment it passes.
+ */
+export function nextOccurrence(weekday: number, timeSlot: string, from = new Date()): Date {
+  const [hours, minutes] = timeSlot.split(':').map(Number);
+  const offsetMs = RESIDENCE_UTC_OFFSET_HOURS * 3600 * 1000;
+  // Work in residence-local terms by shifting, then shift back at the end.
+  const local = new Date(from.getTime() + offsetMs);
+  const candidate = new Date(local);
+  candidate.setUTCHours(hours || 0, minutes || 0, 0, 0);
+  const daysAhead = (weekday - candidate.getUTCDay() + 7) % 7;
+  candidate.setUTCDate(candidate.getUTCDate() + daysAhead);
+  // Same weekday but the slot has already passed today → a week out.
+  if (candidate.getTime() <= local.getTime()) candidate.setUTCDate(candidate.getUTCDate() + 7);
+  return new Date(candidate.getTime() - offsetMs);
+}
 
 @Injectable()
 export class HomeService {
@@ -101,9 +131,18 @@ export class HomeService {
       cleaning: cleaning
         ? {
             source: cleaning.source,
-            nextCleaning: cleaning.nextCleaning,
+            // Derived from the standing slot when there is one, so Home never
+            // shows a "next cleaning" date that has already been and gone.
+            nextCleaning:
+              cleaning.weekday != null && cleaning.timeSlot
+                ? nextOccurrence(cleaning.weekday, cleaning.timeSlot)
+                : cleaning.nextCleaning,
             frequency: cleaning.frequency,
             notes: cleaning.notes,
+            weekday: cleaning.weekday,
+            weekdayName: cleaning.weekday != null ? WEEKDAY_NAMES[cleaning.weekday] : null,
+            timeSlot: cleaning.timeSlot,
+            booked: cleaning.weekday != null && Boolean(cleaning.timeSlot),
           }
         : globalCleaningPlan
           ? {
@@ -111,6 +150,10 @@ export class HomeService {
               nextCleaning: null,
               frequency: globalCleaningPlan.serviceFrequency,
               notes: globalCleaningPlan.name,
+              weekday: null,
+              weekdayName: null,
+              timeSlot: null,
+              booked: false,
             }
           : null,
     };
@@ -277,5 +320,73 @@ export class HomeService {
       /* fall through to default */
     }
     return { slots: DEFAULT_CLEANING_SLOTS, source: 'default', packageId: globalCleaningPlan?.id ?? null };
+  }
+
+  /**
+   * The member's standing weekly cleaning slot, with the slots they can choose
+   * from so the picker needs one request rather than two.
+   */
+  async getMyCleaning(userId: string) {
+    const [schedule, catalog] = await Promise.all([
+      this.prisma.cleaningSchedule.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' } }),
+      this.getCleaningSlots(),
+    ]);
+
+    const booked = schedule?.weekday != null && Boolean(schedule.timeSlot);
+    return {
+      booked,
+      weekday: schedule?.weekday ?? null,
+      weekdayName: schedule?.weekday != null ? WEEKDAY_NAMES[schedule.weekday] : null,
+      timeSlot: schedule?.timeSlot ?? null,
+      // Recomputed on read: a standing weekly slot has no stored "next" that
+      // stays true, and the member should never see a date that has passed.
+      nextCleaning: booked ? nextOccurrence(schedule!.weekday!, schedule!.timeSlot!) : (schedule?.nextCleaning ?? null),
+      frequency: schedule?.frequency ?? null,
+      notes: schedule?.notes ?? null,
+      slots: catalog.slots,
+      slotsSource: catalog.source,
+    };
+  }
+
+  /**
+   * Set (or move) the weekly slot. One row per member, upserted — booking is a
+   * standing arrangement, not a queue of requests, so booking again replaces
+   * the slot instead of stacking up another one.
+   */
+  async setMyCleaning(userId: string, input: { weekday?: unknown; timeSlot?: unknown }) {
+    const weekday = Number(input.weekday);
+    if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
+      throw new BadRequestException('Pick a day of the week.');
+    }
+    const timeSlot = String(input.timeSlot ?? '').trim();
+    if (!/^\d{2}:\d{2}$/.test(timeSlot)) {
+      throw new BadRequestException('Pick a time slot.');
+    }
+    // Only slots the provider actually offers — a hand-crafted request must not
+    // book a time no cleaner is scheduled for.
+    const { slots } = await this.getCleaningSlots();
+    if (!slots.includes(timeSlot)) {
+      throw new BadRequestException('That time slot is not available.');
+    }
+
+    const existing = await this.prisma.cleaningSchedule.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    const data = {
+      weekday,
+      timeSlot,
+      bookedAt: new Date(),
+      nextCleaning: nextOccurrence(weekday, timeSlot),
+      frequency: 'Weekly',
+    };
+
+    if (existing) {
+      await this.prisma.cleaningSchedule.update({ where: { id: existing.id }, data });
+    } else {
+      await this.prisma.cleaningSchedule.create({ data: { ...data, userId } });
+    }
+
+    return this.getMyCleaning(userId);
   }
 }

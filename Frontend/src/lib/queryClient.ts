@@ -48,4 +48,5 @@ export const qk = {
   directoryProfile: (userId: string) => ['directory-profile', userId] as const,
   events: () => ['events'] as const,
   cleaningSlots: () => ['cleaning-slots'] as const,
+  cleaning: (userId: string) => ['cleaning', userId] as const,
 };

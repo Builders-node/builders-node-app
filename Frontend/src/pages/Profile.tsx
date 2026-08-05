@@ -1,11 +1,11 @@
 import { Bed, Check, ChevronRight, ExternalLink, FileCheck2, Pencil, QrCode, Send, Sparkles, Upload, Utensils, Waves, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import type { PageId } from '../data/dashboard';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import { apiRequest } from '../lib/api';
-import { useCleaningSlots, useHome, useProfile, useResidency } from '../lib/queries';
+import { useHome, useMyCleaning, useProfile, useResidency, useSetCleaning } from '../lib/queries';
 import { useEscapeToClose } from '../lib/useModalA11y';
 import { MaintenanceSection } from '../components/MaintenanceSection';
 import { CarsSection } from '../components/CarsSection';
@@ -95,60 +95,59 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
       setPassRotating(false);
     }
   }
-  const [cleaningDays, setCleaningDays] = useState<string[]>([]);
+  const [cleaningWeekday, setCleaningWeekday] = useState<number | null>(null);
   const [cleaningTime, setCleaningTime] = useState<string>('');
-  const [cleaningNote, setCleaningNote] = useState('');
-  const [cleaningSubmitting, setCleaningSubmitting] = useState(false);
   const [cleaningError, setCleaningError] = useState<string | null>(null);
 
-  function toggleCleaningDay(day: string) {
-    setCleaningDays((current) => current.includes(day) ? current.filter((d) => d !== day) : [...current, day]);
-  }
-
-  async function submitCleaningReschedule() {
-    if (!currentUserId) return;
-    if (cleaningDays.length === 0 || !cleaningTime) {
-      setCleaningError('Pick at least one day and a time slot.');
-      return;
-    }
-    // Structured, machine-readable request the admin can act on directly.
-    const description = [
-      `Requested: ${cleaningDays.join(', ')} at ${cleaningTime}`,
-      cleaningNote.trim() ? `Note: ${cleaningNote.trim()}` : null,
-    ].filter(Boolean).join('\n');
-    setCleaningSubmitting(true);
-    setCleaningError(null);
-    try {
-      await apiRequest(`/users/${currentUserId}/maintenance`, {
-        method: 'POST',
-        body: JSON.stringify({
-          category: 'Cleaning',
-          title: `Cleaning slot · ${cleaningDays.join('/')} ${cleaningTime}`,
-          description,
-        }),
-      });
-      setCleaningDays([]);
-      setCleaningTime('');
-      setCleaningNote('');
-      setCleaningModalOpen(false);
-      setResidencyMessage('Cleaning slot requested — the team will confirm shortly.');
-    } catch (caught) {
-      setCleaningError(caught instanceof Error ? caught.message : 'Could not send the request.');
-    } finally {
-      setCleaningSubmitting(false);
-    }
-  }
-
-  const CLEANING_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+  // Sunday-first, matching the weekday numbers the server stores.
+  const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+  const WEEKDAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
   const FALLBACK_SLOTS = ['09:00', '11:00', '13:00', '15:00', '17:00'];
 
-  // Slots come from ProsperaSub, fetched the first time the modal opens and
-  // cached from then on. If that call fails the picker still works — an empty
-  // list would make the whole reschedule flow unusable.
-  const slotsQuery = useCleaningSlots(cleaningModalOpen);
-  const cleaningSlots = slotsQuery.data?.slots ?? (slotsQuery.isError ? FALLBACK_SLOTS : []);
-  const cleaningSlotsSource = slotsQuery.data?.source ?? (slotsQuery.isError ? 'default' : null);
-  const cleaningSlotsLoading = slotsQuery.isFetching;
+  /**
+   * The standing weekly slot and the times on offer, in one read. Times come
+   * from ProsperaSub; the fallback keeps the picker usable if that call fails,
+   * because an empty list would make booking impossible.
+   */
+  const cleaningQuery = useMyCleaning(currentUserId);
+  const cleaning = cleaningQuery.data ?? null;
+  const cleaningSlots = cleaning?.slots?.length ? cleaning.slots : (cleaningQuery.isError ? FALLBACK_SLOTS : []);
+  const setCleaning = useSetCleaning(currentUserId);
+
+  /** What the member is about to commit to, shown before they commit to it. */
+  const nextCleaningPreview = useMemo(() => {
+    if (cleaningWeekday === null || !cleaningTime) return null;
+    const [hours, minutes] = cleaningTime.split(':').map(Number);
+    const now = new Date();
+    const candidate = new Date(now);
+    candidate.setHours(hours || 0, minutes || 0, 0, 0);
+    candidate.setDate(candidate.getDate() + ((cleaningWeekday - candidate.getDay() + 7) % 7));
+    if (candidate.getTime() <= now.getTime()) candidate.setDate(candidate.getDate() + 7);
+    return candidate.toISOString();
+  }, [cleaningWeekday, cleaningTime]);
+
+  function openCleaningModal() {
+    // Seed from the current slot so "change" starts where they left off.
+    setCleaningWeekday(cleaning?.weekday ?? null);
+    setCleaningTime(cleaning?.timeSlot ?? '');
+    setCleaningError(null);
+    setCleaningModalOpen(true);
+  }
+
+  async function submitCleaningSlot() {
+    if (!currentUserId || cleaningWeekday === null || !cleaningTime) {
+      setCleaningError('Pick a day and a time.');
+      return;
+    }
+    setCleaningError(null);
+    try {
+      await setCleaning.mutateAsync({ weekday: cleaningWeekday, timeSlot: cleaningTime });
+      setCleaningModalOpen(false);
+      setResidencyMessage(`Cleaning booked for every ${WEEKDAY_FULL[cleaningWeekday]} at ${cleaningTime}.`);
+    } catch (caught) {
+      setCleaningError(caught instanceof Error ? caught.message : 'Could not save your slot.');
+    }
+  }
 
   // Three independent reads. Each renders as soon as it lands, so one failure
   // still leaves the rest of the page useful — and now says so, instead of
@@ -526,17 +525,18 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
                 ? apt.name.replace(new RegExp(`\\s*#?\\s*${unitNumber}\\s*$`), '').trim() || 'Apartment'
                 : apt?.name;
 
-              // Cleaning info — pulled from home.cleaning; falls back to global.
-              const freq = home?.cleaning?.frequency ?? '';
-              const freqNums = freq.match(/\d+/g) ?? [];
-              const cleaningCount = freqNums.length ? freqNums[freqNums.length - 1] : null;
-              const cleaningUnit = cleaningCount
-                ? freq.replace(/\d+/g, '').replace(/^\s*[x×]\s*/i, '').replace(/^\s*times?\s*/i, '').trim()
-                : freq;
+              // Cleaning: the member's standing weekly slot, if they've set one.
+              // The plan's own frequency text is the fallback for members who
+              // haven't booked yet.
+              const slot = cleaning?.booked ? cleaning : home?.cleaning?.booked ? home.cleaning : null;
               const nextDate = home?.cleaning?.nextCleaning
                 ? new Date(home.cleaning.nextCleaning).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
                 : null;
-              const hasCleaning = Boolean(freq || nextDate);
+              const cleaningSummary = slot?.weekdayName && slot.timeSlot
+                ? [`${slot.weekdayName}s at ${slot.timeSlot}`, nextDate ? `next ${nextDate}` : null]
+                    .filter(Boolean)
+                    .join(' · ')
+                : null;
 
               return (
                 <article className="stay-card stay-card--apartment">
@@ -565,21 +565,14 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
                       <span className="stay-card__strip-icon" aria-hidden="true"><Sparkles size={14} /></span>
                       <div className="stay-card__strip-body">
                         <strong>Cleaning</strong>
-                        <span>
-                          {hasCleaning
-                            ? [
-                                cleaningCount ? `${cleaningCount}× ${cleaningUnit || 'per month'}` : cleaningUnit || 'Scheduled',
-                                nextDate ? `Next ${nextDate}` : null,
-                              ].filter(Boolean).join(' · ')
-                            : 'Not scheduled yet'}
-                        </span>
+                        <span>{cleaningSummary ?? 'Pick your weekly slot'}</span>
                       </div>
                       <button
                         type="button"
-                        className="text-button"
-                        onClick={() => setCleaningModalOpen(true)}
+                        className={cleaningSummary ? 'text-button' : 'primary-button compact-button'}
+                        onClick={openCleaningModal}
                       >
-                        Reschedule
+                        {cleaningSummary ? 'Change' : 'Book'}
                       </button>
                     </div>
                   ) : null}
@@ -669,69 +662,76 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
             className="profile-edit-modal"
             role="dialog"
             aria-modal="true"
-            aria-label="Request cleaning reschedule"
+            aria-label="Weekly cleaning slot"
             onClick={(event) => event.stopPropagation()}
-            onSubmit={(event) => { event.preventDefault(); void submitCleaningReschedule(); }}
+            onSubmit={(event) => { event.preventDefault(); void submitCleaningSlot(); }}
           >
             <div className="modal-head">
               <div>
-                <h2>Book a cleaning slot</h2>
-                <p>Pick the days that work and a time slot — the team will confirm.</p>
+                <h2>{cleaning?.booked ? 'Change your cleaning slot' : 'Book your cleaning slot'}</h2>
+                <p>Pick one day and time. The cleaner comes then, every week.</p>
               </div>
               <button className="icon-button" type="button" onClick={() => setCleaningModalOpen(false)} aria-label="Close">
                 <X size={18} />
               </button>
             </div>
+
             <div>
               <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: '0.85rem' }}>
-                Preferred day(s)
+                Day of the week
               </label>
-              <div className="day-picker" role="group" aria-label="Preferred cleaning days">
-                {CLEANING_DAYS.map((day) => (
+              {/* One day, not several: this sets a standing weekly slot rather
+                  than a list of preferences for someone to sort out. */}
+              <div className="day-picker" role="radiogroup" aria-label="Cleaning day">
+                {WEEKDAYS.map((day, index) => (
                   <button
                     key={day}
                     type="button"
-                    className={cleaningDays.includes(day) ? 'day-chip day-chip--active' : 'day-chip'}
-                    onClick={() => toggleCleaningDay(day)}
-                    aria-pressed={cleaningDays.includes(day)}
+                    role="radio"
+                    className={cleaningWeekday === index ? 'day-chip day-chip--active' : 'day-chip'}
+                    onClick={() => setCleaningWeekday(index)}
+                    aria-checked={cleaningWeekday === index}
                   >
                     {day}
                   </button>
                 ))}
               </div>
             </div>
+
             <label>
-              Time slot
+              Time
               <select
                 value={cleaningTime}
                 onChange={(event) => setCleaningTime(event.target.value)}
-                disabled={cleaningSlotsLoading}
+                disabled={cleaningSlots.length === 0}
               >
                 <option value="">
-                  {cleaningSlotsLoading ? 'Loading slots…' : '— pick a time —'}
+                  {cleaningSlots.length === 0 ? 'Loading times…' : '— pick a time —'}
                 </option>
                 {cleaningSlots.map((time) => (
                   <option key={time} value={time}>{time}</option>
                 ))}
               </select>
-              {cleaningSlotsSource === 'default' ? (
+              {cleaning?.slotsSource === 'default' ? (
                 <small style={{ display: 'block', marginTop: 4, color: '#6b7280', fontSize: '0.72rem' }}>
-                  Standard slots — the team may propose alternatives.
+                  Standard times — the team may propose alternatives.
                 </small>
               ) : null}
             </label>
-            <label>
-              Note (optional)
-              <textarea
-                value={cleaningNote}
-                onChange={(event) => setCleaningNote(event.target.value)}
-                rows={2}
-                placeholder="Anything the cleaner should know (pets, code, …)"
-              />
-            </label>
+
+            {cleaningWeekday !== null && cleaningTime ? (
+              <p className="form-hint">
+                Every {WEEKDAY_FULL[cleaningWeekday]} at {cleaningTime}, starting {formatDate(nextCleaningPreview)}.
+              </p>
+            ) : null}
+
             {cleaningError ? <p className="form-error">{cleaningError}</p> : null}
-            <button className="primary-button" type="submit" disabled={cleaningSubmitting}>
-              {cleaningSubmitting ? 'Sending…' : 'Request slot'}
+            <button
+              className="primary-button"
+              type="submit"
+              disabled={setCleaning.isPending || cleaningWeekday === null || !cleaningTime}
+            >
+              {setCleaning.isPending ? 'Saving…' : cleaning?.booked ? 'Move my slot' : 'Book my slot'}
             </button>
           </form>
         </div>

@@ -67,7 +67,16 @@ export type HomeMemberData = {
   membership?: { status: string; hasApplied: boolean; applicationStatus?: string | null };
   apartment: { name: string; status: string; moveInDate?: string | null; details: string } | null;
   meals: { items: Array<{ id: string; day: string; meal: string }> };
-  cleaning: { nextCleaning?: string | null; frequency?: string | null; notes?: string | null } | null;
+  cleaning: {
+    nextCleaning?: string | null;
+    frequency?: string | null;
+    notes?: string | null;
+    // The standing weekly slot, once the member has picked one.
+    weekday?: number | null;
+    weekdayName?: string | null;
+    timeSlot?: string | null;
+    booked?: boolean;
+  } | null;
 };
 
 export type NotificationItem = {
@@ -191,6 +200,45 @@ export function useDirectoryProfile(userId: string | null | undefined) {
     queryKey: qk.directoryProfile(userId ?? ''),
     queryFn: ({ signal }) => apiRequest<MyDirectoryProfile>(`/users/${userId}/directory-profile`, { signal }),
     enabled: Boolean(userId),
+  });
+}
+
+export type MyCleaning = {
+  booked: boolean;
+  weekday: number | null;
+  weekdayName: string | null;
+  timeSlot: string | null;
+  nextCleaning: string | null;
+  frequency: string | null;
+  notes: string | null;
+  slots: string[];
+  slotsSource: 'prospera' | 'default';
+};
+
+/**
+ * The member's standing weekly cleaning slot, together with the slots on offer —
+ * one request, because the picker needs both at once.
+ */
+export function useMyCleaning(userId: string | null | undefined) {
+  return useQuery({
+    queryKey: qk.cleaning(userId ?? ''),
+    queryFn: ({ signal }) => apiRequest<MyCleaning>(`/users/${userId}/cleaning`, { signal }),
+    enabled: Boolean(userId),
+  });
+}
+
+/** Set or move the weekly slot. Replaces it — there's only ever one. */
+export function useSetCleaning(userId: string | null | undefined) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { weekday: number; timeSlot: string }) =>
+      apiRequest<MyCleaning>(`/users/${userId}/cleaning`, { method: 'PUT', body: JSON.stringify(body) }),
+    onSuccess: (data) => {
+      if (!userId) return;
+      client.setQueryData(qk.cleaning(userId), data);
+      // Home shows the next cleaning date, so it has to catch up too.
+      void client.invalidateQueries({ queryKey: qk.home(userId) });
+    },
   });
 }
 

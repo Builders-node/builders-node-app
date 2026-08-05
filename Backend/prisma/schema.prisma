@@ -404,6 +404,13 @@ model MealMenuItem {
 model CleaningSchedule {
   id                     String   @id @default(uuid())
   userId                 String
+  // The member's standing weekly slot: one weekday (0 = Sunday) and one time
+  // from the ProsperaSub package, chosen once. Cleaning recurs on it every week,
+  // so `nextCleaning` below is derived from these rather than being a one-off
+  // date somebody has to keep re-entering.
+  weekday                Int?
+  timeSlot               String?
+  bookedAt               DateTime?
   nextCleaning           DateTime?
   frequency              String?
   notes                  String?

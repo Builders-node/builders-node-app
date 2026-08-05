@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { HomeService } from './home.service';
 
@@ -47,5 +47,22 @@ export class HomeController {
   @Get('public/cleaning-slots')
   getCleaningSlots() {
     return this.home.getCleaningSlots();
+  }
+
+  /** The member's standing weekly cleaning slot, plus the slots on offer. */
+  @UseGuards(JwtAuthGuard)
+  @Get('users/:userId/cleaning')
+  getMyCleaning(@Param('userId') userId: string) {
+    return this.home.getMyCleaning(userId);
+  }
+
+  /**
+   * Set or move the weekly slot. PUT, not POST: there is exactly one slot per
+   * member and booking again replaces it — it isn't a queue of requests.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Put('users/:userId/cleaning')
+  setMyCleaning(@Param('userId') userId: string, @Body() body: { weekday?: unknown; timeSlot?: unknown }) {
+    return this.home.setMyCleaning(userId, body);
   }
 }
