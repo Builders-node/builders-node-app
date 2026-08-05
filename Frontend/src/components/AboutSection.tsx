@@ -73,7 +73,7 @@ const AboutSection = () => {
             className="text-base leading-relaxed mb-6"
             style={{ color: "hsl(0 0% 30%)" }}
           >
-            Our members include remote workers, digital nomads, online creators, personal trainers, self-improvers, event organizers, and engineers of all stripes. You should apply if you want to build yourself up while also building a startup society that bootstraps other startup societies.
+            Our members are founders, investors, startup workers, digital nomads, online creators, engineers and self-improvers. You should apply if you want to build yourself up and join the society of like minded people who never stop.
           </p>
 
           <p
