@@ -56,6 +56,55 @@
     <meta name="twitter:image" content="https://buildersnode.com/og-cover.jpg" />
     <meta name="twitter:image:alt" content="Members working together in the Builders Node coworking lounge in Próspera" />
 
+    <!--
+      Analytics. All three load here in <head> so they cover every page,
+      including the member app and admin — this is a single-page app, so a tag
+      placed anywhere else would only ever see the first route.
+
+      Note for whoever reads the numbers: this app does client-side routing, so
+      only the first page load fires an automatic pageview. GA4's Enhanced
+      Measurement picks up later route changes via History events; Clarity
+      follows the SPA on its own; the Meta Pixel does not, and needs an explicit
+      fbq('track','PageView') on navigation if per-route counts matter there.
+    -->
+
+    <!-- Google tag (gtag.js) — GA4, Builders Node Community -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-R8TK8WED2W"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-R8TK8WED2W');
+    </script>
+
+    <!-- Microsoft Clarity -->
+    <script type="text/javascript">
+      (function(c,l,a,r,i,t,y){
+          c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+          t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+          y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+      })(window, document, "clarity", "script", "xp88r9umx0");
+    </script>
+
+    <!-- Meta Pixel Code -->
+    <script>
+      !function(f,b,e,v,n,t,s)
+      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+      n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t,s)}(window, document,'script',
+      'https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', '1588924822748945');
+      fbq('track', 'PageView');
+    </script>
+    <!-- Meta's <noscript> fallback img lives at the top of <body>, not here:
+         inside <head> only link/style/meta are allowed in a <noscript>, and an
+         <img> there fails HTML parsing outright (the build rejects it). -->
+    <!-- End Meta Pixel Code -->
+
     <!-- Structured data -->
     <script type="application/ld+json">
       {
@@ -78,6 +127,18 @@
     </script>
   </head>
   <body>
+    <!-- Meta Pixel no-JS fallback. The pixel's script half is in <head>; this
+         img is the part that only works without JavaScript, and it has to sit
+         in <body> to be valid HTML. -->
+    <noscript
+      ><img
+        height="1"
+        width="1"
+        style="display: none"
+        alt=""
+        src="https://www.facebook.com/tr?id=1588924822748945&amp;ev=PageView&amp;noscript=1"
+    /></noscript>
+
     <div id="root"></div>
     <!-- No-JS / crawler fallback: real, indexable content. -->
     <noscript>

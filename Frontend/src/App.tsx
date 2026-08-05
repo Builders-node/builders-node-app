@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from './components/AppShell';
 import { AuthPanel } from './components/AuthPanel';
 import { PullToRefresh } from './components/PullToRefresh';
@@ -114,6 +114,25 @@ function App() {
     if (window.location.pathname !== target) {
       window.history.pushState(null, '', target);
     }
+  }, [activePage]);
+
+  /**
+   * Meta Pixel pageview on route change.
+   *
+   * The base code in index.html fires once, on first load. GA4 picks up later
+   * routes through Enhanced Measurement and Clarity follows SPAs on its own,
+   * but the Pixel does neither — without this it would record a single pageview
+   * per session no matter how much of the site someone walked through.
+   *
+   * The first render is skipped so the initial view isn't counted twice.
+   */
+  const pixelPrimed = useRef(false);
+  useEffect(() => {
+    if (!pixelPrimed.current) {
+      pixelPrimed.current = true;
+      return;
+    }
+    (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq?.('track', 'PageView');
   }, [activePage]);
 
   // Global reaction to an expired/invalid session (any authed request got 401):
