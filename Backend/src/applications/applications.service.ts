@@ -97,6 +97,12 @@ export class ApplicationsService {
     const application = await this.apply(payload);
     await this.prisma.applicationVerification.delete({ where: { email } });
 
+    // Confirm receipt here rather than after the password step: this fires once
+    // per application and covers both endings — applicants without an account go
+    // on to set a password, applicants who already have one finish right here
+    // and would otherwise have heard nothing at all.
+    await this.mail.sendApplicationReceived(application.email, application.fullName);
+
     // If they don't have a login yet, the frontend will prompt them to set a
     // password (create-account below). If an account already exists, skip that.
     const accountExists = Boolean(await this.prisma.user.findUnique({ where: { email }, select: { id: true } }));

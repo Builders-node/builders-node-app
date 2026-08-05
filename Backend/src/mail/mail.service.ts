@@ -111,6 +111,68 @@ export class MailService {
   }
 
   /**
+   * Sent the moment an application is confirmed — the applicant has entered the
+   * emailed code and their application row exists.
+   *
+   * Until now the flow went quiet here: someone filled in a long form, confirmed
+   * their email, set a password, and got nothing back. This says we have it and
+   * what happens next, so nobody is left wondering whether it went through.
+   */
+  async sendApplicationReceived(to: string, fullName: string): Promise<void> {
+    const name = firstNameOf(fullName);
+    await this.send({
+      to,
+      subject: 'We received your Builders Node application',
+      text:
+        `Hi ${name},\n\n` +
+        "Thanks for applying to Builders Node — we're glad to see your application.\n\n" +
+        'Our team reviews every application personally. We will get back to you shortly with the next step.\n\n' +
+        "In the meantime there's nothing you need to do.\n\n" +
+        'Best regards,\nBuilders Node',
+      html: layout(
+        'We received your application',
+        `<p>Hi ${escapeHtml(name)},</p>
+         <p>Thanks for applying to Builders Node — we're glad to see your application.</p>
+         <p>Our team reviews every application personally. We will get back to you shortly with the next step.</p>
+         <p>In the meantime there's nothing you need to do.</p>
+         <p>Best regards,<br />Builders Node</p>`,
+      ),
+    });
+  }
+
+  /**
+   * The payment link, sent to the applicant.
+   *
+   * This used to be composed by the admin service and handed back to the UI,
+   * which showed a "Payment link prepared" toast and dropped it. The button said
+   * "Send payment link", the pipeline moved to PAYMENT_LINK_SENT, and the
+   * applicant received nothing — they were waiting on a link that never left the
+   * building.
+   */
+  async sendPaymentLink(to: string, fullName: string, paymentUrl: string): Promise<void> {
+    const name = firstNameOf(fullName);
+    await this.send({
+      to,
+      subject: 'Your Builders Node payment link',
+      text:
+        `Hi ${name},\n\n` +
+        'Good news — your application has been approved for the next step.\n\n' +
+        `To secure your place, complete your payment here: ${paymentUrl}\n\n` +
+        "Once it's done we'll confirm your membership and send you everything you need before arrival.\n\n" +
+        'Best regards,\nBuilders Node',
+      html: layout(
+        'Your payment link',
+        `<p>Hi ${escapeHtml(name)},</p>
+         <p>Good news — your application has been approved for the next step.</p>
+         <p>To secure your place, complete your payment here:</p>
+         ${button('Complete payment', paymentUrl)}
+         <p>Once it's done we'll confirm your membership and send you everything you need before arrival.</p>
+         <p>Best regards,<br />Builders Node</p>`,
+      ),
+    });
+  }
+
+  /**
    * Sent when an applicant clears the first check. Its whole job is to get a
    * call booked, so the calendar link is the only thing to act on.
    *
@@ -120,9 +182,7 @@ export class MailService {
    */
   async sendFirstCheckApproved(to: string, fullName: string): Promise<void> {
     const calendarUrl = this.config.get<string>('MEETING_BOOKING_URL') ?? DEFAULT_MEETING_BOOKING_URL;
-    // First name only — "Hi Robert" reads like a person wrote it, "Hi Robert
-    // Neufeld" reads like a mail merge.
-    const name = fullName.trim().split(/\s+/)[0] || 'there';
+    const name = firstNameOf(fullName);
 
     await this.send({
       to,
@@ -165,6 +225,14 @@ export class MailService {
       ),
     });
   }
+}
+
+/**
+ * First name only. "Hi Robert" reads like a person wrote it; "Hi Robert Neufeld"
+ * reads like a mail merge. Falls back to something that still scans.
+ */
+function firstNameOf(fullName: string): string {
+  return fullName.trim().split(/\s+/)[0] || 'there';
 }
 
 /**

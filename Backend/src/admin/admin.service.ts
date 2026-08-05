@@ -446,13 +446,14 @@ export class AdminService {
       },
     });
 
+    // Actually send it. This used to compose the message and hand it back to the
+    // UI, which showed a "Payment link prepared" toast and dropped it — the
+    // button said "Send payment link" and nothing ever reached the applicant.
+    await this.mail.sendPaymentLink(application.email, application.fullName, link);
+
     return {
       application: updated,
-      email: {
-        to: application.email,
-        subject: 'Builders Node payment link',
-        body: `Your Builders Node application is approved for the next step. Complete payment here: ${link}`,
-      },
+      email: { to: application.email, subject: 'Your Builders Node payment link', body: link },
     };
   }
 

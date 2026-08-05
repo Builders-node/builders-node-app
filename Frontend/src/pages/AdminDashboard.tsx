@@ -48,6 +48,12 @@ type AdminOverview = {
     paymentStatus: string;
     paymentLink?: string | null;
     adminNote?: string | null;
+    // What the applicant actually filled in. `note` is the readable summary the
+    // form builds (move-in, stay, plan, sizes, socials); `about` and the links
+    // are the same answers kept as structured fields.
+    note?: string | null;
+    about?: string | null;
+    socialLinksJson?: string | null;
     createdAt: string;
   }>;
   users: Array<{
@@ -373,6 +379,64 @@ function applicantStageIndex(status: string, apartmentAvailable?: boolean | null
   }
 }
 
+/**
+ * The applicant's own answers, ready to render.
+ *
+ * The form flattens most of itself into `note` as "Label: value" lines — it was
+ * built for a human to skim, not to parse — so that's read back line by line
+ * rather than guessing at fields. `about` and the socials are separate columns
+ * and are appended; when both exist the note's copy is dropped so the long
+ * answer isn't shown twice.
+ */
+function parseApplicationAnswers(app: {
+  note?: string | null;
+  about?: string | null;
+  socialLinksJson?: string | null;
+  phone?: string | null;
+}): Array<{ label: string; value: string; isLink?: boolean }> {
+  const out: Array<{ label: string; value: string; isLink?: boolean }> = [];
+  if (app.phone) out.push({ label: 'Phone', value: app.phone });
+
+  const noteLines = (app.note ?? '').split('\n');
+  const freeText: string[] = [];
+  let inAbout = false;
+  for (const rawLine of noteLines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const split = line.indexOf(':');
+    const label = split > 0 ? line.slice(0, split).trim() : '';
+
+    // "About:" is the last thing the form writes and everything after it is the
+    // applicant's prose. It has to end the label parsing rather than skip one
+    // line: those paragraphs contain URLs, and splitting them on the colon in
+    // "https://" turns a sentence into a nonsense label/value pair.
+    if (!inAbout && label.toLowerCase() === 'about') {
+      inAbout = true;
+      continue;
+    }
+    if (inAbout) {
+      freeText.push(line);
+      continue;
+    }
+    if (split > 0) out.push({ label, value: line.slice(split + 1).trim() });
+    else freeText.push(line);
+  }
+
+  try {
+    const links = JSON.parse(app.socialLinksJson ?? '{}') as Record<string, string>;
+    for (const [key, url] of Object.entries(links)) {
+      if (url) out.push({ label: key.charAt(0).toUpperCase() + key.slice(1), value: url, isLink: true });
+    }
+  } catch {
+    /* malformed JSON shouldn't blank the whole panel */
+  }
+
+  // Prefer the structured column; older applications only have it inside `note`.
+  const about = app.about?.trim() || freeText.join('\n');
+  if (about) out.push({ label: 'About', value: about });
+  return out;
+}
+
 function applicantBucket(status: string, apartmentAvailable?: boolean | null): ApplicantBucket {
   const index = applicantStageIndex(status, apartmentAvailable);
   if (index < 0) return 'rejected';
@@ -501,6 +565,9 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   // Which section is on screen — sourced from the URL / sidebar via `adminPage`.
   const adminTab = (ADMIN_PAGE_TO_TAB[adminPage ?? 'adminDashboard'] ?? 'overview') as AdminTab;
   const [applicantView, setApplicantView] = useState<'list' | 'board'>('board');
+  // One open at a time — several long answers expanded at once turns the queue
+  // into a wall of prose you have to scroll past.
+  const [expandedApplicantId, setExpandedApplicantId] = useState<string | null>(null);
   const [selectedApplicantIds, setSelectedApplicantIds] = useState<Set<string>>(new Set());
   const [isBulkRunning, setIsBulkRunning] = useState(false);
   const [maintenance, setMaintenance] = useState<AdminMaintenance[]>([]);
@@ -1893,6 +1960,43 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                       })}
                     </ol>
                   )}
+
+                  {/* What they actually wrote. It was already coming down in the
+                      payload and had nowhere to be read — deciding on someone
+                      meant approving them off a name and an email. */}
+                  {(() => {
+                    const answers = parseApplicationAnswers(application);
+                    if (answers.length === 0) return null;
+                    const open = expandedApplicantId === application.id;
+                    return (
+                      <div className="applicant-answers">
+                        <button
+                          className="applicant-answers__toggle"
+                          onClick={() => setExpandedApplicantId(open ? null : application.id)}
+                          aria-expanded={open}
+                        >
+                          <FileText size={14} />
+                          {open ? 'Hide application' : 'View application'}
+                        </button>
+                        {open ? (
+                          <dl className="applicant-answers__list">
+                            {answers.map(({ label, value, isLink }) => (
+                              <div key={label}>
+                                <dt>{label}</dt>
+                                <dd>
+                                  {isLink ? (
+                                    <a href={value} target="_blank" rel="noopener noreferrer">{value}</a>
+                                  ) : (
+                                    value
+                                  )}
+                                </dd>
+                              </div>
+                            ))}
+                          </dl>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
 
                   <div className="applicant-card__footer">
                     <span className="applicant-card__next">

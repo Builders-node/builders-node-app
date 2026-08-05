@@ -1947,6 +1947,57 @@ textarea {
   font-size: 13px;
 }
 
+/* The applicant's own form answers, folded away until asked for. */
+.applicant-answers { margin-top: 10px; }
+.applicant-answers__toggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.8rem;
+  font-weight: 650;
+  gap: 6px;
+  padding: 2px 0;
+}
+.applicant-answers__toggle:hover { color: var(--accent); }
+.applicant-answers__list {
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 12px 14px;
+}
+.applicant-answers__list > div {
+  display: grid;
+  /* Label column wide enough for "Heard via" without wrapping; the answer takes
+     the rest and wraps freely, since "About" runs to a paragraph. */
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 10px;
+}
+.applicant-answers__list dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.applicant-answers__list dd {
+  margin: 0;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.applicant-answers__list a { color: var(--accent); }
+
+@media (max-width: 640px) {
+  /* Stacked on a phone — a 120px label column leaves nothing for the answer. */
+  .applicant-answers__list > div { grid-template-columns: 1fr; gap: 2px; }
+}
+
 .applicant-card__actions {
   align-items: center;
   display: flex;
