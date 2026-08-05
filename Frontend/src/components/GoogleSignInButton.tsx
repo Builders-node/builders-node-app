@@ -70,6 +70,20 @@ export function GoogleSignInButton({ onCredential, text = 'continue_with' }: Goo
     };
   }, [clientId, text]);
 
+  /**
+   * Hiding the button when there's no client ID is right for visitors — a dead
+   * Google button is worse than none. But it makes an unconfigured setup look
+   * identical to a working one, so say so where only developers will see it.
+   */
+  useEffect(() => {
+    if (!clientId && import.meta.env.DEV) {
+      console.warn(
+        '[GoogleSignInButton] VITE_GOOGLE_CLIENT_ID is not set — the Google button is hidden. ' +
+          'See Frontend/.env.example; the same value must also be set as GOOGLE_CLIENT_ID on the API.',
+      );
+    }
+  }, [clientId]);
+
   // Nothing to show until a Google client ID is configured.
   if (!clientId) return null;
 
