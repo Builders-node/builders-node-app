@@ -437,6 +437,53 @@ function parseApplicationAnswers(app: {
   return out;
 }
 
+/**
+ * What the applicant actually wrote, collapsed behind a toggle.
+ *
+ * Shared by the list and the board: deciding on someone off a name and an email
+ * is just as bad in a kanban column as it is in a row, and the board is where
+ * the first check — the one that reads the application — is made.
+ */
+function ApplicantAnswers({
+  application,
+  open,
+  onToggle,
+}: {
+  application: Parameters<typeof parseApplicationAnswers>[0];
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const answers = parseApplicationAnswers(application);
+  if (answers.length === 0) return null;
+
+  return (
+    <div className="applicant-answers">
+      <button className="applicant-answers__toggle" onClick={onToggle} aria-expanded={open}>
+        <FileText size={14} />
+        {open ? 'Hide application' : 'View application'}
+      </button>
+      {open ? (
+        <dl className="applicant-answers__list">
+          {answers.map(({ label, value, isLink }) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>
+                {isLink ? (
+                  <a href={value} target="_blank" rel="noopener noreferrer">
+                    {value}
+                  </a>
+                ) : (
+                  value
+                )}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+    </div>
+  );
+}
+
 function applicantBucket(status: string, apartmentAvailable?: boolean | null): ApplicantBucket {
   const index = applicantStageIndex(status, apartmentAvailable);
   if (index < 0) return 'rejected';
@@ -1844,6 +1891,13 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                             <div className="pipeline-card__badges">
                               <StatusBadge tone={toneForStatus(app.status)}>{app.status}</StatusBadge>
                             </div>
+                            {/* Above the internal note on purpose: you read what
+                                they wrote, then write down what you think. */}
+                            <ApplicantAnswers
+                              application={app}
+                              open={expandedApplicantId === app.id}
+                              onToggle={() => setExpandedApplicantId(expandedApplicantId === app.id ? null : app.id)}
+                            />
                             <textarea
                               className="pipeline-card__note"
                               defaultValue={app.adminNote ?? ''}
@@ -1964,39 +2018,13 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                   {/* What they actually wrote. It was already coming down in the
                       payload and had nowhere to be read — deciding on someone
                       meant approving them off a name and an email. */}
-                  {(() => {
-                    const answers = parseApplicationAnswers(application);
-                    if (answers.length === 0) return null;
-                    const open = expandedApplicantId === application.id;
-                    return (
-                      <div className="applicant-answers">
-                        <button
-                          className="applicant-answers__toggle"
-                          onClick={() => setExpandedApplicantId(open ? null : application.id)}
-                          aria-expanded={open}
-                        >
-                          <FileText size={14} />
-                          {open ? 'Hide application' : 'View application'}
-                        </button>
-                        {open ? (
-                          <dl className="applicant-answers__list">
-                            {answers.map(({ label, value, isLink }) => (
-                              <div key={label}>
-                                <dt>{label}</dt>
-                                <dd>
-                                  {isLink ? (
-                                    <a href={value} target="_blank" rel="noopener noreferrer">{value}</a>
-                                  ) : (
-                                    value
-                                  )}
-                                </dd>
-                              </div>
-                            ))}
-                          </dl>
-                        ) : null}
-                      </div>
-                    );
-                  })()}
+                  <ApplicantAnswers
+                    application={application}
+                    open={expandedApplicantId === application.id}
+                    onToggle={() =>
+                      setExpandedApplicantId(expandedApplicantId === application.id ? null : application.id)
+                    }
+                  />
 
                   <div className="applicant-card__footer">
                     <span className="applicant-card__next">

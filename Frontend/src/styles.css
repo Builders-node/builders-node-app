@@ -1998,6 +1998,18 @@ textarea {
   .applicant-answers__list > div { grid-template-columns: 1fr; gap: 2px; }
 }
 
+/* Same panel inside a board card. The columns are 230px wide, so roughly 185px
+   survives the padding — the label column has to go regardless of viewport, and
+   a long "About" gets its own scroll instead of a card that runs past the
+   bottom of the screen and pushes the actions out of reach. */
+.pipeline-card .applicant-answers { margin-top: 0; }
+.pipeline-card .applicant-answers__list {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 10px 12px;
+}
+.pipeline-card .applicant-answers__list > div { grid-template-columns: 1fr; gap: 2px; }
+
 .applicant-card__actions {
   align-items: center;
   display: flex;
