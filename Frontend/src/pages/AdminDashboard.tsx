@@ -1787,8 +1787,19 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                                 if (value !== (app.adminNote ?? '')) void updateApplication(app.id, 'note', { note: value }, 'Note saved.');
                               }}
                             />
+                            {/* Primary first: these stack in a narrow column, and
+                                leading with "Reject" would put the destructive
+                                option above the one that moves the pipeline
+                                along. The list view has its own markup and is
+                                unaffected. */}
                             {actions.primary || actions.secondary.length > 0 ? (
                               <div className="pipeline-card__actions">
+                                {actions.primary ? (
+                                  <button className="primary-button compact-button" onClick={actions.primary.run}>
+                                    {actions.primary.icon}
+                                    {actions.primary.label}
+                                  </button>
+                                ) : null}
                                 {actions.secondary.map((action) => (
                                   <button
                                     key={action.key}
@@ -1799,12 +1810,6 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                                     {action.label}
                                   </button>
                                 ))}
-                                {actions.primary ? (
-                                  <button className="primary-button compact-button" onClick={actions.primary.run}>
-                                    {actions.primary.icon}
-                                    {actions.primary.label}
-                                  </button>
-                                ) : null}
                               </div>
                             ) : null}
                           </article>

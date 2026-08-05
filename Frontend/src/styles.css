@@ -3855,8 +3855,24 @@ textarea {
   padding: 6px 8px;
   background: rgba(0, 0, 0, 0.015);
 }
-.pipeline-card__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
-.pipeline-card__actions .compact-button { flex: 1; justify-content: center; min-width: 0; }
+/* Stacked, not side by side. A pipeline column is ~230px and the labels are
+   real sentences ("Approve first check") — two of them abreast overflowed the
+   card and clipped the primary action mid-word. Full-width rows always fit,
+   and truncating a label like that would be no better than clipping it. */
+.pipeline-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+}
+.pipeline-card__actions .compact-button {
+  justify-content: center;
+  min-width: 0;
+  width: 100%;
+  /* Long labels wrap rather than spill; nothing here is so long it needs more
+     than two lines. */
+  white-space: normal;
+}
 
 /* ── Resource Hub ───────────────────────────────────────────────────────────── */
 .resource-group__title { font-size: 1.05rem; margin: 0 0 0.5rem; }
