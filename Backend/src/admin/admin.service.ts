@@ -551,6 +551,16 @@ export class AdminService {
       throw new BadRequestException('Confirm successful payment before sending create-password credentials.');
     }
 
+    // This mints a temporary password, so it may only ever reach an applicant
+    // who has no login at all. Run against an existing account it would replace
+    // the password that person chose and force a reset on their next sign-in —
+    // and now that staff can apply too, that account could be an admin's.
+    // "Complete onboarding" (activateMembership) is the path for them.
+    const existing = await this.prisma.user.findUnique({ where: { email: application.email }, select: { id: true } });
+    if (existing) {
+      throw new BadRequestException('This applicant already has an account. Use "Complete onboarding" instead — sending credentials would reset their password.');
+    }
+
     const temporaryPassword = createTemporaryPassword();
     const passwordHash = await bcrypt.hash(temporaryPassword, 12);
     const dates = this.defaultMembershipDates();

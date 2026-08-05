@@ -237,12 +237,15 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
   }
 
   // Membership (customer status) is independent of role (staff/permissions).
-  // Staff accounts don't need a membership, so they never see the apply prompt.
+  // Staff used to be excluded from the apply prompt on the grounds that they
+  // don't need a membership — but an admin can also be someone who wants to
+  // live here, and now that admin and member are separate areas rather than one
+  // mixed screen, there's nothing confusing about offering it to them.
   const member = isMemberStatus(profile?.membership?.status);
   const isStaff = ADMIN_ROLES.includes(profile?.role ?? '');
   const hasApplied = Boolean(home?.membership?.hasApplied);
   const showMemberSections = Boolean(profile && member);
-  const showApplyPrompt = Boolean(profile && !member && !isStaff);
+  const showApplyPrompt = Boolean(profile && !member);
   const isLoading = Boolean(currentUserId) && !profile && !error && !loadError;
 
   // Onboarding checklist — derived purely from data already loaded.
@@ -427,6 +430,14 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
                 Apply for a Builders Node membership to unlock your E-Residency, community plans, and the rest of
                 your member account.
               </p>
+              {/* Membership and permissions are separate things, and an admin
+                  reading "you are not a member yet" on their own account has
+                  every reason to wonder whether applying costs them theirs. */}
+              {isStaff ? (
+                <p className="residency-gate-note">
+                  Your admin access is separate from membership — applying doesn&apos;t change it.
+                </p>
+              ) : null}
               {setActivePage ? (
                 <button className="primary-button" onClick={() => setActivePage('apply')}>
                   <Send size={16} />

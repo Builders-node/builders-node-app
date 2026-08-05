@@ -2919,6 +2919,15 @@ textarea {
   text-align: left;
 }
 
+/* Staff-only reassurance under the apply copy. Quieter than the body text —
+   it answers a worry rather than making the pitch. */
+.residency-gate-note {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: -6px 0 0;
+  max-width: 560px;
+}
+
 .residency-gate-panel h2 {
   font-size: clamp(38px, 6vw, 72px);
   letter-spacing: 0;

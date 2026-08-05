@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -66,6 +66,19 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+
+  // The account these came from is fetched after this form has already mounted,
+  // so useState's initial value misses them and the fields sit empty. That's
+  // worse than cosmetic: an application filed under a different address never
+  // links back to the account, so a member (or an admin) applying about
+  // themselves would end up with an orphan. Only fills a field nobody has typed
+  // into yet — the address stays theirs to change.
+  useEffect(() => {
+    if (initialEmail) setEmail((current) => current || initialEmail);
+  }, [initialEmail]);
+  useEffect(() => {
+    if (initialFullName) setFullName((current) => current || initialFullName);
+  }, [initialFullName]);
 
   const batch = useBatch();
 
