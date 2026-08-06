@@ -76,9 +76,16 @@ export class AuthService {
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
-      // Mark the email verified (Google vouches for it) and sign in.
-      if (!existing.emailVerifiedAt) {
-        await this.prisma.user.update({ where: { id: existing.id }, data: { emailVerifiedAt: new Date() } });
+      // Google vouches for the address, so the email counts as verified. The
+      // same goes for a pending password setup: `mustChangePassword` means "we
+      // mailed them a temporary password and they're still on it", and someone
+      // who just signed in with Google isn't. Left set, they keep showing as
+      // "Setup required" in the admin list forever.
+      const settled: { emailVerifiedAt?: Date; mustChangePassword?: boolean } = {};
+      if (!existing.emailVerifiedAt) settled.emailVerifiedAt = new Date();
+      if (existing.mustChangePassword) settled.mustChangePassword = false;
+      if (Object.keys(settled).length > 0) {
+        await this.prisma.user.update({ where: { id: existing.id }, data: settled });
       }
       return this.issueSession(existing.id, existing.email, existing.role);
     }
