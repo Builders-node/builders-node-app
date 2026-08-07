@@ -83,8 +83,12 @@ const AboutSection = () => {
             If you're accepted to Builders Node, membership starts at $1,950/month and includes everything from meals to gym to accommodations. We think of it as society-as-a-service. First arrivals join us from {batch.longDate} — you might be in the first batch.
           </p>
 
+          {/* Leaves the site now, so it opens in its own tab — a visitor part
+              way down the landing page shouldn't lose it to read a post. */}
           <a
-            href="#faq"
+            href="https://x.com/syrtsov_ivan/status/2085041095109419206"
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-sm font-medium uppercase tracking-[0.15em] border-b pb-1 transition-opacity hover:opacity-70"
             style={{ color: "hsl(0 0% 10%)", borderColor: "hsl(0 0% 10%)" }}
           >
