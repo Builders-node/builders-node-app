@@ -233,6 +233,7 @@ export class AdminController {
       apartmentName?: string;
       mealPlan?: string;
       mealPlanId?: string;
+      mealStartDate?: string;
       cleaningPlan?: string;
       cleaningPlanId?: string;
     },

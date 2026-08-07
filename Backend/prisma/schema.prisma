@@ -392,6 +392,11 @@ model MealMenuItem {
   day                    String
   meal                   String
   source                 String   @default("ProsperaSub.com")
+  // When deliveries actually begin. A plan is usually assigned well before the
+  // member arrives, so this is the admin's answer to "from when", not the day
+  // the row was created. Null on rows written before this existed — treat that
+  // as "already started".
+  startsAt               DateTime?
   // ProsperaSub food_subscriptions row id, once mirrored.
   externalSubscriptionId String?  @unique
   createdAt              DateTime @default(now())

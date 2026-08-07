@@ -66,7 +66,8 @@ export type HomeMemberData = {
   account?: { externalMemberId?: string | null };
   membership?: { status: string; hasApplied: boolean; applicationStatus?: string | null };
   apartment: { name: string; status: string; moveInDate?: string | null; details: string } | null;
-  meals: { items: Array<{ id: string; day: string; meal: string }> };
+  /** `startsAt` is only present while deliveries are still in the future. */
+  meals: { items: Array<{ id: string; day: string; meal: string; startsAt?: string | null }> };
   cleaning: {
     nextCleaning?: string | null;
     frequency?: string | null;

@@ -604,7 +604,12 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
             })()}
 
             {(() => {
-              const first = home?.meals?.items?.[0]?.meal ?? '';
+              const firstItem = home?.meals?.items?.[0];
+              const first = firstItem?.meal ?? '';
+              // Only ever set while the start date is still ahead — a plan
+              // assigned weeks before arrival shouldn't read as "you have
+              // meals today" when nothing is being delivered yet.
+              const startsAt = firstItem?.startsAt ?? null;
               const nums = first.match(/\d+/g) ?? [];
               const number = nums.length ? nums[nums.length - 1] : null;
               const planName = number
@@ -624,7 +629,11 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
                       </span>
                       <div className="stay-card__meta">
                         <strong>{planName || 'Meals plan'}</strong>
-                        <span>Included with your membership</span>
+                        <span>
+                          {startsAt
+                            ? `Deliveries start ${new Date(startsAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}`
+                            : 'Included with your membership'}
+                        </span>
                       </div>
                     </div>
                   ) : (

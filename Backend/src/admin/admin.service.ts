@@ -155,6 +155,9 @@ export class AdminService {
         residencyStatus: user.residencyApplication?.status ?? 'NOT_STARTED',
         apartment: user.assignedApartment?.apartment.name,
         mealPlan: user.mealMenuItems[0]?.meal,
+        // Date only — the designation form reopens with what was set, and an
+        // <input type="date"> can't read a full ISO timestamp.
+        mealStartDate: user.mealMenuItems[0]?.startsAt?.toISOString().slice(0, 10) ?? null,
         cleaningPlan: user.cleaningSchedules[0]?.notes,
         mustChangePassword: user.mustChangePassword,
         createdAt: user.createdAt,
@@ -698,7 +701,7 @@ export class AdminService {
    */
   private async mirrorPlansToProsperaSub(input: {
     user: { id: string; email: string; fullName?: string | null };
-    mealPlan: { id?: string | null; name: string } | null;
+    mealPlan: { id?: string | null; name: string; startsAt?: Date | null } | null;
     cleaningPlan: { id?: string | null; name: string; frequency?: string | null } | null;
   }) {
     const { user, mealPlan, cleaningPlan } = input;
@@ -709,7 +712,13 @@ export class AdminService {
     if (mealPlan) {
       await this.prisma.mealMenuItem.deleteMany({ where: { userId: user.id } });
       const row = await this.prisma.mealMenuItem.create({
-        data: { userId: user.id, day: 'Plan', meal: mealPlan.name, source: 'ProsperaSub.com' },
+        data: {
+          userId: user.id,
+          day: 'Plan',
+          meal: mealPlan.name,
+          source: 'ProsperaSub.com',
+          startsAt: mealPlan.startsAt ?? null,
+        },
       });
       localMealRowId = row.id;
     }
@@ -753,6 +762,7 @@ export class AdminService {
         phone: details?.profile?.phone ?? null,
         mealPlanId: mealPlan?.id ?? null,
         mealPlanName: mealPlan?.name ?? null,
+        foodStartDate: mealPlan?.startsAt ?? null,
         cleaningPlanId: cleaningPlan?.id ?? null,
         cleaningPlanName: cleaningPlan?.name ?? null,
         deliveryAddress: apartmentName,
@@ -855,6 +865,8 @@ export class AdminService {
       apartmentName?: string;
       mealPlan?: string;
       mealPlanId?: string;
+      /** YYYY-MM-DD the member moves in and deliveries should begin. */
+      mealStartDate?: string;
       cleaningPlan?: string;
       cleaningPlanId?: string;
     },
@@ -870,6 +882,7 @@ export class AdminService {
     const apartmentName = body.apartmentName?.trim();
     const mealPlan = body.mealPlan?.trim();
     const mealPlanId = body.mealPlanId?.trim() || null;
+    const mealStartDate = parseStartDate(body.mealStartDate);
     const cleaningPlan = body.cleaningPlan?.trim();
     const cleaningPlanId = body.cleaningPlanId?.trim() || null;
     // "Field present but empty" is the signal to REMOVE (admin cleared the
@@ -943,7 +956,7 @@ export class AdminService {
 
       await this.mirrorPlansToProsperaSub({
         user: { id: user.id, email: user.email, fullName: user.profile?.fullName ?? null },
-        mealPlan: mealPlan ? { id: resolvedMealId, name: mealPlan } : null,
+        mealPlan: mealPlan ? { id: resolvedMealId, name: mealPlan, startsAt: mealStartDate } : null,
         cleaningPlan: cleaningPlan ? { id: resolvedCleaningId, name: cleaningPlan } : null,
       });
     }
@@ -2049,4 +2062,26 @@ export class AdminService {
       return [];
     }
   }
+}
+
+/**
+ * The move-in date an admin typed, as a Date at UTC midnight.
+ *
+ * Kept to a bare YYYY-MM-DD and pinned to midnight because it's a calendar day,
+ * not a moment: parsing "2027-01-01" in the server's local zone would land the
+ * day before in anything west of UTC, and ProsperaSub only ever sees the date
+ * part anyway. Anything that isn't a real date is refused rather than silently
+ * becoming today — a plan quietly starting a month early is worse than an error.
+ */
+function parseStartDate(value?: string): Date | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    throw new BadRequestException('Meal start date must be a calendar date (YYYY-MM-DD).');
+  }
+  const parsed = new Date(`${trimmed}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new BadRequestException('That meal start date is not a real date.');
+  }
+  return parsed;
 }

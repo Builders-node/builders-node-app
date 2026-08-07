@@ -5560,3 +5560,61 @@ body:has(.modal-overlay) .onboarding-toast { display: none; }
   flex-wrap: wrap;
   gap: 6px;
 }
+
+/* ── Toast: a save confirmation that doesn't reflow the page ───────────────── */
+.toast {
+  align-items: center;
+  background: var(--text);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+  bottom: 24px;
+  color: var(--bg);
+  display: flex;
+  gap: 10px;
+  /* Above the app shell, below any modal — a confirmation must never cover the
+     dialog that produced it. */
+  z-index: 60;
+  left: 50%;
+  max-width: min(460px, calc(100vw - 32px));
+  padding: 12px 14px;
+  position: fixed;
+  transform: translateX(-50%);
+  animation: toast-in 180ms ease-out;
+}
+.toast__icon {
+  align-items: center;
+  background: var(--good);
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+.toast__text {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.toast__close {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  margin-left: 4px;
+  opacity: 0.7;
+  padding: 2px;
+}
+.toast__close:hover { opacity: 1; }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}

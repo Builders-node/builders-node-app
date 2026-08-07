@@ -82,6 +82,15 @@ export interface ProvisionMemberInput {
   activateBeachClub?: boolean;
   /** ISO date the subscription becomes active (defaults to today). */
   startDate?: Date;
+  /**
+   * When food deliveries should begin, if that isn't today.
+   *
+   * Separate from `startDate` because it's the one date an admin sets by hand:
+   * meals start when the member actually moves in, which can be weeks after
+   * the plan is assigned. Folding it into `startDate` would push the Beach
+   * Club activation out with it, and that perk has nothing to do with arrival.
+   */
+  foodStartDate?: Date | null;
 }
 
 export interface ProvisionMemberResult {
@@ -512,7 +521,9 @@ export class ProsperaSubClient {
       payload.food = {
         meal_plan_id: mealPlanId,
         weeks: input.weeks ?? 4,
-        started_at: startedAt,
+        // Deliveries begin on the date the admin picked — the day the member
+        // moves in — not the day the plan was assigned.
+        started_at: (input.foodStartDate ?? input.startDate ?? new Date()).toISOString().slice(0, 10),
         delivery_address: input.deliveryAddress ?? undefined,
         residence: input.residence ?? undefined,
       };

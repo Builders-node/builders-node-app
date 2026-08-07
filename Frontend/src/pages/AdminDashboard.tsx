@@ -1,7 +1,8 @@
 import { ArrowLeft, Check, FileText, Home, Link as LinkIcon, Search, Send, ShieldCheck, Users, X } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
+import { Toast } from '../components/Toast';
 import {
   ADMIN_PAGE_TO_TAB,
   INBOX_PAGES,
@@ -66,6 +67,8 @@ type AdminOverview = {
     residencyStatus: string;
     apartment?: string | null;
     mealPlan?: string | null;
+    /** YYYY-MM-DD deliveries begin, when the admin set one. */
+    mealStartDate?: string | null;
     cleaningPlan?: string | null;
     mustChangePassword: boolean;
     createdAt: string;
@@ -518,6 +521,16 @@ const secondCheckPassed = new Set([
 const approvedStatuses = new Set(['PAYMENT_CONFIRMED', 'CREDENTIALS_SENT']);
 const roleOptions = ['MEMBER', 'SUPER_ADMIN', 'MODERATOR', 'COMMUNITY_LEADER'];
 
+/**
+ * One member's unsaved designation form.
+ *
+ * `mealStartDate` is the day deliveries begin — a plan is usually assigned well
+ * before the member lands, so it's asked for separately rather than inferred
+ * from when the admin pressed save. Empty means "start now".
+ */
+type DesignationDraft = { apartmentName: string; mealPlan: string; mealStartDate: string; cleaningPlan: string };
+const emptyDesignationDraft: DesignationDraft = { apartmentName: '', mealPlan: '', mealStartDate: '', cleaningPlan: '' };
+
 function roleLabel(role: string) {
   return role.split('_').join(' ');
 }
@@ -615,7 +628,11 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
   const [isUserDetailLoading, setIsUserDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [credentialMessage, setCredentialMessage] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  // Stable, because Toast keys its auto-dismiss timer off this identity — a
+  // fresh closure every render would restart the countdown and the toast would
+  // never fade.
+  const dismissNotice = useCallback(() => setNotice(null), []);
   // Which section is on screen — sourced from the URL / sidebar via `adminPage`.
   const adminTab = (ADMIN_PAGE_TO_TAB[adminPage ?? 'adminDashboard'] ?? 'overview') as AdminTab;
   const [applicantView, setApplicantView] = useState<'list' | 'board'>('board');
@@ -676,7 +693,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   const [applicantSearch, setApplicantSearch] = useState('');
   const [applicantFilter, setApplicantFilter] = useState<ApplicantFilterId>('action');
   const [applicantPage, setApplicantPage] = useState(0);
-  const [designationDrafts, setDesignationDrafts] = useState<Record<string, { apartmentName: string; mealPlan: string; cleaningPlan: string }>>({});
+  const [designationDrafts, setDesignationDrafts] = useState<Record<string, DesignationDraft>>({});
   const [designationSearch, setDesignationSearch] = useState('');
   const [designationFilter, setDesignationFilter] = useState<DesignationFilterId>('all');
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
@@ -709,6 +726,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
               next[user.id] ??= {
                 apartmentName: user.apartment ?? '',
                 mealPlan: user.mealPlan ?? '',
+                mealStartDate: user.mealStartDate ?? '',
                 cleaningPlan: user.cleaningPlan ?? '',
               };
             });
@@ -760,7 +778,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
 
   async function reviewResidency(userId: string, decision: 'VERIFIED' | 'REJECTED') {
     setError(null);
-    setCredentialMessage(null);
+    setNotice(null);
     try {
       const note = decision === 'REJECTED' ? residencyRejectDrafts[userId]?.trim() : undefined;
       const data = await apiRequest<ResidencyReview[]>(`/admin/users/${userId}/residency/review`, {
@@ -768,7 +786,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
         body: JSON.stringify({ decision, note }),
       });
       setResidencyReviews(data);
-      setCredentialMessage(decision === 'VERIFIED' ? 'E-Residency verified.' : 'E-Residency sent back for changes.');
+      setNotice(decision === 'VERIFIED' ? 'E-Residency verified.' : 'E-Residency sent back for changes.');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not update E-Residency review.');
     }
@@ -909,6 +927,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
         next[user.id] = {
           apartmentName: current[user.id]?.apartmentName ?? user.apartment ?? '',
           mealPlan: current[user.id]?.mealPlan ?? user.mealPlan ?? '',
+          mealStartDate: current[user.id]?.mealStartDate ?? user.mealStartDate ?? '',
           cleaningPlan: current[user.id]?.cleaningPlan ?? user.cleaningPlan ?? '',
         };
       });
@@ -977,7 +996,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
         }),
       }));
       setInvoiceForm(null);
-      setCredentialMessage('Invoice created.');
+      setNotice('Invoice created.');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not create invoice.');
     }
@@ -1017,7 +1036,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
         : await apiRequest<AdminEvent[]>('/admin/events', { method: 'POST', body: JSON.stringify(body) });
       setEvents(updated);
       setEventForm(null);
-      setCredentialMessage(eventForm.id ? 'Event updated.' : 'Event created.');
+      setNotice(eventForm.id ? 'Event updated.' : 'Event created.');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not save the event.');
     }
@@ -1193,13 +1212,13 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
 
   async function updateApplication(applicationId: string, path: string, body?: object, success?: string) {
     setError(null);
-    setCredentialMessage(null);
+    setNotice(null);
     try {
       await apiRequest(`/admin/applications/${applicationId}/${path}`, {
         method: 'POST',
         body: body ? JSON.stringify(body) : undefined,
       });
-      setCredentialMessage(success ?? 'Application updated.');
+      setNotice(success ?? 'Application updated.');
       await refreshOverview();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not update application.');
@@ -1219,7 +1238,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     if (!window.confirm(`${verb} ${selectedApplicantIds.size} applicant${selectedApplicantIds.size === 1 ? '' : 's'}?`)) return;
     setIsBulkRunning(true);
     setError(null);
-    setCredentialMessage(null);
+    setNotice(null);
     const ids = Array.from(selectedApplicantIds);
     const results = await Promise.allSettled(
       ids.map((id) =>
@@ -1231,7 +1250,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     );
     const ok = results.filter((r) => r.status === 'fulfilled').length;
     const failed = results.length - ok;
-    setCredentialMessage(`${verb} · ${ok} succeeded${failed > 0 ? `, ${failed} failed` : ''}.`);
+    setNotice(`${verb} · ${ok} succeeded${failed > 0 ? `, ${failed} failed` : ''}.`);
     setSelectedApplicantIds(new Set());
     setIsBulkRunning(false);
     await refreshOverview();
@@ -1289,22 +1308,17 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     return { primary: null, secondary: [] };
   }
 
-  function updateDesignationDraft(userId: string, field: 'apartmentName' | 'mealPlan' | 'cleaningPlan', value: string) {
+  function updateDesignationDraft(userId: string, field: keyof DesignationDraft, value: string) {
     setDesignationDrafts((current) => ({
       ...current,
-      [userId]: {
-        apartmentName: current[userId]?.apartmentName ?? '',
-        mealPlan: current[userId]?.mealPlan ?? '',
-        cleaningPlan: current[userId]?.cleaningPlan ?? '',
-        [field]: value,
-      },
+      [userId]: { ...emptyDesignationDraft, ...current[userId], [field]: value },
     }));
   }
 
   async function saveDesignations(userId: string) {
-    const draft = designationDrafts[userId] ?? { apartmentName: '', mealPlan: '', cleaningPlan: '' };
+    const draft = designationDrafts[userId] ?? emptyDesignationDraft;
     setError(null);
-    setCredentialMessage(null);
+    setNotice(null);
     // Match the picked plan name back to its ProsperaSub id from the loaded
     // catalog so the backend can mirror the subscription with a real plan_id.
     const mealPlanId = draft.mealPlan
@@ -1318,7 +1332,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
         method: 'POST',
         body: JSON.stringify({ ...draft, mealPlanId, cleaningPlanId }),
       });
-      setCredentialMessage('Designations saved for user.');
+      setNotice('Designations saved for user.');
       await refreshOverview();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not save designations.');
@@ -1432,13 +1446,13 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
 
   async function updateUserRole(userId: string, role: string) {
     setError(null);
-    setCredentialMessage(null);
+    setNotice(null);
     try {
       await apiRequest(`/admin/users/${userId}/role`, {
         method: 'PATCH',
         body: JSON.stringify({ role }),
       });
-      setCredentialMessage('User role updated.');
+      setNotice('User role updated.');
       await refreshOverview();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not update role.');
@@ -1687,8 +1701,9 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
 
         {isLoading ? <section className="panel"><p>Loading admin data...</p></section> : null}
         {isUserDetailLoading ? <section className="panel"><p>Loading user detail...</p></section> : null}
+        {/* Errors stay in the flow: they need reading and often re-reading.
+            Confirmations float instead — see Toast at the end of this tree. */}
         {error ? <section className="panel"><p className="form-error">{error}</p></section> : null}
-        {credentialMessage ? <section className="panel"><p className="form-success">{credentialMessage}</p></section> : null}
 
         {adminTab === 'overview' ? (
         <>
@@ -2691,7 +2706,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
               <div className="empty-state">No users match this search or filter.</div>
             ) : null}
             {designationUsers.map((user) => {
-              const draft = designationDrafts[user.id] ?? { apartmentName: '', mealPlan: '', cleaningPlan: '' };
+              const draft = designationDrafts[user.id] ?? emptyDesignationDraft;
               const complete = isDesignationComplete(user);
 
               return (
@@ -2740,6 +2755,21 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                         ))}
                       </select>
                     </label>
+                    {/* Only once there's a plan to start: an empty date box
+                        next to an unset meal plan is a question about nothing. */}
+                    {draft.mealPlan ? (
+                      <label>
+                        Meals start
+                        <input
+                          type="date"
+                          value={draft.mealStartDate}
+                          onChange={(event) => updateDesignationDraft(user.id, 'mealStartDate', event.target.value)}
+                        />
+                        <small className="designation-hint">
+                          {draft.mealStartDate ? 'First delivery on this date.' : 'Leave empty to start today.'}
+                        </small>
+                      </label>
+                    ) : null}
                     <label>
                       Cleaning plan
                       <select
@@ -3044,6 +3074,10 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
           </form>
         </div>
       ) : null}
+
+      {/* Last in the tree so it sits above the page without being part of its
+          layout — saving something no longer shoves the whole dashboard down. */}
+      <Toast message={notice} onDismiss={dismissNotice} />
     </div>
   );
 }

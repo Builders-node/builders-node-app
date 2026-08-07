@@ -140,6 +140,10 @@ export class HomeService {
               id: item.id,
               day: item.day,
               meal: item.meal,
+              // Null once deliveries have begun (and on rows written before
+              // start dates existed), so the member only sees a "from" date
+              // while it's still ahead of them.
+              startsAt: item.startsAt && item.startsAt > new Date() ? item.startsAt : null,
             }))
           : globalMealPlan
             ? [{ id: globalMealPlan.id, day: 'Plan', meal: globalMealPlan.name }]
