@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, FileText, Home, Link as LinkIcon, Search, Send, ShieldCheck, Users, X } from 'lucide-react';
+import { ArrowLeft, Check, FileText, Home, Link as LinkIcon, Pencil, Search, Send, ShieldCheck, Users, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
@@ -531,6 +531,17 @@ const roleOptions = ['MEMBER', 'SUPER_ADMIN', 'MODERATOR', 'COMMUNITY_LEADER'];
  * from when the admin pressed save. Empty means "start now".
  */
 type DesignationDraft = { apartmentName: string; mealPlan: string; mealStartDate: string; cleaningPlan: string };
+
+/**
+ * "from 3 February" while the first delivery is still ahead, nothing once it has
+ * passed — a date that's already gone tells you nothing the plan name doesn't,
+ * and the row is easier to scan without it.
+ */
+function mealStartLabel(iso: string): string | null {
+  const starts = new Date(`${iso}T00:00:00.000Z`);
+  if (Number.isNaN(starts.getTime()) || starts <= new Date()) return null;
+  return `from ${starts.toLocaleDateString(undefined, { day: 'numeric', month: 'short', timeZone: 'UTC' })}`;
+}
 const emptyDesignationDraft: DesignationDraft = { apartmentName: '', mealPlan: '', mealStartDate: '', cleaningPlan: '' };
 
 function roleLabel(role: string) {
@@ -696,6 +707,9 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   const [applicantFilter, setApplicantFilter] = useState<ApplicantFilterId>('action');
   const [applicantPage, setApplicantPage] = useState(0);
   const [designationDrafts, setDesignationDrafts] = useState<Record<string, DesignationDraft>>({});
+  // One row open at a time. Two half-edited rows on screen is two chances to
+  // save the wrong person's apartment.
+  const [editingDesignationId, setEditingDesignationId] = useState<string | null>(null);
   const [designationSearch, setDesignationSearch] = useState('');
   const [designationFilter, setDesignationFilter] = useState<DesignationFilterId>('all');
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
@@ -1320,6 +1334,26 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     }));
   }
 
+  /**
+   * Close the row and put back what the server has.
+   *
+   * Without the reset, a half-changed dropdown would survive the cancel and sit
+   * there looking like the saved answer until the page reloads.
+   */
+  function cancelDesignationEdit(userId: string) {
+    const user = overview?.users.find((candidate) => candidate.id === userId);
+    setDesignationDrafts((current) => ({
+      ...current,
+      [userId]: {
+        apartmentName: user?.apartment ?? '',
+        mealPlan: user?.mealPlan ?? '',
+        mealStartDate: user?.mealStartDate ?? user?.moveInDate ?? '',
+        cleaningPlan: user?.cleaningPlan ?? '',
+      },
+    }));
+    setEditingDesignationId(null);
+  }
+
   async function saveDesignations(userId: string) {
     const draft = designationDrafts[userId] ?? emptyDesignationDraft;
     setError(null);
@@ -1338,6 +1372,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
         body: JSON.stringify({ ...draft, mealPlanId, cleaningPlanId }),
       });
       setNotice('Designations saved for user.');
+      setEditingDesignationId(null);
       await refreshOverview();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not save designations.');
@@ -2705,7 +2740,12 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
             </div>
           </div>
 
-          <div className="designation-grid">
+          {/* A list, not a wall of forms. Eight cards each carrying three open
+              dropdowns and its own full-width Save gave every row the weight of
+              a task, whether it needed one or not — and the page never told you
+              at a glance who was actually missing something. Rows read as
+              answers; the form only appears on the one you're changing. */}
+          <div className="assign-list">
             {allDesignationUsers.length === 0 ? <div className="empty-state">No users to designate yet.</div> : null}
             {allDesignationUsers.length > 0 && designationUsers.length === 0 ? (
               <div className="empty-state">No users match this search or filter.</div>
@@ -2713,89 +2753,119 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
             {designationUsers.map((user) => {
               const draft = designationDrafts[user.id] ?? emptyDesignationDraft;
               const complete = isDesignationComplete(user);
+              const editing = editingDesignationId === user.id;
 
               return (
-                <article className={complete ? 'designation-card' : 'designation-card designation-card--todo'} key={user.id}>
-                  <div className="designation-card__head">
-                    <div className="designation-card__id">
-                      <div className="designation-card__name">
-                        <strong>{user.fullName ?? user.email}</strong>
+                <article className={`assign-row${editing ? ' assign-row--editing' : ''}${complete ? '' : ' assign-row--todo'}`} key={user.id}>
+                  <div className="assign-row__person">
+                    <span className="assign-row__avatar" aria-hidden="true">
+                      {(user.fullName ?? user.email).slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className="assign-row__id">
+                      <strong>
+                        {user.fullName ?? user.email}
                         {isNewUser(user.createdAt) ? <span className="badge-new">NEW</span> : null}
+                      </strong>
+                      <small>{user.email}</small>
+                    </span>
+                  </div>
+
+                  {editing ? (
+                    <div className="assign-row__form">
+                      <label>
+                        Apartment
+                        <select
+                          value={draft.apartmentName}
+                          onChange={(event) => updateDesignationDraft(user.id, 'apartmentName', event.target.value)}
+                        >
+                          <option value="">— None —</option>
+                          {optionNames(globalSettings?.apartmentOptions.map((option) => option.name) ?? [], draft.apartmentName).map((name) => (
+                            <option key={name} value={name}>{name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Meal plan
+                        <select
+                          value={draft.mealPlan}
+                          onChange={(event) => updateDesignationDraft(user.id, 'mealPlan', event.target.value)}
+                        >
+                          <option value="">— None —</option>
+                          {optionNames(globalSettings?.mealOptions.map((option) => option.name) ?? [], draft.mealPlan).map((name) => (
+                            <option key={name} value={name}>{name}</option>
+                          ))}
+                        </select>
+                        {/* Nested under the plan it belongs to, and only once
+                            there is one — a start date for no meals is a
+                            question about nothing. */}
+                        {draft.mealPlan ? (
+                          <span className="assign-row__sub">
+                            <span>Deliveries start</span>
+                            <input
+                              type="date"
+                              value={draft.mealStartDate}
+                              onChange={(event) => updateDesignationDraft(user.id, 'mealStartDate', event.target.value)}
+                              aria-label="First meal delivery"
+                            />
+                            <small>{draft.mealStartDate ? 'First delivery on this date.' : 'Empty starts today.'}</small>
+                          </span>
+                        ) : null}
+                      </label>
+                      <label>
+                        Cleaning plan
+                        <select
+                          value={draft.cleaningPlan}
+                          onChange={(event) => updateDesignationDraft(user.id, 'cleaningPlan', event.target.value)}
+                        >
+                          <option value="">— None —</option>
+                          {optionNames(globalSettings?.cleaningOptions.map((option) => option.name) ?? [], draft.cleaningPlan).map((name) => (
+                            <option key={name} value={name}>{name}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  ) : (
+                    <dl className="assign-row__values">
+                      <div>
+                        <dt>Apartment</dt>
+                        <dd className={user.apartment ? undefined : 'assign-row__empty'}>{user.apartment ?? 'Not set'}</dd>
                       </div>
-                      <span className="designation-card__email">{user.email}</span>
-                      <small className="designation-card__joined">{joinedLabel(user.createdAt)}</small>
-                    </div>
-                    <div className="designation-card__badges">
-                      <StatusBadge tone={toneForStatus(user.membershipStatus ?? 'NONE')}>{user.membershipStatus ?? 'NONE'}</StatusBadge>
-                      <StatusBadge tone={complete ? 'good' : 'attention'}>{complete ? 'Assigned' : 'Needs assignment'}</StatusBadge>
-                    </div>
-                  </div>
+                      <div>
+                        <dt>Meals</dt>
+                        <dd className={user.mealPlan ? undefined : 'assign-row__empty'}>
+                          {user.mealPlan ?? 'Not set'}
+                          {user.mealPlan && user.mealStartDate ? (
+                            <small>{mealStartLabel(user.mealStartDate)}</small>
+                          ) : null}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Cleaning</dt>
+                        <dd className={user.cleaningPlan ? undefined : 'assign-row__empty'}>{user.cleaningPlan ?? 'Not set'}</dd>
+                      </div>
+                    </dl>
+                  )}
 
-                  <div className="designation-fields">
-                    <label>
-                      Apartment
-                      <select
-                        value={draft.apartmentName}
-                        onChange={(event) => updateDesignationDraft(user.id, 'apartmentName', event.target.value)}
-                      >
-                        <option value="">— Select apartment —</option>
-                        {optionNames(globalSettings?.apartmentOptions.map((option) => option.name) ?? [], draft.apartmentName).map((name) => (
-                          <option key={name} value={name}>
-                            {name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Meal plan
-                      <select
-                        value={draft.mealPlan}
-                        onChange={(event) => updateDesignationDraft(user.id, 'mealPlan', event.target.value)}
-                      >
-                        <option value="">— Select meal plan —</option>
-                        {optionNames(globalSettings?.mealOptions.map((option) => option.name) ?? [], draft.mealPlan).map((name) => (
-                          <option key={name} value={name}>
-                            {name}
-                          </option>
-                        ))}
-                      </select>
-                      {/* Under the plan rather than beside it: the date belongs
-                          to this field, and as a fourth column it broke the row
-                          into an uneven two — one tall cell and three short. */}
-                      {draft.mealPlan ? (
-                        <span className="designation-sub">
-                          <span className="designation-sub__label">Starts</span>
-                          <input
-                            type="date"
-                            value={draft.mealStartDate}
-                            onChange={(event) => updateDesignationDraft(user.id, 'mealStartDate', event.target.value)}
-                            aria-label="First meal delivery"
-                          />
-                          <small className="designation-hint">
-                            {draft.mealStartDate ? 'First delivery on this date.' : 'Empty starts today.'}
-                          </small>
-                        </span>
-                      ) : null}
-                    </label>
-                    <label>
-                      Cleaning plan
-                      <select
-                        value={draft.cleaningPlan}
-                        onChange={(event) => updateDesignationDraft(user.id, 'cleaningPlan', event.target.value)}
-                      >
-                        <option value="">— Select cleaning plan —</option>
-                        {optionNames(globalSettings?.cleaningOptions.map((option) => option.name) ?? [], draft.cleaningPlan).map((name) => (
-                          <option key={name} value={name}>
-                            {name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                  <div className="assign-row__actions">
+                    {editing ? (
+                      <>
+                        <button className="ghost-button compact-button" onClick={() => cancelDesignationEdit(user.id)}>
+                          Cancel
+                        </button>
+                        <button className="primary-button compact-button" onClick={() => void saveDesignations(user.id)}>
+                          Save
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <StatusBadge tone={complete ? 'good' : 'attention'}>{complete ? 'Assigned' : 'Needs assignment'}</StatusBadge>
+                        <button className="ghost-button compact-button" onClick={() => setEditingDesignationId(user.id)}>
+                          <Pencil size={14} />
+                          {complete ? 'Edit' : 'Assign'}
+                        </button>
+                      </>
+                    )}
                   </div>
-
-                  <button className="primary-button" onClick={() => void saveDesignations(user.id)}>
-                    Save designations
-                  </button>
                 </article>
               );
             })}
