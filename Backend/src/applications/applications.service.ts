@@ -9,6 +9,7 @@ import { PrismaService } from '../database/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { linksFromUrls, MAX_BIO } from '../common/profile-fields';
+import { parseMoveInDate } from './move-in-date';
 import { createReferralCode } from '../users/referral-code';
 import { ApplyDto, ConfirmApplicationDto, CreateAccountDto, SendCredentialsDto } from './dto';
 
@@ -172,6 +173,7 @@ export class ApplicationsService {
         phone: dto.phone,
         note: dto.note,
         about: dto.about?.trim().slice(0, MAX_BIO) || null,
+        moveInDate: parseMoveInDate(dto.moveInDate),
         socialLinksJson: Object.keys(links).length > 0 ? JSON.stringify(links) : null,
         referralCode,
         referredByUserId: referrer?.id,

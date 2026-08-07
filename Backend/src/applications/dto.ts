@@ -24,6 +24,18 @@ export class ApplyDto {
   @IsString()
   about?: string;
 
+  /**
+   * The move-in month the applicant picked, as YYYY-MM-DD.
+   *
+   * The form has always asked this and flattened it into `note` as prose
+   * ("Move-in: January 1, 2027"). Kept structured as well because an admin
+   * schedules meal deliveries from it, and re-parsing an English date label is
+   * no way to decide when someone's food starts arriving.
+   */
+  @IsOptional()
+  @IsString()
+  moveInDate?: string;
+
   /** The social links from the form; mapped onto profile links by hostname. */
   @IsOptional()
   @IsArray()

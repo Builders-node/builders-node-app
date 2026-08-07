@@ -69,6 +69,8 @@ type AdminOverview = {
     mealPlan?: string | null;
     /** YYYY-MM-DD deliveries begin, when the admin set one. */
     mealStartDate?: string | null;
+    /** YYYY-MM-DD they said they're arriving, from their apply form. */
+    moveInDate?: string | null;
     cleaningPlan?: string | null;
     mustChangePassword: boolean;
     createdAt: string;
@@ -726,7 +728,10 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
               next[user.id] ??= {
                 apartmentName: user.apartment ?? '',
                 mealPlan: user.mealPlan ?? '',
-                mealStartDate: user.mealStartDate ?? '',
+                // Falls back to the arrival date they gave on the apply form —
+                // that IS when deliveries should start, so an admin shouldn't
+                // have to copy it across from the application by hand.
+                mealStartDate: user.mealStartDate ?? user.moveInDate ?? '',
                 cleaningPlan: user.cleaningPlan ?? '',
               };
             });
@@ -927,7 +932,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
         next[user.id] = {
           apartmentName: current[user.id]?.apartmentName ?? user.apartment ?? '',
           mealPlan: current[user.id]?.mealPlan ?? user.mealPlan ?? '',
-          mealStartDate: current[user.id]?.mealStartDate ?? user.mealStartDate ?? '',
+          mealStartDate: current[user.id]?.mealStartDate ?? user.mealStartDate ?? user.moveInDate ?? '',
           cleaningPlan: current[user.id]?.cleaningPlan ?? user.cleaningPlan ?? '',
         };
       });
@@ -2754,22 +2759,24 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                           </option>
                         ))}
                       </select>
+                      {/* Under the plan rather than beside it: the date belongs
+                          to this field, and as a fourth column it broke the row
+                          into an uneven two — one tall cell and three short. */}
+                      {draft.mealPlan ? (
+                        <span className="designation-sub">
+                          <span className="designation-sub__label">Starts</span>
+                          <input
+                            type="date"
+                            value={draft.mealStartDate}
+                            onChange={(event) => updateDesignationDraft(user.id, 'mealStartDate', event.target.value)}
+                            aria-label="First meal delivery"
+                          />
+                          <small className="designation-hint">
+                            {draft.mealStartDate ? 'First delivery on this date.' : 'Empty starts today.'}
+                          </small>
+                        </span>
+                      ) : null}
                     </label>
-                    {/* Only once there's a plan to start: an empty date box
-                        next to an unset meal plan is a question about nothing. */}
-                    {draft.mealPlan ? (
-                      <label>
-                        Meals start
-                        <input
-                          type="date"
-                          value={draft.mealStartDate}
-                          onChange={(event) => updateDesignationDraft(user.id, 'mealStartDate', event.target.value)}
-                        />
-                        <small className="designation-hint">
-                          {draft.mealStartDate ? 'First delivery on this date.' : 'Leave empty to start today.'}
-                        </small>
-                      </label>
-                    ) : null}
                     <label>
                       Cleaning plan
                       <select

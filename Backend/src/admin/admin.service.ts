@@ -8,6 +8,7 @@ import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { createReferralCode } from '../users/referral-code';
 import { purgeUser } from '../users/purge-user';
+import { moveInDateOf } from '../applications/move-in-date';
 import { isAdminRole, isUserRole } from '../users/roles';
 import { ProsperaSubClient } from '../subscriptions/prospera-sub.client';
 import {
@@ -129,6 +130,13 @@ export class AdminService {
     const terminal = new Set(TERMINAL_APPLICATION_STATUSES);
     const pendingApplications = applications.filter((app) => !terminal.has(app.status)).length;
 
+    // The arrival date each person gave on the way in, keyed by email — the
+    // designation form defaults meal deliveries to it. Built from the
+    // applications already loaded above rather than a second round trip.
+    const moveInByEmail = new Map(
+      applications.map((app) => [app.email, moveInDateOf(app)?.toISOString().slice(0, 10) ?? null]),
+    );
+
     return {
       metrics: {
         applications: applications.length,
@@ -158,6 +166,9 @@ export class AdminService {
         // Date only — the designation form reopens with what was set, and an
         // <input type="date"> can't read a full ISO timestamp.
         mealStartDate: user.mealMenuItems[0]?.startsAt?.toISOString().slice(0, 10) ?? null,
+        // What they said on the apply form. Only a default for the meal start
+        // field — an admin can always override it.
+        moveInDate: moveInByEmail.get(user.email) ?? null,
         cleaningPlan: user.cleaningSchedules[0]?.notes,
         mustChangePassword: user.mustChangePassword,
         createdAt: user.createdAt,

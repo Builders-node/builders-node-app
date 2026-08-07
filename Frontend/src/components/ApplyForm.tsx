@@ -135,6 +135,10 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
         // the note blob would have been guesswork.
         note: buildNote(),
         about: aboutText,
+        // Same answer as the "Move-in" line in the note, but as a real date —
+        // meal deliveries get scheduled from it, and re-parsing "January 1,
+        // 2027" back out of prose is no way to decide when food starts.
+        moveInDate: visitDate || undefined,
         socials: [social1, social2].filter(Boolean),
         referralCode: referralCode || undefined,
       }),

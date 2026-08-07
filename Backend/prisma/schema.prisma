@@ -183,6 +183,10 @@ model Application {
   about      String?
   socialLinksJson String?
   adminNote  String?
+  // When they said they're arriving. The form has always asked, but only wrote
+  // it into the `note` blob as prose — kept structured now because it's what
+  // meal deliveries are scheduled from. Null on applications filed before this.
+  moveInDate DateTime?
   referralCode String?
   referredByUserId String?
   status     String   @default("SUBMITTED")
