@@ -607,21 +607,29 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
           {/* Social links */}
           <div className="space-y-3">
             <Label className="text-sm font-medium" style={{ color: "hsl(0 0% 10%)" }}>
-              Please link your socials
+              Your socials
             </Label>
-            <p className="text-xs" style={{ color: "hsl(0 0% 45%)" }}>Provide at least two links.</p>
+            <p className="text-xs" style={{ color: "hsl(0 0% 45%)" }}>
+              Optional — they help us get to know you faster.
+            </p>
+            {/* Plain text, not type="url": the browser refuses to submit a form
+                holding a url field with "twitter.com/me" in it, which would let
+                an optional answer block the whole application. The server
+                prepends the scheme and drops anything it can't parse. */}
             <div className="space-y-3">
               <Input
-                type="url"
-                placeholder="https://twitter.com/..."
+                type="text"
+                inputMode="url"
+                placeholder="twitter.com/… (optional)"
                 value={social1}
                 onChange={(e) => setSocial1(e.target.value)}
                 className="border-0 bg-white shadow-sm focus-visible:ring-1"
                 style={{ borderColor: "hsl(0 0% 80%)", color: "hsl(0 0% 10%)" }}
               />
               <Input
-                type="url"
-                placeholder="https://linkedin.com/in/..."
+                type="text"
+                inputMode="url"
+                placeholder="linkedin.com/in/… (optional)"
                 value={social2}
                 onChange={(e) => setSocial2(e.target.value)}
                 className="border-0 bg-white shadow-sm focus-visible:ring-1"
