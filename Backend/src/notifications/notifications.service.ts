@@ -95,23 +95,49 @@ export class NotificationsService {
     return { id: created.id };
   }
 
-  /** Recent admin-composed notifications (all types), for the audit log on the composer page. */
-  async listRecent(limit = 30) {
-    const items = await this.prisma.notification.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      include: { user: { select: { email: true, profile: { select: { fullName: true } } } } },
-    });
-    return items.map((n) => ({
-      id: n.id,
-      recipient: n.user?.profile?.fullName ?? n.user?.email ?? '—',
-      recipientEmail: n.user?.email ?? '—',
-      type: n.type,
-      title: n.title,
-      body: n.body,
-      link: n.link,
-      readAt: n.readAt,
-      createdAt: n.createdAt,
-    }));
+  /**
+   * One page of the delivery log, newest first, plus the total so the caller can
+   * say "page 2 of 9".
+   *
+   * Paged rather than a fixed "last N": this table only ever grows, and a cap
+   * meant everything older than the cutoff simply could not be looked at.
+   *
+   * The bounds are clamped here rather than trusted from the query string — a
+   * missing or junk value used to reach Prisma as `take: NaN`.
+   */
+  async listRecent(limit = 30, offset = 0) {
+    const take = clampInt(limit, 1, 100, 30);
+    const skip = clampInt(offset, 0, Number.MAX_SAFE_INTEGER, 0);
+
+    const [items, total] = await Promise.all([
+      this.prisma.notification.findMany({
+        orderBy: { createdAt: 'desc' },
+        take,
+        skip,
+        include: { user: { select: { email: true, profile: { select: { fullName: true } } } } },
+      }),
+      this.prisma.notification.count(),
+    ]);
+
+    return {
+      total,
+      items: items.map((n) => ({
+        id: n.id,
+        recipient: n.user?.profile?.fullName ?? n.user?.email ?? '—',
+        recipientEmail: n.user?.email ?? '—',
+        type: n.type,
+        title: n.title,
+        body: n.body,
+        link: n.link,
+        readAt: n.readAt,
+        createdAt: n.createdAt,
+      })),
+    };
   }
+}
+
+/** A whole number inside [min, max], or the fallback when it isn't one. */
+function clampInt(value: number, min: number, max: number, fallback: number): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(value)));
 }

@@ -353,6 +353,7 @@ function pipelineStage(status: string, apartmentAvailable?: boolean | null): num
 type ApplicantBucket = 'action' | 'onboarded' | 'rejected';
 type ApplicantFilterId = 'all' | ApplicantBucket;
 const APPLICANTS_PER_PAGE = 8;
+const NOTIFICATIONS_PER_PAGE = 10;
 
 // Index of the stage the applicant is currently AT (stages before it are done).
 // 5 = fully onboarded, -1 = rejected.
@@ -680,6 +681,8 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   useEscapeToClose(Boolean(eventForm), () => setEventForm(null));
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
   const [notifRecent, setNotifRecent] = useState<AdminNotificationLog[]>([]);
+  const [notifTotal, setNotifTotal] = useState(0);
+  const [notifPage, setNotifPage] = useState(0);
   const [notifForm, setNotifForm] = useState<{
     audience: 'member' | 'all-members';
     userId: string;
@@ -898,6 +901,9 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   const filteredApplicants =
     applicantView === 'board' ? searchedApplicants : searchedApplicants.filter(activeApplicantFilter.matches);
   const applicantPageCount = Math.max(1, Math.ceil(filteredApplicants.length / APPLICANTS_PER_PAGE));
+  // From the server's total, not the page we're holding — the last page is
+  // usually short, and counting from it would say "page 1 of 1" every time.
+  const notifPageCount = Math.max(1, Math.ceil(notifTotal / NOTIFICATIONS_PER_PAGE));
   const safeApplicantPage = Math.min(applicantPage, applicantPageCount - 1);
   const pagedApplicants = filteredApplicants.slice(
     safeApplicantPage * APPLICANTS_PER_PAGE,
@@ -1070,9 +1076,15 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     }
   }
 
-  async function loadNotifications() {
+  async function loadNotifications(page = notifPage) {
     try {
-      setNotifRecent(await apiRequest<AdminNotificationLog[]>('/admin/notifications?limit=40'));
+      // Server-side: the log only grows, so paging in the browser over a fixed
+      // "last 40" would have left everything older permanently unreachable.
+      const data = await apiRequest<{ items: AdminNotificationLog[]; total: number }>(
+        `/admin/notifications?limit=${NOTIFICATIONS_PER_PAGE}&offset=${page * NOTIFICATIONS_PER_PAGE}`,
+      );
+      setNotifRecent(data.items);
+      setNotifTotal(data.total);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not load notifications.');
     }
@@ -1089,7 +1101,10 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
       });
       setNotifSentMsg(`Sent to ${result.sent} recipient${result.sent === 1 ? '' : 's'}.`);
       setNotifForm((f) => ({ ...f, title: '', message: '', link: '' }));
-      await loadNotifications();
+      // Back to the first page: what you just sent is the newest row, and
+      // refreshing page 4 in place would leave you looking for it.
+      setNotifPage(0);
+      await loadNotifications(0);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not send notification.');
     } finally {
@@ -1178,10 +1193,10 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     if (adminTab === 'vehicles') void loadVehicles();
     if (adminTab === 'support') void loadSupport();
     if (adminTab === 'payments') void loadPayments();
-    if (adminTab === 'notifications') void loadNotifications();
+    if (adminTab === 'notifications') void loadNotifications(notifPage);
     if (adminTab === 'events') void loadEvents();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adminTab, supportFilter, paymentsFilter]);
+  }, [adminTab, supportFilter, paymentsFilter, notifPage]);
 
   async function updateMaintenance(id: string, body: { status?: string; adminNote?: string }) {
     setError(null);
@@ -2359,7 +2374,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
             <div className="admin-panel__head">
               <div>
                 <h2>Recent notifications</h2>
-                <p>Last 40 notifications delivered — includes system + admin-composed.</p>
+                <p>Everything delivered, newest first — system + admin-composed.</p>
               </div>
             </div>
             <div className="maintenance-admin-list">
@@ -2378,6 +2393,28 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                 </article>
               ))}
             </div>
+
+            {notifPageCount > 1 ? (
+              <div className="pagination">
+                <button
+                  className="ghost-button compact-button"
+                  disabled={notifPage === 0}
+                  onClick={() => setNotifPage((page) => Math.max(0, page - 1))}
+                >
+                  Previous
+                </button>
+                <span className="pagination__info">
+                  Page {notifPage + 1} of {notifPageCount} · {notifTotal} notification{notifTotal === 1 ? '' : 's'}
+                </span>
+                <button
+                  className="ghost-button compact-button"
+                  disabled={notifPage >= notifPageCount - 1}
+                  onClick={() => setNotifPage((page) => Math.min(notifPageCount - 1, page + 1))}
+                >
+                  Next
+                </button>
+              </div>
+            ) : null}
           </section>
         </>
         ) : null}

@@ -143,8 +143,13 @@ export class AdminController {
   }
 
   @Get('notifications')
-  listRecentNotifications(@Query('limit') limit?: string) {
-    return this.admin.listRecentNotifications(limit ? Number(limit) : undefined);
+  listRecentNotifications(@Query('limit') limit?: string, @Query('offset') offset?: string) {
+    // Both are parsed loosely and clamped in the service — a bad query string
+    // should give the first page, not a 500.
+    return this.admin.listRecentNotifications(
+      limit ? Number(limit) : undefined,
+      offset ? Number(offset) : undefined,
+    );
   }
 
   @Post('notifications')

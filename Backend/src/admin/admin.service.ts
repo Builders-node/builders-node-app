@@ -1200,8 +1200,8 @@ export class AdminService {
   }
 
   /** Recent notifications across all members — for the composer page's audit log. */
-  listRecentNotifications(limit?: number) {
-    return this.notifications.listRecent(limit);
+  listRecentNotifications(limit?: number, offset?: number) {
+    return this.notifications.listRecent(limit, offset);
   }
 
   async listResidencyReviews() {
