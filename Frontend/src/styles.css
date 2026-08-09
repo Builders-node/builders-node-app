@@ -48,6 +48,7 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -554,6 +555,7 @@ label {
 }
 
 input,
+select,
 textarea {
   background: var(--surface-soft);
   border: 1px solid var(--border);
@@ -561,6 +563,31 @@ textarea {
   color: var(--text);
   min-height: 44px;
   padding: 12px 14px;
+}
+
+/* Selects were missing from the rule above, so every one of them fell back to
+   the browser's default control unless some component happened to restyle it —
+   which is why six near-identical copies of this block had grown around the
+   app, drifting to three different heights.
+
+   appearance:none also removes the native arrow, so we draw our own: the
+   platform arrow is a different shape, weight and colour on every OS, and in
+   dark mode it renders nearly invisible against --surface-soft. */
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1.75 6 6.25l5-4.5' stroke='%236a6a6a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: right 14px center;
+  background-repeat: no-repeat;
+  /* Room for the chevron, so a long option label never runs under it. */
+  padding-right: 36px;
+  text-overflow: ellipsis;
+}
+:root[data-theme='dark'] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1.75 6 6.25l5-4.5' stroke='%23a5a5a5' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+select:disabled {
+  color: var(--muted);
+  opacity: 0.7;
 }
 
 .app-shell {
@@ -1271,16 +1298,6 @@ textarea {
   width: auto;
 }
 
-.role-select {
-  font: inherit;
-  font-size: 0.85rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  padding: 4px 8px;
-  max-width: 60%;
-}
-.role-select:disabled { opacity: 0.6; }
 .role-hint {
   color: var(--muted);
   font-weight: 500;
@@ -1397,14 +1414,6 @@ textarea {
 
 .user-edit-form input,
 .user-edit-form select {
-  background: var(--surface-soft);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  font: inherit;
-  font-weight: 400;
-  min-height: 42px;
-  padding: 0 12px;
   width: 100%;
 }
 
@@ -1498,14 +1507,6 @@ textarea {
 }
 
 .unit-card__status select {
-  background: var(--surface-soft);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  font: inherit;
-  font-weight: 500;
-  min-height: 40px;
-  padding: 0 10px;
   width: 100%;
 }
 
@@ -1555,16 +1556,10 @@ textarea {
   gap: 8px;
 }
 
+/* Shares a flex row with the assign button. */
 .unit-assign select {
-  background: var(--surface-soft);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
   flex: 1;
-  font: inherit;
-  min-height: 40px;
   min-width: 0;
-  padding: 0 10px;
 }
 
 /* Units table */
@@ -1626,14 +1621,10 @@ textarea {
 }
 
 .units-table__status {
-  background: var(--surface-soft);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  font: inherit;
+  /* Not the `background` shorthand: that resets background-image and takes the
+     chevron with it. Only the weight and the tighter height are local here. */
   font-weight: 600;
   min-height: 38px;
-  padding: 0 10px;
 }
 
 .units-table__status--good {
@@ -1692,14 +1683,6 @@ textarea {
 
 .add-unit-grid input,
 .add-unit-grid select {
-  background: var(--surface-soft);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  font: inherit;
-  font-weight: 500;
-  min-height: 44px;
-  padding: 0 12px;
   width: 100%;
 }
 
@@ -2040,13 +2023,6 @@ textarea {
 }
 
 .role-select {
-  background: var(--surface-soft);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  font: inherit;
-  min-height: 40px;
-  padding: 0 10px;
   width: 100%;
 }
 
@@ -2070,14 +2046,6 @@ textarea {
 
 .global-settings__field select,
 .global-settings__field input {
-  background: var(--surface-soft);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  font: inherit;
-  font-weight: 500;
-  min-height: 44px;
-  padding: 0 12px;
   width: 100%;
 }
 
@@ -5675,16 +5643,12 @@ body:has(.modal-overlay) .onboarding-toast { display: none; }
   text-transform: uppercase;
 }
 .assign-row__form select {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  font: inherit;
+  /* Undoes the uppercase label styling this sits inside; everything else —
+     including the room reserved for the chevron — comes from the base rule. */
   font-size: 0.85rem;
   font-weight: 500;
   letter-spacing: 0;
   min-height: 40px;
-  padding: 0 10px;
   text-transform: none;
   width: 100%;
 }
