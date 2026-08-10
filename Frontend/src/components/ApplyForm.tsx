@@ -178,6 +178,19 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
       return;
     }
 
+    // The plan used to be a hardcoded default, so it was always set. Now it
+    // comes from the server, and a catalogue that failed to load would file an
+    // application whose note reads "Plan:" with nothing after it — leaving the
+    // admin reviewing it with no idea which tier the person picked.
+    if (!selectedPlan) {
+      toast({
+        title: "Plans didn't load",
+        description: "Reload the page and pick a plan — we don't want to file this without one.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const selectedVisit = visitOptions.find((o) => o.value === visitDate);
     const minDate = new Date(visitOptions[0].value);
     if (!selectedVisit || new Date(visitDate) < minDate) {
