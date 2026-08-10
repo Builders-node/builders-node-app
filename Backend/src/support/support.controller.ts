@@ -15,8 +15,17 @@ export class SupportController {
   @Post('tickets')
   createTicket(
     @Param('userId') userId: string,
-    @Body() body: { subject: string; message: string },
+    @Body() body: { subject?: string; message?: string },
   ) {
     return this.support.createTicket(userId, body);
+  }
+
+  @Post('tickets/:ticketId/reply')
+  reply(
+    @Param('userId') userId: string,
+    @Param('ticketId') ticketId: string,
+    @Body() body: { message?: string },
+  ) {
+    return this.support.reply(userId, ticketId, body.message);
   }
 }

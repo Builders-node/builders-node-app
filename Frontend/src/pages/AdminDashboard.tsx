@@ -123,7 +123,10 @@ type AdminSupportTicket = {
   fullName: string | null;
   subject: string;
   message: string;
+  /** The opening message plus every reply, oldest first. */
+  messages: Array<{ id: string; author: string; body: string; createdAt: string }>;
   status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED';
+  /** Internal — the member never sees this. Replies are messages. */
   adminNote?: string | null;
   resolvedAt?: string | null;
   createdAt: string;
@@ -994,6 +997,19 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
       setPayments(await apiRequest<AdminPayment[]>(`/admin/payments${qs}`));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not load payments.');
+    }
+  }
+
+  async function replyToTicket(id: string, message: string) {
+    setError(null);
+    try {
+      setSupportTickets(await apiRequest<AdminSupportTicket[]>(`/admin/support-tickets/${id}/reply`, {
+        method: 'POST',
+        body: JSON.stringify({ message }),
+      }));
+      setNotice('Reply sent to the member.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not send the reply.');
     }
   }
 
@@ -2229,7 +2245,29 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                   </div>
                   <StatusBadge tone={t.status === 'RESOLVED' ? 'good' : t.status === 'IN_PROGRESS' ? 'attention' : 'neutral'}>{t.status}</StatusBadge>
                 </div>
-                <p className="maintenance-admin-card__desc">{t.message}</p>
+                <div className="ticket-thread">
+                  {(t.messages ?? [{ id: t.id, author: 'MEMBER', body: t.message, createdAt: t.createdAt }]).map((entry) => (
+                    <div key={entry.id} className={entry.author === 'ADMIN' ? 'ticket-message ticket-message--admin' : 'ticket-message'}>
+                      <span>{entry.author === 'ADMIN' ? 'You' : (t.fullName ?? t.email)}</span>
+                      <p>{entry.body}</p>
+                    </div>
+                  ))}
+                </div>
+                {/* The reply the member receives. The note beside it stays
+                    internal — that field used to be the only place an answer
+                    could go, and nothing ever showed it to them. */}
+                <form
+                  className="ticket-reply"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const input = event.currentTarget.elements.namedItem('reply') as HTMLInputElement;
+                    if (!input.value.trim()) return;
+                    void replyToTicket(t.id, input.value).then(() => { input.value = ''; });
+                  }}
+                >
+                  <input name="reply" placeholder="Reply to the member…" aria-label={`Reply to ${t.subject}`} />
+                  <button className="primary-button compact-button" type="submit">Send reply</button>
+                </form>
                 <div className="maintenance-admin-card__row">
                   <select value={t.status} onChange={(event) => void updateSupportTicket(t.id, { status: event.target.value })}>
                     <option value="OPEN">Open</option>
@@ -2238,7 +2276,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                   </select>
                   <input
                     defaultValue={t.adminNote ?? ''}
-                    placeholder="Internal note…"
+                    placeholder="Internal note (not sent)…"
                     onBlur={(event) => { if (event.target.value !== (t.adminNote ?? '')) void updateSupportTicket(t.id, { adminNote: event.target.value }); }}
                   />
                 </div>

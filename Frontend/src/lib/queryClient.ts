@@ -50,4 +50,5 @@ export const qk = {
   cleaningSlots: () => ['cleaning-slots'] as const,
   cleaning: (userId: string) => ['cleaning', userId] as const,
   payments: (userId: string) => ['payments', userId] as const,
+  tickets: (userId: string) => ['tickets', userId] as const,
 };

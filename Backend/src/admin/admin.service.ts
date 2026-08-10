@@ -997,8 +997,11 @@ export class AdminService {
     const where = status && ['OPEN', 'IN_PROGRESS', 'RESOLVED'].includes(status) ? { status } : {};
     const tickets = await this.prisma.supportTicket.findMany({
       where,
-      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
-      include: { user: { include: { profile: { select: { fullName: true } } } } },
+      orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
+      include: {
+        user: { include: { profile: { select: { fullName: true } } } },
+        messages: { orderBy: { createdAt: 'asc' } },
+      },
     });
     return tickets.map((t) => ({
       id: t.id,
@@ -1007,12 +1010,61 @@ export class AdminService {
       fullName: t.user.profile?.fullName ?? null,
       subject: t.subject,
       message: t.message,
+      // The opening message plus every reply, so the queue shows the whole
+      // conversation rather than only how it started.
+      messages: [
+        { id: `${t.id}-opening`, author: 'MEMBER', body: t.message, createdAt: t.createdAt },
+        ...t.messages.map((m) => ({ id: m.id, author: m.author, body: m.body, createdAt: m.createdAt })),
+      ],
       status: t.status,
       adminNote: t.adminNote,
       resolvedAt: t.resolvedAt,
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
     }));
+  }
+
+  /**
+   * Reply to a member, as Builders Node.
+   *
+   * The only thing an admin could write before was `adminNote`, which the
+   * member's app never showed them and no notification ever mentioned — an
+   * answer that reached nobody. That field stays, as the internal scratchpad
+   * it reads like; this is the part the member actually receives.
+   */
+  async replyToTicket(ticketId: string, body?: string) {
+    const message = body?.trim();
+    if (!message) throw new BadRequestException('Write a reply first.');
+
+    const ticket = await this.prisma.supportTicket.findUnique({
+      where: { id: ticketId },
+      include: { user: { include: { profile: { select: { fullName: true } } } } },
+    });
+    if (!ticket) throw new NotFoundException('Ticket not found.');
+
+    await this.prisma.$transaction([
+      this.prisma.supportMessage.create({ data: { ticketId, author: 'ADMIN', body: message.slice(0, 4000) } }),
+      this.prisma.supportTicket.update({
+        where: { id: ticketId },
+        // An answered ticket is being worked on, not still untouched.
+        data: ticket.status === 'OPEN' ? { status: 'IN_PROGRESS', updatedAt: new Date() } : { updatedAt: new Date() },
+      }),
+    ]);
+
+    await this.notifications.notify(ticket.userId, {
+      type: 'info',
+      title: 'Reply to your support request',
+      body: ticket.subject,
+      link: '/account',
+    });
+    await this.mail.sendSupportReply(
+      ticket.user.email,
+      ticket.user.profile?.fullName ?? ticket.user.email,
+      ticket.subject,
+      message,
+    );
+
+    return this.listSupportTickets();
   }
 
   /** Update ticket status + optional admin note. Sets resolvedAt automatically. */

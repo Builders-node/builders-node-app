@@ -350,6 +350,31 @@ export class MailService {
     });
   }
 
+  /**
+   * An answer to a support request. Sent as well as shown in the app, because
+   * a reply nobody opens the app to find is the situation this replaces.
+   */
+  async sendSupportReply(to: string, fullName: string, subject: string, body: string): Promise<void> {
+    const name = firstNameOf(fullName);
+    const link = `${this.frontendBaseUrl()}/account`;
+    await this.send({
+      to,
+      subject: `Re: ${subject}`,
+      text:
+        `Hi ${name},\n\n` +
+        `${body}\n\n` +
+        `You can reply from your account: ${link}\n\n` +
+        'Best regards,\nBuilders Node',
+      html: layout(
+        `Re: ${escapeHtml(subject)}`,
+        `<p>Hi ${escapeHtml(name)},</p>
+         <p style="white-space:pre-wrap">${escapeHtml(body)}</p>
+         ${button('Reply in your account', link)}
+         <p>Best regards,<br />Builders Node</p>`,
+      ),
+    });
+  }
+
   async sendInvitation(invitation: InvitationEmail): Promise<void> {
     await this.send({
       to: invitation.to,

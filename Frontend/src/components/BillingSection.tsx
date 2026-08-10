@@ -12,38 +12,44 @@ export function BillingSection({ currentUserId }: { currentUserId: string | null
   const { data, isLoading, error } = useBilling(currentUserId);
 
   if (!currentUserId) return null;
-  // Nothing ever billed: better to show nothing than an empty panel implying
-  // something is missing.
+  // Nothing ever billed: show nothing at all rather than a heading over empty
+  // space implying something is missing.
   if (!isLoading && !error && data && data.open.length === 0 && data.history.length === 0) return null;
 
   return (
-    <section className="panel billing-panel">
-      <div className="billing-panel__head">
-        <span className="section-label">Billing</span>
+    // The heading belongs to this component, not the page, because this is
+    // where the "is there anything to show" decision is made.
+    <section className="home-section">
+      <h3 className="home-section__title">Billing</h3>
+
+      <section className="panel billing-panel">
         {data && data.open.length > 0 ? (
-          <strong className="billing-panel__total">{money(data.openTotalCents, data.currency)} open</strong>
+          <div className="billing-panel__head">
+            <span className="section-label">Open</span>
+            <strong className="billing-panel__total">{money(data.openTotalCents, data.currency)}</strong>
+          </div>
         ) : null}
-      </div>
 
-      {isLoading ? <p className="billing-empty">Loading your invoices…</p> : null}
-      {error ? <p className="form-error">Could not load your invoices.</p> : null}
+        {isLoading ? <p className="billing-empty">Loading your invoices…</p> : null}
+        {error ? <p className="form-error">Could not load your invoices.</p> : null}
 
-      {data && data.open.length === 0 && data.history.length > 0 ? (
-        <p className="billing-empty">Nothing outstanding — you&apos;re all paid up.</p>
-      ) : null}
+        {data && data.open.length === 0 && data.history.length > 0 ? (
+          <p className="billing-empty">Nothing outstanding — you&apos;re all paid up.</p>
+        ) : null}
 
-      {data?.open.map((invoice) => (
-        <Invoice key={invoice.id} invoice={invoice} />
-      ))}
+        {data?.open.map((invoice) => (
+          <Invoice key={invoice.id} invoice={invoice} />
+        ))}
 
-      {data && data.history.length > 0 ? (
-        <details className="billing-history">
-          <summary>Past invoices ({data.history.length})</summary>
-          {data.history.map((invoice) => (
-            <Invoice key={invoice.id} invoice={invoice} past />
-          ))}
-        </details>
-      ) : null}
+        {data && data.history.length > 0 ? (
+          <details className="billing-history">
+            <summary>Past invoices ({data.history.length})</summary>
+            {data.history.map((invoice) => (
+              <Invoice key={invoice.id} invoice={invoice} past />
+            ))}
+          </details>
+        ) : null}
+      </section>
     </section>
   );
 }

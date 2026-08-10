@@ -5784,3 +5784,129 @@ body:has(.modal-overlay) .onboarding-toast { display: none; }
     justify-content: flex-start;
   }
 }
+
+/* ── Support: the member's side of a conversation ──────────────────────────── */
+.support-panel { display: grid; gap: 12px; }
+.support-panel__head {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+.support-panel__title {
+  align-items: center;
+  display: flex;
+  font-size: 0.95rem;
+  font-weight: 650;
+  gap: 10px;
+}
+.support-panel__icon {
+  align-items: center;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--accent);
+  display: inline-flex;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+.support-empty { color: var(--muted); font-size: 0.88rem; margin: 0; }
+
+.support-form { display: grid; gap: 10px; }
+.support-form label { display: grid; font-size: 0.8rem; font-weight: 650; gap: 4px; }
+.support-form__actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+.support-thread {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+}
+.support-thread__head {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+.support-thread__messages { display: grid; gap: 8px; }
+
+.support-message {
+  background: var(--surface-soft);
+  border-radius: 10px;
+  padding: 8px 11px;
+  /* The member's own words sit right, the reply left — the shape of the
+     thread tells you who said what before you read the label. */
+  justify-self: end;
+  max-width: 88%;
+}
+.support-message--admin {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  justify-self: start;
+}
+.support-message__who {
+  color: var(--muted);
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.support-message p { font-size: 0.88rem; margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.support-message time { color: var(--muted); display: block; font-size: 0.72rem; margin-top: 3px; }
+
+.support-status {
+  border-radius: 999px;
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 3px 9px;
+  text-transform: uppercase;
+}
+.support-status--open { background: rgba(208, 108, 0, 0.12); color: var(--attention); }
+.support-status--in_progress { background: rgba(234, 84, 4, 0.12); color: var(--accent); }
+.support-status--resolved { background: rgba(11, 143, 31, 0.12); color: var(--good); }
+
+.support-reply { display: flex; gap: 8px; }
+.support-reply input { flex: 1; min-height: 38px; min-width: 0; padding: 8px 12px; }
+
+.support-history summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 4px 0;
+}
+.support-history .support-thread { margin-top: 8px; }
+
+@media (max-width: 620px) {
+  .support-message { max-width: 100%; }
+  .support-reply { flex-direction: column; }
+}
+
+/* Support thread inside the admin queue. */
+.ticket-thread { display: grid; gap: 6px; margin: 8px 0; }
+.ticket-message {
+  background: var(--surface-soft);
+  border-radius: 8px;
+  max-width: 88%;
+  padding: 7px 10px;
+}
+.ticket-message--admin {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  justify-self: end;
+}
+.ticket-message span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.ticket-message p { font-size: 0.85rem; margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ticket-reply { display: flex; gap: 8px; margin-bottom: 8px; }
+.ticket-reply input { flex: 1; min-height: 38px; min-width: 0; padding: 8px 12px; }

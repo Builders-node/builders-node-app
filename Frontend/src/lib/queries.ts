@@ -343,3 +343,55 @@ export function useBilling(userId: string | null) {
     enabled: Boolean(userId),
   });
 }
+
+export type SupportMessage = {
+  id: string;
+  /** MEMBER or ADMIN — an admin reply speaks for Builders Node, not a person. */
+  author: string;
+  body: string;
+  createdAt: string;
+};
+
+export type SupportTicket = {
+  id: string;
+  subject: string;
+  status: string;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** The opening message first, then every reply. */
+  messages: SupportMessage[];
+};
+
+export function useTickets(userId: string | null) {
+  return useQuery({
+    queryKey: qk.tickets(userId ?? ''),
+    queryFn: ({ signal }) => apiRequest<SupportTicket[]>(`/users/${userId}/support/tickets`, { signal }),
+    enabled: Boolean(userId),
+  });
+}
+
+export function useCreateTicket(userId: string | null) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { subject: string; message: string }) =>
+      apiRequest<SupportTicket>(`/users/${userId}/support/tickets`, { method: 'POST', body: JSON.stringify(body) }),
+    onSuccess: () => {
+      if (userId) void client.invalidateQueries({ queryKey: qk.tickets(userId) });
+    },
+  });
+}
+
+export function useReplyToTicket(userId: string | null) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ticketId, message }: { ticketId: string; message: string }) =>
+      apiRequest<SupportTicket>(`/users/${userId}/support/tickets/${ticketId}/reply`, {
+        method: 'POST',
+        body: JSON.stringify({ message }),
+      }),
+    onSuccess: () => {
+      if (userId) void client.invalidateQueries({ queryKey: qk.tickets(userId) });
+    },
+  });
+}

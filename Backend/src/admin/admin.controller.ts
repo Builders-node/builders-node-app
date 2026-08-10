@@ -169,6 +169,11 @@ export class AdminController {
     return this.admin.listSupportTickets(status);
   }
 
+  @Post('support-tickets/:ticketId/reply')
+  replyToTicket(@Param('ticketId') ticketId: string, @Body() body: { message?: string }) {
+    return this.admin.replyToTicket(ticketId, body.message);
+  }
+
   @Patch('support-tickets/:ticketId')
   updateSupportTicket(
     @Param('ticketId') ticketId: string,

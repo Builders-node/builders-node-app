@@ -447,16 +447,34 @@ model SupportTicket {
   id         String              @id @default(uuid())
   userId     String
   subject    String
+  // The opening message. Everything after it lives in `messages` — this stays
+  // the first thing said, so old tickets keep reading correctly.
   message    String
   status     String   @default("OPEN")
+  // Internal only. Replies the member should see are messages, not this.
   adminNote  String?
   resolvedAt DateTime?
   createdAt  DateTime            @default(now())
   updatedAt  DateTime            @updatedAt
   user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages   SupportMessage[]
 
   @@index([userId])
   @@index([status])
+}
+
+/// One turn in a support conversation.
+model SupportMessage {
+  id        String        @id @default(uuid())
+  ticketId  String
+  /// MEMBER or ADMIN. Deliberately not a userId: a reply speaks for Builders
+  /// Node, and the member has no reason to see which admin was on duty.
+  author    String
+  body      String
+  createdAt DateTime      @default(now())
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
 }
 
 model EmailVerificationToken {
