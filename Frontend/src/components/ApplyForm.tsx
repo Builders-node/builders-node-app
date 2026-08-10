@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useMembershipPlans, type MembershipPlanOption } from "@/lib/membership-plans";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -46,7 +47,8 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
   const [visitDate, setVisitDate] = useState("");
   const [stayDuration, setStayDuration] = useState("");
   const [gender, setGender] = useState("male");
-  const [plan, setPlan] = useState("private");
+  // Holds a plan id once the catalogue loads; empty until then.
+  const [plan, setPlan] = useState("");
   const [tshirtSize, setTshirtSize] = useState("");
   const [social1, setSocial1] = useState("");
   const [social2, setSocial2] = useState("");
@@ -99,14 +101,17 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
   }, [batch.startDate]);
 
   const isOneMonth = stayDuration === "1 month";
-  const privatePrice = isOneMonth ? 2450 : 1950;
-  const sharedPrice = isOneMonth ? 3450 : 2950;
+  // Priced by the admin, not by this file. These two lines used to be the only
+  // place Builders Node's price existed, so changing it meant a code deploy.
+  const { plans, isLoading: plansLoading } = useMembershipPlans();
+  const selectedPlan = plans.find((option) => option.id === plan) ?? plans[0] ?? null;
+  const priceOf = (option: MembershipPlanOption) =>
+    (isOneMonth ? option.shortStayPriceCents : option.priceCents) / 100;
 
   const visitLabel = visitOptions.find((o) => o.value === visitDate)?.label ?? visitDate;
-  const planLabel =
-    plan === "shared"
-      ? `Couple option (2 people) - $${sharedPrice.toLocaleString()}/month`
-      : `Private room - $${privatePrice.toLocaleString()}/month`;
+  const planLabel = selectedPlan
+    ? `${selectedPlan.name} - $${priceOf(selectedPlan).toLocaleString()}/month`
+    : "";
 
   const buildNote = () =>
     [
@@ -151,7 +156,7 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
     setVisitDate("");
     setStayDuration("");
     setGender("male");
-    setPlan("private");
+    setPlan("");
     setTshirtSize("");
     setSocial1("");
     setSocial2("");
@@ -574,33 +579,28 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
             <Label className="text-sm font-medium" style={{ color: "hsl(0 0% 10%)" }}>
               Membership plan <span className="text-red-500">*</span>
             </Label>
-            <RadioGroup value={plan} onValueChange={setPlan} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label
-                htmlFor="plan-private"
-                className={`rounded-lg p-4 bg-white cursor-pointer border transition-colors ${plan === "private" ? "border-black" : "border-transparent"}`}
-              >
-                <div className="flex items-start gap-3">
-                  <RadioGroupItem value="private" id="plan-private" className="mt-1" />
-                  <div>
-                    <p className="text-lg font-medium" style={{ color: "hsl(0 0% 10%)" }}>${privatePrice.toLocaleString()}/month</p>
-                    <p className="text-xs mt-1" style={{ color: "hsl(0 0% 35%)" }}>Private room · 1 person</p>
-                    <p className="text-xs mt-1" style={{ color: "hsl(0 0% 35%)" }}>Meals · Gym · Coworking · Sports · Community</p>
+            <RadioGroup value={selectedPlan?.id ?? ""} onValueChange={setPlan} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {plansLoading ? <p className="text-xs" style={{ color: "hsl(0 0% 45%)" }}>Loading plans…</p> : null}
+              {plans.map((option) => (
+                <label
+                  key={option.id}
+                  htmlFor={`plan-${option.id}`}
+                  className={`rounded-lg p-4 bg-white cursor-pointer border transition-colors ${selectedPlan?.id === option.id ? "border-black" : "border-transparent"}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <RadioGroupItem value={option.id} id={`plan-${option.id}`} className="mt-1" />
+                    <div>
+                      <p className="text-lg font-medium" style={{ color: "hsl(0 0% 10%)" }}>${priceOf(option).toLocaleString()}/month</p>
+                      <p className="text-xs mt-1" style={{ color: "hsl(0 0% 35%)" }}>
+                        {option.name} · {option.occupancy} {option.occupancy === 1 ? "person" : "people"}
+                      </p>
+                      {option.description ? (
+                        <p className="text-xs mt-1" style={{ color: "hsl(0 0% 35%)" }}>{option.description}</p>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              </label>
-              <label
-                htmlFor="plan-shared"
-                className={`rounded-lg p-4 bg-white cursor-pointer border transition-colors ${plan === "shared" ? "border-black" : "border-transparent"}`}
-              >
-                <div className="flex items-start gap-3">
-                  <RadioGroupItem value="shared" id="plan-shared" className="mt-1" />
-                  <div>
-                    <p className="text-lg font-medium" style={{ color: "hsl(0 0% 10%)" }}>${sharedPrice.toLocaleString()}/month</p>
-                    <p className="text-xs mt-1" style={{ color: "hsl(0 0% 35%)" }}>Couple option · 2 people</p>
-                    <p className="text-xs mt-1" style={{ color: "hsl(0 0% 35%)" }}>Meals · Gym · Coworking · Sports · Community</p>
-                  </div>
-                </div>
-              </label>
+                </label>
+              ))}
             </RadioGroup>
           </div>
 

@@ -527,6 +527,33 @@ const secondCheckPassed = new Set([
 const approvedStatuses = new Set(['PAYMENT_CONFIRMED', 'CREDENTIALS_SENT']);
 const roleOptions = ['MEMBER', 'SUPER_ADMIN', 'MODERATOR', 'COMMUNITY_LEADER'];
 
+/** A membership tier as the admin edits it. Prices are held as cents. */
+type MembershipPlan = {
+  id: string;
+  name: string;
+  description: string | null;
+  priceCents: number;
+  shortStayPriceCents: number;
+  currency: string;
+  occupancy: number;
+  active: boolean;
+  order: number;
+};
+
+/** The editable copy of a plan — money as typed, converted on save. */
+type PlanDraft = { name: string; description: string; price: string; shortStayPrice: string; occupancy: string; active: boolean };
+
+function draftFrom(plan: MembershipPlan): PlanDraft {
+  return {
+    name: plan.name,
+    description: plan.description ?? '',
+    price: (plan.priceCents / 100).toString(),
+    shortStayPrice: (plan.shortStayPriceCents / 100).toString(),
+    occupancy: String(plan.occupancy),
+    active: plan.active,
+  };
+}
+
 /**
  * One member's unsaved designation form.
  *
@@ -719,6 +746,9 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   const [designationSearch, setDesignationSearch] = useState('');
   const [designationFilter, setDesignationFilter] = useState<DesignationFilterId>('all');
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
+  const [membershipPlans, setMembershipPlans] = useState<MembershipPlan[]>([]);
+  const [planDrafts, setPlanDrafts] = useState<Record<string, PlanDraft>>({});
+  const [newPlan, setNewPlan] = useState<PlanDraft | null>(null);
   const [globalMealPlanId, setGlobalMealPlanId] = useState<string>('');
   const [customMealName, setCustomMealName] = useState('');
   const [customMealPrice, setCustomMealPrice] = useState('');
@@ -1212,6 +1242,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     if (adminTab === 'payments') void loadPayments();
     if (adminTab === 'notifications') void loadNotifications(notifPage);
     if (adminTab === 'events') void loadEvents();
+    if (adminTab === 'settings') void loadMembershipPlans();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adminTab, supportFilter, paymentsFilter, notifPage]);
 
@@ -1408,6 +1439,85 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
       await refreshOverview();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not save designations.');
+    }
+  }
+
+  /** Cents from what the admin typed. Refuses junk rather than saving a 0. */
+  function centsFrom(value: string, label: string): number {
+    const amount = Number(value);
+    if (!Number.isFinite(amount) || amount < 0) throw new Error(`${label} must be a number.`);
+    return Math.round(amount * 100);
+  }
+
+  async function loadMembershipPlans() {
+    try {
+      const data = await apiRequest<MembershipPlan[]>('/admin/membership-plans');
+      setMembershipPlans(data);
+      // Reseed every draft: after a save the server is the truth, and keeping
+      // stale text would show the old price next to the new one.
+      setPlanDrafts(Object.fromEntries(data.map((plan) => [plan.id, draftFrom(plan)])));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not load membership plans.');
+    }
+  }
+
+  async function savePlan(id: string) {
+    const draft = planDrafts[id];
+    if (!draft) return;
+    setError(null);
+    try {
+      await apiRequest(`/admin/membership-plans/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: draft.name,
+          description: draft.description,
+          priceCents: centsFrom(draft.price, 'Monthly price'),
+          shortStayPriceCents: centsFrom(draft.shortStayPrice, 'Short-stay price'),
+          occupancy: Number(draft.occupancy),
+          active: draft.active,
+        }),
+      });
+      await loadMembershipPlans();
+      setNotice('Plan saved.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not save the plan.');
+    }
+  }
+
+  async function createPlan() {
+    if (!newPlan) return;
+    setError(null);
+    try {
+      await apiRequest('/admin/membership-plans', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: newPlan.name,
+          description: newPlan.description,
+          priceCents: centsFrom(newPlan.price, 'Monthly price'),
+          shortStayPriceCents: centsFrom(newPlan.shortStayPrice, 'Short-stay price'),
+          occupancy: Number(newPlan.occupancy),
+          order: membershipPlans.length,
+        }),
+      });
+      setNewPlan(null);
+      await loadMembershipPlans();
+      setNotice('Plan added.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not add the plan.');
+    }
+  }
+
+  async function retirePlan(id: string, name: string) {
+    // Not a delete: past applications name the plan they chose, and removing
+    // the row would leave that text pointing at nothing.
+    if (!window.confirm(`Retire "${name}"? It disappears from the apply form; applications that chose it are untouched.`)) return;
+    setError(null);
+    try {
+      await apiRequest(`/admin/membership-plans/${id}`, { method: 'DELETE' });
+      await loadMembershipPlans();
+      setNotice('Plan retired.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not retire the plan.');
     }
   }
 
@@ -2659,6 +2769,108 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
         </>
           );
         })() : null}
+
+        {adminTab === 'settings' ? (
+        <section className="panel admin-panel" id="admin-membership-plans">
+          <div className="admin-panel__head">
+            <div>
+              <h2>Membership plans</h2>
+              <p>What the apply form offers, and what it charges. Two prices per plan: the monthly rate, and the rate for a one-month stay.</p>
+            </div>
+            {!newPlan ? (
+              <button
+                className="primary-button compact-button"
+                onClick={() => setNewPlan({ name: '', description: '', price: '', shortStayPrice: '', occupancy: '1', active: true })}
+              >
+                Add plan
+              </button>
+            ) : null}
+          </div>
+
+          <div className="plan-list">
+            {membershipPlans.length === 0 && !newPlan ? <div className="empty-state">No plans yet — the apply form has nothing to offer.</div> : null}
+
+            {membershipPlans.map((plan) => {
+              const draft = planDrafts[plan.id] ?? draftFrom(plan);
+              const update = (patch: Partial<PlanDraft>) =>
+                setPlanDrafts((current) => ({ ...current, [plan.id]: { ...draft, ...patch } }));
+
+              return (
+                <article className={plan.active ? 'plan-row' : 'plan-row plan-row--retired'} key={plan.id}>
+                  <div className="plan-row__fields">
+                    <label>
+                      Name
+                      <input value={draft.name} onChange={(event) => update({ name: event.target.value })} />
+                    </label>
+                    <label>
+                      Monthly ({plan.currency})
+                      <input type="number" min="0" step="1" value={draft.price} onChange={(event) => update({ price: event.target.value })} />
+                    </label>
+                    <label>
+                      1-month stay
+                      <input type="number" min="0" step="1" value={draft.shortStayPrice} onChange={(event) => update({ shortStayPrice: event.target.value })} />
+                    </label>
+                    <label>
+                      People
+                      <input type="number" min="1" max="10" step="1" value={draft.occupancy} onChange={(event) => update({ occupancy: event.target.value })} />
+                    </label>
+                  </div>
+                  <label className="plan-row__description">
+                    Description
+                    <input value={draft.description} onChange={(event) => update({ description: event.target.value })} placeholder="Shown under the price on the apply form" />
+                  </label>
+                  <div className="plan-row__actions">
+                    <label className="plan-row__toggle">
+                      <input type="checkbox" checked={draft.active} onChange={(event) => update({ active: event.target.checked })} />
+                      Offered on the apply form
+                    </label>
+                    <div className="plan-row__buttons">
+                      {plan.active ? (
+                        <button className="ghost-button compact-button" onClick={() => void retirePlan(plan.id, plan.name)}>Retire</button>
+                      ) : null}
+                      <button className="primary-button compact-button" onClick={() => void savePlan(plan.id)}>Save</button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+
+            {newPlan ? (
+              <article className="plan-row plan-row--new">
+                <div className="plan-row__fields">
+                  <label>
+                    Name
+                    <input value={newPlan.name} onChange={(event) => setNewPlan({ ...newPlan, name: event.target.value })} placeholder="e.g. Private room" />
+                  </label>
+                  <label>
+                    Monthly (USD)
+                    <input type="number" min="0" step="1" value={newPlan.price} onChange={(event) => setNewPlan({ ...newPlan, price: event.target.value })} />
+                  </label>
+                  <label>
+                    1-month stay
+                    <input type="number" min="0" step="1" value={newPlan.shortStayPrice} onChange={(event) => setNewPlan({ ...newPlan, shortStayPrice: event.target.value })} />
+                  </label>
+                  <label>
+                    People
+                    <input type="number" min="1" max="10" step="1" value={newPlan.occupancy} onChange={(event) => setNewPlan({ ...newPlan, occupancy: event.target.value })} />
+                  </label>
+                </div>
+                <label className="plan-row__description">
+                  Description
+                  <input value={newPlan.description} onChange={(event) => setNewPlan({ ...newPlan, description: event.target.value })} placeholder="Shown under the price on the apply form" />
+                </label>
+                <div className="plan-row__actions">
+                  <span className="plan-row__hint">New plans are offered on the apply form straight away.</span>
+                  <div className="plan-row__buttons">
+                    <button className="ghost-button compact-button" onClick={() => setNewPlan(null)}>Cancel</button>
+                    <button className="primary-button compact-button" onClick={() => void createPlan()}>Add plan</button>
+                  </div>
+                </div>
+              </article>
+            ) : null}
+          </div>
+        </section>
+        ) : null}
 
         {adminTab === 'settings' ? (
         <section className="panel admin-panel" id="admin-global">

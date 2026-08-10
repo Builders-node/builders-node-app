@@ -517,3 +517,29 @@ model GlobalSetting {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+/// A membership tier the apply form offers and the admin can price.
+///
+/// The two prices exist because a short stay costs more per month than a long
+/// one — that rule was two hardcoded lines in the apply form, so changing a
+/// price meant a code deploy.
+model MembershipPlan {
+  id                  String   @id @default(uuid())
+  name                String
+  description         String?
+  /// Monthly price for the standard stay.
+  priceCents          Int
+  /// Monthly price when the member stays only a month. Null = same as above.
+  shortStayPriceCents Int?
+  currency            String   @default("USD")
+  /// How many people it covers — 1 for a private room, 2 for the couple option.
+  occupancy           Int      @default(1)
+  /// Hidden from the apply form without being deleted, so past applications
+  /// keep referring to something that still exists.
+  active              Boolean  @default(true)
+  order               Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([active, order])
+}
