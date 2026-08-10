@@ -1,11 +1,15 @@
 import { useGsapTitle } from "@/hooks/useGsapTitle";
 import { useBatch } from "@/lib/batch";
+import { useStartingPrice } from "@/lib/membership-plans";
 import { useApplyNav } from "@/lib/applyNav";
 
 const HeroSection = () => {
   const openApply = useApplyNav();
   const titleRef = useGsapTitle<HTMLHeadingElement>();
   const batch = useBatch();
+  // Quoted from the plan catalogue, so a price change in the admin reaches
+  // the landing too — this sentence used to name its own number.
+  const { price: startingPrice } = useStartingPrice();
   const badgeText = batch.label ?? `First Batch · Starting ${batch.longDate}`;
 
   return (
@@ -63,7 +67,7 @@ const HeroSection = () => {
           Come to build. <br />Stay for the people
         </h1>
         <p className="text-base md:text-lg text-white/70 max-w-xl leading-relaxed">
-          $1,950/month and includes private accommodation, nutritious meals, coworking, gym, pool and more.
+          {startingPrice}/month and includes private accommodation, nutritious meals, coworking, gym, pool and more.
         </p>
         <button
           onClick={openApply}

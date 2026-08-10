@@ -43,3 +43,39 @@ export function useMembershipPlans() {
 
   return { plans, isLoading };
 }
+
+/**
+ * Shown only while the catalogue is loading, or if it can't be read at all.
+ *
+ * The landing hero is the first thing a visitor sees, and "membership starts at
+ * /month" is worse than a number that's a month out of date. This is the one
+ * place a price is still written down — it used to be three sentences across
+ * three components, each free to drift on its own.
+ */
+const FALLBACK_STARTING_PRICE = '$1,950';
+
+/**
+ * "Starting at ___" — the cheapest plan on offer, formatted for prose.
+ *
+ * `isSettled` matters more than it looks: a GSAP-animated heading splits its
+ * text into per-character spans on mount and never re-splits (restoring
+ * innerHTML crashes React), so a price that arrives afterwards would be frozen
+ * at the fallback forever. Callers inside an animated title must wait for this
+ * before rendering. Plain paragraphs can ignore it — React owns those.
+ *
+ * Whole dollars: these are marketing sentences, not an invoice.
+ */
+export function useStartingPrice(): { price: string; isSettled: boolean } {
+  const { plans, isLoading } = useMembershipPlans();
+  if (plans.length === 0) return { price: FALLBACK_STARTING_PRICE, isSettled: !isLoading };
+
+  const cheapest = Math.min(...plans.map((plan) => plan.priceCents));
+  return {
+    price: new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: plans[0].currency,
+      maximumFractionDigits: 0,
+    }).format(cheapest / 100),
+    isSettled: true,
+  };
+}

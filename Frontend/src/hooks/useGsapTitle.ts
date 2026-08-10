@@ -9,13 +9,22 @@ gsap.registerPlugin(ScrollTrigger);
  * with a staggered fade-in + upward slide on scroll.
  * React-safe: does NOT restore innerHTML on cleanup.
  */
-export const useGsapTitle = <T extends HTMLElement = HTMLElement>() => {
+/**
+ * @param ready pass false while the heading's text is still being fetched.
+ *   The split happens once and can never be redone (restoring innerHTML
+ *   crashes React), so a title holding a value that arrives late would freeze
+ *   on whatever placeholder was rendered first. Defaults to true for the
+ *   headings whose text is a constant.
+ */
+export const useGsapTitle = <T extends HTMLElement = HTMLElement>(ready = true) => {
   const ref = useRef<T>(null);
   const hasSplit = useRef(false);
 
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    // Also covers the first pass for a not-yet-rendered heading: the effect
+    // re-runs when `ready` flips and the element exists.
+    if (!el || !ready) return;
 
     // Only split once — never restore innerHTML (that crashes React)
     if (!hasSplit.current) {
@@ -46,7 +55,7 @@ export const useGsapTitle = <T extends HTMLElement = HTMLElement>() => {
     return () => {
       ctx.revert();
     };
-  }, []);
+  }, [ready]);
 
   return ref;
 };

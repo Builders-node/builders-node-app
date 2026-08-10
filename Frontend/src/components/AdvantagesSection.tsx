@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useGsapTitle } from "@/hooks/useGsapTitle";
 import { useBatch } from "@/lib/batch";
+import { useStartingPrice } from "@/lib/membership-plans";
 import { Building2, Globe, Laptop, Dumbbell, Waves, Trophy, Utensils, CircleDot, HeartPulse, BookOpen, Sparkles } from "lucide-react";
 
 import advRoom from "@/assets/adv-room.jpg";
@@ -38,7 +39,10 @@ const AdvantagesSection = () => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [tappedIndex, setTappedIndex] = useState<number | null>(null);
   const isMobile = useIsMobile();
-  const titleRef = useGsapTitle<HTMLHeadingElement>();
+  // Quoted from the plan catalogue, so a price change in the admin reaches
+  // the landing too — this sentence used to name its own number.
+  const { price: startingPrice, isSettled: priceSettled } = useStartingPrice();
+  const titleRef = useGsapTitle<HTMLHeadingElement>(priceSettled);
   const batch = useBatch();
 
   return (
@@ -49,9 +53,14 @@ const AdvantagesSection = () => {
           <p className="text-xs tracking-[0.25em] uppercase mb-4" style={{ color: textMuted }}>
             Advantages
           </p>
-          <h2 ref={titleRef} className="text-4xl md:text-6xl font-light tracking-tight mb-5" style={{ color: textDark }}>
-            Starting at $1,950/month
-          </h2>
+          {/* Not rendered until the price is in. The animation splits this
+              text into per-character spans on mount and can never re-split, so
+              a heading rendered early would keep the fallback price forever. */}
+          {priceSettled ? (
+            <h2 ref={titleRef} className="text-4xl md:text-6xl font-light tracking-tight mb-5" style={{ color: textDark }}>
+              Starting at {startingPrice}/month
+            </h2>
+          ) : null}
           <p className="text-base md:text-lg font-light max-w-lg" style={{ color: textMuted }}>
             Your membership includes everything, from room to food to gym. First arrivals from {batch.longDate}.
           </p>
