@@ -183,7 +183,7 @@ export class AdminController {
   }
 
   @Post('payments')
-  createPayment(@Body() body: { userId?: string; amountCents?: number; currency?: string; dueDate?: string; description?: string; status?: string }) {
+  createPayment(@Body() body: { userId?: string; amountCents?: number; currency?: string; dueDate?: string; description?: string; status?: string; payUrl?: string }) {
     return this.admin.createPayment(body);
   }
 

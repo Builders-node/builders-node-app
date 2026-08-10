@@ -1094,7 +1094,7 @@ export class AdminService {
   }
 
   /** Admin-created invoice for a member (dues, one-off charges). */
-  async createPayment(body: { userId?: string; amountCents?: number; currency?: string; dueDate?: string; description?: string; status?: string }) {
+  async createPayment(body: { userId?: string; amountCents?: number; currency?: string; dueDate?: string; description?: string; status?: string; payUrl?: string }) {
     const userId = body.userId?.trim();
     if (!userId) throw new BadRequestException('Pick a member.');
     const amountCents = Number(body.amountCents);
@@ -1107,19 +1107,44 @@ export class AdminService {
     if (Number.isNaN(due.getTime())) throw new BadRequestException('Due date is invalid.');
     const status = body.status && ['DUE', 'OVERDUE', 'PAID', 'CANCELLED'].includes(body.status) ? body.status : 'DUE';
 
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    // Profile included: the invoice email greets them by name.
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, include: { profile: true } });
     if (!user) throw new NotFoundException('Member not found.');
 
-    await this.prisma.payment.create({
+    const currency = body.currency?.trim() || 'USD';
+    const payUrl = body.payUrl?.trim() || null;
+    const payment = await this.prisma.payment.create({
       data: {
         userId,
         amountCents: Math.round(amountCents),
-        currency: body.currency?.trim() || 'USD',
+        currency,
         status,
         dueDate: due,
         description,
+        payUrl,
       },
     });
+
+    // Tell them. An invoice the member never hears about is one they can't pay
+    // — this used to create the row and stop there, and there was no member
+    // screen to discover it on either.
+    if (status === 'DUE' || status === 'OVERDUE') {
+      const fullName = user.profile?.fullName ?? user.email;
+      await this.notifications.notify(userId, {
+        type: 'info',
+        title: 'New invoice',
+        body: `${description} — due ${payment.dueDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' })}.`,
+        link: '/account',
+      });
+      await this.mail.sendInvoiceIssued(user.email, fullName, {
+        description,
+        amountCents: payment.amountCents,
+        currency,
+        dueDate: payment.dueDate,
+        payUrl,
+      });
+    }
+
     return this.listPayments();
   }
 

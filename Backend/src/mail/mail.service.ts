@@ -5,6 +5,15 @@ import { resolveFrontendBaseUrl } from '../common/frontend-url';
 
 type Email = { to: string; subject: string; html: string; text: string };
 
+/** The parts of an invoice an email needs to state it plainly. */
+export type InvoiceEmail = {
+  description: string;
+  amountCents: number;
+  currency: string;
+  dueDate: Date;
+  payUrl?: string | null;
+};
+
 /** Builders Node's Google appointment schedule; override with MEETING_BOOKING_URL. */
 const DEFAULT_MEETING_BOOKING_URL =
   'https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ2-5XDVVLfQfx0r_nqtDttfQV00lCZcIvMg-0B-RG7XYnTALuq2_XY2Q55U8s4J6UdeZjPHbIp9';
@@ -285,6 +294,62 @@ export class MailService {
     });
   }
 
+  /** A new invoice. The member can also see it in their account either way. */
+  async sendInvoiceIssued(to: string, fullName: string, invoice: InvoiceEmail): Promise<void> {
+    const name = firstNameOf(fullName);
+    const amount = formatMoney(invoice.amountCents, invoice.currency);
+    const due = formatDay(invoice.dueDate);
+    const where = invoice.payUrl ? 'You can pay it here:' : 'You can see it in your account:';
+    const link = invoice.payUrl ?? `${this.frontendBaseUrl()}/account`;
+
+    await this.send({
+      to,
+      subject: `Invoice from Builders Node — ${amount} due ${due}`,
+      text:
+        `Hi ${name},\n\n` +
+        `${invoice.description}\n${amount}, due ${due}.\n\n` +
+        `${where} ${link}\n\n` +
+        'Best regards,\nBuilders Node',
+      html: layout(
+        'A new invoice',
+        `<p>Hi ${escapeHtml(name)},</p>
+         <p>${escapeHtml(invoice.description)}<br /><strong>${amount}</strong>, due ${due}.</p>
+         ${button(invoice.payUrl ? 'Pay now' : 'View in your account', link)}
+         <p>Best regards,<br />Builders Node</p>`,
+      ),
+    });
+  }
+
+  /**
+   * Sent the morning an invoice passes its due date — once, by the daily job.
+   * Deliberately plain: someone is late, not in trouble.
+   */
+  async sendPaymentOverdue(to: string, fullName: string, invoice: InvoiceEmail): Promise<void> {
+    const name = firstNameOf(fullName);
+    const amount = formatMoney(invoice.amountCents, invoice.currency);
+    const due = formatDay(invoice.dueDate);
+    const link = invoice.payUrl ?? `${this.frontendBaseUrl()}/account`;
+
+    await this.send({
+      to,
+      subject: `Payment overdue — ${amount}`,
+      text:
+        `Hi ${name},\n\n` +
+        `${invoice.description} (${amount}) was due on ${due} and is still open.\n\n` +
+        `You can settle it here: ${link}\n\n` +
+        "If you've already paid or something needs sorting out, just reply to this email.\n\n" +
+        'Best regards,\nBuilders Node',
+      html: layout(
+        'Payment overdue',
+        `<p>Hi ${escapeHtml(name)},</p>
+         <p>${escapeHtml(invoice.description)} (<strong>${amount}</strong>) was due on ${due} and is still open.</p>
+         ${button('Settle it', link)}
+         <p>If you've already paid or something needs sorting out, just reply to this email.</p>
+         <p>Best regards,<br />Builders Node</p>`,
+      ),
+    });
+  }
+
   async sendInvitation(invitation: InvitationEmail): Promise<void> {
     await this.send({
       to: invitation.to,
@@ -335,4 +400,20 @@ function layout(heading: string, body: string): string {
     <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0" />
     <p style="color:#9ca3af;font-size:12px">Builders Node · Próspera</p>
   </div>`;
+}
+
+/** "$1,950" — whole units, since invoices here are never fractional. */
+function formatMoney(cents: number, currency: string): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(cents / 100);
+}
+
+/**
+ * "3 February 2027", in UTC.
+ *
+ * A due date is a calendar day, and rendering it in the server's zone would
+ * show the day before to anyone west of UTC — including Próspera, which is
+ * where the people reading these emails are.
+ */
+function formatDay(date: Date): string {
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 }

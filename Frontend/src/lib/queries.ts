@@ -307,3 +307,39 @@ export function useMarkNotificationsRead(userId: string | null | undefined) {
     },
   });
 }
+
+/** One invoice as the member sees it. */
+export type MemberInvoice = {
+  id: string;
+  amountCents: number;
+  currency: string;
+  status: string;
+  severity: string;
+  dueDate: string;
+  paidAt: string | null;
+  description: string;
+  payUrl: string | null;
+  receiptUrl: string | null;
+};
+
+export type MemberBilling = {
+  openTotalCents: number;
+  currency: string;
+  /** Overdue first, then by how soon it falls due. */
+  open: MemberInvoice[];
+  history: MemberInvoice[];
+};
+
+/**
+ * The member's invoices.
+ *
+ * The endpoint existed from the start and no screen ever called it, so admins
+ * could issue an invoice that the member had no way to see — let alone pay.
+ */
+export function useBilling(userId: string | null) {
+  return useQuery({
+    queryKey: qk.payments(userId ?? ''),
+    queryFn: () => apiRequest<MemberBilling>(`/users/${userId}/payments`),
+    enabled: Boolean(userId),
+  });
+}

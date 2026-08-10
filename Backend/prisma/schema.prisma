@@ -328,6 +328,12 @@ model Payment {
   status      String        @default("DUE")
   dueDate     DateTime
   paidAt      DateTime?
+  // Where the member actually pays. Optional: some invoices are settled by
+  // bank transfer and just need to be visible.
+  payUrl      String?
+  // Set when the "due soon" nudge goes out, so the daily job sends it once
+  // rather than every morning until the due date.
+  reminderSentAt DateTime?
   description String
   receiptUrl  String?
   adminNote   String?

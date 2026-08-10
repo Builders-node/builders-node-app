@@ -693,7 +693,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   }>({ audience: 'all-members', userId: '', type: 'info', title: '', message: '', link: '' });
   const [notifSending, setNotifSending] = useState(false);
   const [notifSentMsg, setNotifSentMsg] = useState<string | null>(null);
-  const [invoiceForm, setInvoiceForm] = useState<{ userId: string; amountCents: string; description: string; dueDate: string } | null>(null);
+  const [invoiceForm, setInvoiceForm] = useState<{ userId: string; amountCents: string; description: string; dueDate: string; payUrl: string } | null>(null);
   useEscapeToClose(Boolean(invoiceForm), () => setInvoiceForm(null));
   const [resources, setResources] = useState<AdminResource[]>([]);
   const [resourceForm, setResourceForm] = useState<{ id?: string; title: string; category: string; body: string; published: boolean } | null>(null);
@@ -1018,6 +1018,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
           amountCents: Math.round(Number(invoiceForm.amountCents) * 100),
           description: invoiceForm.description,
           dueDate: invoiceForm.dueDate,
+          payUrl: invoiceForm.payUrl,
         }),
       }));
       setInvoiceForm(null);
@@ -2266,7 +2267,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                   </button>
                 ))}
               </div>
-              <button className="primary-button compact-button" onClick={() => setInvoiceForm({ userId: '', amountCents: '', description: '', dueDate: new Date().toISOString().slice(0, 10) })}>
+              <button className="primary-button compact-button" onClick={() => setInvoiceForm({ userId: '', amountCents: '', description: '', dueDate: new Date().toISOString().slice(0, 10), payUrl: '' })}>
                 + New invoice
               </button>
             </div>
@@ -3184,7 +3185,13 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
               Description
               <input value={invoiceForm.description} onChange={(event) => setInvoiceForm({ ...invoiceForm, description: event.target.value })} placeholder="e.g. Rent — August 2026" required />
             </label>
-            <button className="primary-button" type="submit">Create invoice</button>
+            <label>
+              Payment link (optional)
+              <input value={invoiceForm.payUrl} onChange={(event) => setInvoiceForm({ ...invoiceForm, payUrl: event.target.value })} placeholder="Leave empty for bank transfer" />
+              {/* Optional on purpose: an invoice settled by transfer still has
+                  to be visible to the member, it just has nowhere to click. */}
+            </label>
+            <button className="primary-button" type="submit">Create invoice &amp; notify</button>
           </form>
         </div>
       ) : null}

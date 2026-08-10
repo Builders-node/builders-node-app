@@ -9,6 +9,7 @@ import { useHome, useMyCleaning, useProfile, useResidency, useSetCleaning } from
 import { useEscapeToClose } from '../lib/useModalA11y';
 import { MaintenanceSection } from '../components/MaintenanceSection';
 import { CarsSection } from '../components/CarsSection';
+import { BillingSection } from '../components/BillingSection';
 
 type ProfileProps = {
   currentUserId: string | null;
@@ -679,6 +680,15 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
           </section>
         );
       })() : null}
+
+      {/* Above Support: money is the thing with a deadline on it, and an
+          overdue invoice shouldn't sit below a maintenance form. */}
+      {showMemberSections && currentUserId ? (
+        <section className="home-section">
+          <h3 className="home-section__title">Billing</h3>
+          <BillingSection currentUserId={currentUserId} />
+        </section>
+      ) : null}
 
       {showMemberSections && currentUserId ? (
         <section className="home-section">

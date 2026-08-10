@@ -49,4 +49,5 @@ export const qk = {
   events: () => ['events'] as const,
   cleaningSlots: () => ['cleaning-slots'] as const,
   cleaning: (userId: string) => ['cleaning', userId] as const,
+  payments: (userId: string) => ['payments', userId] as const,
 };

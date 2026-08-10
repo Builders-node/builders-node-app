@@ -5704,3 +5704,83 @@ body:has(.modal-overlay) .onboarding-toast { display: none; }
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Billing: the member's invoices ────────────────────────────────────────── */
+.billing-panel { display: grid; gap: 10px; }
+.billing-panel__head {
+  align-items: baseline;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+.billing-panel__total { font-size: 0.95rem; }
+.billing-empty { color: var(--muted); font-size: 0.88rem; margin: 0; }
+
+.invoice-row {
+  align-items: center;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.invoice-row--overdue {
+  /* An edge, not a red panel: it needs finding in a list, not shouting about. */
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+.invoice-row--past { background: transparent; }
+.invoice-row__icon {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  display: inline-flex;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+.invoice-row__body { min-width: 0; }
+.invoice-row__body strong { display: block; font-size: 0.9rem; }
+.invoice-row__body small { color: var(--muted); font-size: 0.8rem; }
+.invoice-row__end {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.invoice-status {
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 3px 9px;
+  text-transform: uppercase;
+}
+.invoice-status--good { background: rgba(11, 143, 31, 0.12); color: var(--good); }
+.invoice-status--attention { background: rgba(208, 108, 0, 0.12); color: var(--attention); }
+.invoice-status--danger { background: rgba(179, 52, 42, 0.12); color: var(--danger); }
+.invoice-status--neutral { background: var(--surface); color: var(--muted); }
+
+.billing-history { margin-top: 2px; }
+.billing-history summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 4px 0;
+}
+.billing-history .invoice-row { margin-top: 8px; }
+
+@media (max-width: 620px) {
+  .invoice-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .invoice-row__end {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
