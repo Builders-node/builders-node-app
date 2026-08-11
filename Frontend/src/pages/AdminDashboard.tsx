@@ -406,14 +406,27 @@ function applicantStageIndex(status: string, apartmentAvailable?: boolean | null
  * and are appended; when both exist the note's copy is dropped so the long
  * answer isn't shown twice.
  */
+type ApplicationAnswer = { label: string; value: string; isLink?: boolean; href?: string };
+
 function parseApplicationAnswers(app: {
   note?: string | null;
   about?: string | null;
   socialLinksJson?: string | null;
   phone?: string | null;
-}): Array<{ label: string; value: string; isLink?: boolean }> {
-  const out: Array<{ label: string; value: string; isLink?: boolean }> = [];
-  if (app.phone) out.push({ label: 'Phone', value: app.phone });
+}): ApplicationAnswer[] {
+  const out: ApplicationAnswer[] = [];
+  // The apply form asks for this as a WhatsApp number, so it is labelled as one
+  // and opens a chat rather than sitting there as text to copy by hand. wa.me
+  // wants bare digits — a leading + or the spaces people type give a 404.
+  if (app.phone) {
+    const digits = app.phone.replace(/\D/g, '');
+    out.push({
+      label: 'WhatsApp',
+      value: app.phone,
+      isLink: digits.length >= 7,
+      href: `https://wa.me/${digits}`,
+    });
+  }
 
   const noteLines = (app.note ?? '').split('\n');
   const freeText: string[] = [];
@@ -482,12 +495,12 @@ function ApplicantAnswers({
       </button>
       {open ? (
         <dl className="applicant-answers__list">
-          {answers.map(({ label, value, isLink }) => (
+          {answers.map(({ label, value, isLink, href }) => (
             <div key={label}>
               <dt>{label}</dt>
               <dd>
                 {isLink ? (
-                  <a href={value} target="_blank" rel="noopener noreferrer">
+                  <a href={href ?? value} target="_blank" rel="noopener noreferrer">
                     {value}
                   </a>
                 ) : (

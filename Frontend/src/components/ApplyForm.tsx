@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Mail, User, Loader2, ArrowLeft } from "lucide-react";
+import { Mail, User, MessageCircle, Loader2, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/api";
 import { useBatch } from "@/lib/batch";
@@ -44,6 +44,9 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [email, setEmail] = useState(initialEmail ?? "");
   const [fullName, setFullName] = useState(initialFullName ?? "");
+  // Stored in Application.phone — the column has always been there, the form
+  // just never asked. It seeds the member's profile phone once they're in.
+  const [whatsapp, setWhatsapp] = useState("");
   const [visitDate, setVisitDate] = useState("");
   const [stayDuration, setStayDuration] = useState("");
   const [gender, setGender] = useState("male");
@@ -134,6 +137,7 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
       body: JSON.stringify({
         fullName,
         email,
+        phone: whatsapp.trim(),
         // `note` stays the readable summary admins scan in the Inbox. `about`
         // and `socials` go alongside it as real fields, because they seed the
         // member's profile once the account exists — parsing them back out of
@@ -153,6 +157,7 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
   const resetForm = () => {
     setEmail("");
     setFullName("");
+    setWhatsapp("");
     setVisitDate("");
     setStayDuration("");
     setGender("male");
@@ -173,7 +178,7 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email || !fullName || !visitDate || !stayDuration || !aboutText) {
+    if (!email || !fullName || !whatsapp.trim() || !visitDate || !stayDuration || !aboutText) {
       toast({ title: "Missing fields", description: "Please fill in all required fields.", variant: "destructive" });
       return;
     }
@@ -236,6 +241,7 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
         body: JSON.stringify({
           email,
           fullName,
+          whatsapp,
           visitDate: visitLabel,
           stayDuration,
           gender,
@@ -514,6 +520,34 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
                 />
               </div>
             </div>
+          </div>
+
+          {/* WhatsApp */}
+          <div className="space-y-2">
+            <Label htmlFor="whatsapp" className="text-sm font-medium" style={{ color: "hsl(0 0% 10%)" }}>
+              WhatsApp number <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative">
+              <MessageCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "hsl(0 0% 45%)" }} />
+              {/* type="tel" rather than a pattern: people write +504 9999-9999,
+                  00504…, or with spaces, and a browser-level rejection would
+                  block the form on a number we can read perfectly well. */}
+              <Input
+                id="whatsapp"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="+1 555 000 1234"
+                required
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+                className="pl-10 border-0 bg-white shadow-sm focus-visible:ring-1"
+                style={{ borderColor: "hsl(0 0% 80%)", color: "hsl(0 0% 10%)" }}
+              />
+            </div>
+            <p className="text-xs" style={{ color: "hsl(0 0% 45%)" }}>
+              Include your country code — this is how we reach you about your call.
+            </p>
           </div>
 
           {/* When can you visit */}
