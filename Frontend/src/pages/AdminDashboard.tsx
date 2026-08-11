@@ -46,6 +46,8 @@ type AdminOverview = {
     referredByUserId?: string | null;
     status: string;
     apartmentAvailable?: boolean | null;
+    /** When an admin last nudged them to book the intro call, if ever. */
+    meetingReminderSentAt?: string | null;
     paymentStatus: string;
     paymentLink?: string | null;
     adminNote?: string | null;
@@ -80,7 +82,7 @@ type AdminOverview = {
 type DesignationUser = AdminOverview['users'][number];
 type DesignationFilterId = 'all' | 'incomplete' | 'new' | 'members';
 type Applicant = AdminOverview['applications'][number];
-type ApplicantAction = { key: string; label: string; icon: ReactNode; tone?: 'ghost' | 'danger'; run: () => void };
+type ApplicantAction = { key: string; label: string; icon: ReactNode; tone?: 'ghost' | 'danger'; hint?: string; run: () => void };
 type AdminTab = 'overview' | 'applicants' | 'residency' | 'designations' | 'maintenance' | 'support' | 'payments' | 'notifications' | 'resources' | 'events' | 'vehicles' | 'units' | 'settings';
 
 type AdminVehicle = {
@@ -1359,9 +1361,23 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
       };
     }
     if (status === 'FIRST_APPROVED') {
+      // This is the one stage where we're waiting on the applicant, so it's the
+      // one stage that gets a nudge. Listed before Reject: the destructive
+      // action stays last in the stack.
+      const reminded = app.meetingReminderSentAt ? new Date(app.meetingReminderSentAt) : null;
       return {
         primary: { key: 'meet', label: 'Approve meeting', icon: <ShieldCheck size={15} />, run: run('online-meeting-check', { approved: true }, 'Online meeting approved.') },
-        secondary: [{ key: 'meet-no', label: 'Reject', icon: <X size={15} />, tone: 'danger', run: run('online-meeting-check', { approved: false }, 'Applicant rejected after meeting.') }],
+        secondary: [
+          {
+            key: 'remind',
+            label: reminded ? 'Remind again' : 'Remind',
+            icon: <Send size={15} />,
+            tone: 'ghost',
+            hint: reminded ? `Last reminded ${reminded.toLocaleDateString()}` : 'Send the follow-up email with the booking link',
+            run: run('remind-meeting', undefined, 'Reminder sent.'),
+          },
+          { key: 'meet-no', label: 'Reject', icon: <X size={15} />, tone: 'danger', run: run('online-meeting-check', { approved: false }, 'Applicant rejected after meeting.') },
+        ],
       };
     }
     if (status === 'MEETING_APPROVED' && !app.apartmentAvailable) {
@@ -2128,6 +2144,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                                   <button
                                     key={action.key}
                                     className={action.tone === 'danger' ? 'compact-button applicant-action--danger' : 'ghost-button compact-button'}
+                                    title={action.hint}
                                     onClick={action.run}
                                   >
                                     {action.icon}
@@ -2240,6 +2257,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                         <button
                           className={action.tone === 'danger' ? 'compact-button applicant-action applicant-action--danger' : 'ghost-button compact-button'}
                           key={action.key}
+                          title={action.hint}
                           onClick={action.run}
                         >
                           {action.icon}

@@ -194,6 +194,10 @@ model Application {
   paymentLink String?
   paymentStatus String @default("NOT_SENT")
   firstApprovedAt DateTime?
+  /// Last time an admin nudged them to book the intro call. Recorded so the
+  /// pipeline can say "already reminded, 2 days ago" instead of leaving the
+  /// admin to guess and mail the same person twice.
+  meetingReminderSentAt DateTime?
   meetingApprovedAt DateTime?
   paymentLinkSentAt DateTime?
   paymentConfirmedAt DateTime?

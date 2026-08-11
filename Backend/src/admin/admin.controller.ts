@@ -61,6 +61,12 @@ export class AdminController {
     return this.admin.firstCheck(applicationId, body.approved);
   }
 
+  /** Follow-up email for an approved applicant who hasn't booked their call. */
+  @Post('applications/:applicationId/remind-meeting')
+  remindMeeting(@Param('applicationId') applicationId: string) {
+    return this.admin.remindMeeting(applicationId);
+  }
+
   @Post('applications/:applicationId/online-meeting-check')
   onlineMeetingCheck(
     @Param('applicationId') applicationId: string,

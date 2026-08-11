@@ -58,6 +58,9 @@ const APARTMENT_AVAILABILITY = new Set([
   'UNAVAILABLE',
 ]);
 
+/** How long a meeting reminder blocks the next one. See remindMeeting(). */
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 @Injectable()
 export class AdminService {
   constructor(
@@ -416,6 +419,61 @@ export class AdminService {
     // over a mixed selection) shouldn't email the same person twice.
     if (approved && !application.firstApprovedAt) {
       await this.mail.sendFirstCheckApproved(application.email, application.fullName);
+    }
+
+    return updated;
+  }
+
+  /**
+   * Nudge an approved applicant who hasn't booked their intro call.
+   *
+   * Only valid at FIRST_APPROVED — that is the one stage where the applicant
+   * owes us an action. Reminding someone who already had the call, or who was
+   * rejected, would be sending them back to a calendar they have no reason to
+   * open.
+   *
+   * The 24-hour floor is not politeness, it's the double-click guard: this is a
+   * plain button on a card and nothing else stops the same email going out
+   * twice in a row. Reminding again tomorrow, or next week, is allowed.
+   *
+   * The stamp is written after the send, like the invoice reminder in
+   * BillingService — if the mail fails, the admin should be able to try again
+   * rather than see a card claiming it went out.
+   */
+  async remindMeeting(applicationId: string) {
+    const application = await this.requireApplication(applicationId);
+    if (application.status !== 'FIRST_APPROVED') {
+      throw new BadRequestException('Only applicants waiting to book their call can be reminded.');
+    }
+
+    const lastSent = application.meetingReminderSentAt;
+    if (lastSent && Date.now() - lastSent.getTime() < DAY_MS) {
+      throw new BadRequestException('A reminder already went out today. Try again tomorrow.');
+    }
+
+    await this.mail.sendMeetingReminder(application.email, application.fullName);
+
+    const updated = await this.prisma.application.update({
+      where: { id: application.id },
+      data: { meetingReminderSentAt: new Date() },
+    });
+
+    // Applicants self-register now, so most of them already have an account and
+    // a notification bell. The booking URL goes in the body rather than `link`
+    // on purpose: the bell routes `link` through pageForPath as an in-app path,
+    // so an external calendar URL there would silently land them on /profile.
+    const account = await this.prisma.user.findUnique({
+      where: { email: application.email },
+      select: { id: true },
+    });
+    if (account) {
+      await this.notifications.notify(account.id, {
+        type: 'info',
+        title: 'Book your call with Builders Node',
+        body:
+          "We'd still love to meet you for a short video call. Book a time that works for you: " +
+          this.mail.meetingBookingUrl(),
+      });
     }
 
     return updated;

@@ -50,6 +50,15 @@ export class MailService {
     return resolveFrontendBaseUrl(this.config.get<string>('FRONTEND_URL'));
   }
 
+  /**
+   * Where applicants book their intro call. Exposed because the in-app
+   * notification carries the same link as the email, and two copies of a URL
+   * this long is how one of them quietly goes stale.
+   */
+  meetingBookingUrl(): string {
+    return this.config.get<string>('MEETING_BOOKING_URL') ?? DEFAULT_MEETING_BOOKING_URL;
+  }
+
   async send(email: Email): Promise<void> {
     if (!this.apiKey) {
       this.logger.warn(`RESEND_API_KEY not set — email NOT sent. To: ${email.to} | Subject: ${email.subject}`);
@@ -190,7 +199,7 @@ export class MailService {
    * dead page until somebody redeployed.
    */
   async sendFirstCheckApproved(to: string, fullName: string): Promise<void> {
-    const calendarUrl = this.config.get<string>('MEETING_BOOKING_URL') ?? DEFAULT_MEETING_BOOKING_URL;
+    const calendarUrl = this.meetingBookingUrl();
     const name = firstNameOf(fullName);
 
     await this.send({
@@ -212,6 +221,45 @@ export class MailService {
          <p>We were impressed by your background and experience.</p>
          <p>The next step in our selection process is a short video call so we can get to know each other better and answer any questions you may have.</p>
          <p>You can book a time that works best for you:</p>
+         ${button('Book your call', calendarUrl)}
+         <p>We look forward to speaking with you!</p>
+         <p>Best regards,<br />Builders Node</p>`,
+      ),
+    });
+  }
+
+  /**
+   * The follow-up when an approved applicant hasn't booked their call. Same
+   * calendar link as sendFirstCheckApproved above — an applicant who lost the
+   * first email needs the link again, not a different one.
+   *
+   * Sent by hand from the pipeline rather than on a schedule: whether silence
+   * means "missed the email" or "went quiet on purpose" is a judgement call,
+   * and a cron nudging people weekly would get us marked as spam.
+   */
+  async sendMeetingReminder(to: string, fullName: string): Promise<void> {
+    const calendarUrl = this.meetingBookingUrl();
+    const name = firstNameOf(fullName);
+
+    await this.send({
+      to,
+      subject: 'Following up — book your call with Builders Node',
+      text:
+        `Hi ${name},\n\n` +
+        "I hope you're doing well!\n\n" +
+        'I just wanted to follow up on my previous email regarding your application to Builders Node.\n\n' +
+        "We'd still love to meet with you for a short video call to get to know you better and answer any " +
+        'questions you may have.\n\n' +
+        `If you're still interested, you can book a time that works best for you using the calendar link: ${calendarUrl}\n\n` +
+        'We look forward to speaking with you!\n\n' +
+        'Best regards,\nBuilders Node',
+      html: layout(
+        'Following up on your application',
+        `<p>Hi ${escapeHtml(name)},</p>
+         <p>I hope you're doing well!</p>
+         <p>I just wanted to follow up on my previous email regarding your application to Builders Node.</p>
+         <p>We'd still love to meet with you for a short video call to get to know you better and answer any questions you may have.</p>
+         <p>If you're still interested, you can book a time that works best for you:</p>
          ${button('Book your call', calendarUrl)}
          <p>We look forward to speaking with you!</p>
          <p>Best regards,<br />Builders Node</p>`,
