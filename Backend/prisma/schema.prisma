@@ -255,8 +255,18 @@ model Membership {
   approvedAt DateTime?
   activatedAt DateTime?
   startingDate DateTime?
+  /// When the next invoice is due. The monthly job bills this date and then
+  /// rolls it forward, so it is always the *next* one owed.
   dueDate DateTime?
   finishDate DateTime?
+  /// What this member pays per month.
+  ///
+  /// Held here rather than read from the plan catalogue on the fly: a member's
+  /// rate is what they agreed to, and re-pricing everyone silently because an
+  /// admin edited a plan would be a way to invoice people for a number they
+  /// never saw. Null = nobody is billed automatically.
+  monthlyAmountCents Int?
+  currency   String   @default("USD")
   notes      String?
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
@@ -334,12 +344,17 @@ model Payment {
   // Set when the "due soon" nudge goes out, so the daily job sends it once
   // rather than every morning until the due date.
   reminderSentAt DateTime?
+  /// "2026-09" for an automatically generated monthly invoice; null for
+  /// anything an admin raised by hand. Unique per member, which is what makes
+  /// double-billing impossible even if the job runs twice in a day.
+  billingPeriod String?
   description String
   receiptUrl  String?
   adminNote   String?
   createdAt   DateTime      @default(now())
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, billingPeriod])
   @@index([userId])
   @@index([status])
 }

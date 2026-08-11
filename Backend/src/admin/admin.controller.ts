@@ -264,7 +264,7 @@ export class AdminController {
   @Patch('users/:userId')
   updateUser(
     @Param('userId') userId: string,
-    @Body() body: { fullName?: string; phone?: string; location?: string; membershipStatus?: string; role?: string },
+    @Body() body: { fullName?: string; phone?: string; location?: string; membershipStatus?: string; role?: string; monthlyAmountCents?: number | null; nextDueDate?: string | null },
     @Req() request: Request & { adminAccess?: { userId?: string; role: string; via: 'key' | 'session' } },
   ) {
     return this.admin.updateUser(userId, body, request.adminAccess);

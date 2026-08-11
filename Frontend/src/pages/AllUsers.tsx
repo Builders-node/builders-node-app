@@ -32,7 +32,16 @@ type UserDetail = {
   emailVerifiedAt?: string | null;
   createdAt: string;
   profile?: { fullName?: string | null; phone?: string | null; location?: string | null } | null;
-  membership?: { status: string; startingDate?: string | null; dueDate?: string | null; finishDate?: string | null } | null;
+  membership?: {
+    status: string;
+    startingDate?: string | null;
+    /** The next invoice the monthly job will raise. */
+    dueDate?: string | null;
+    finishDate?: string | null;
+    /** What they're billed each month. Null = not billed automatically. */
+    monthlyAmountCents?: number | null;
+    currency?: string | null;
+  } | null;
   residencyApplication?: { status: string; stage: string; requiredNextSteps?: string[]; lastSyncedAt?: string | null } | null;
   subscriptionPlan?: { planName: string; status: string; renewalDate?: string | null } | null;
   communityPlans: Array<{
@@ -92,7 +101,7 @@ const pastMembershipStatuses = new Set(['PAST_RESIDENT', 'PAST_MEMBER', 'FORMER_
 const roleOptions = ['MEMBER', 'COMMUNITY_LEADER', 'MODERATOR', 'SUPER_ADMIN'];
 const membershipStatusOptions = ['APPLICANT', 'APPROVED', 'ACTIVE_MEMBER', 'PAST_MEMBER', 'CANCELLED', 'SUSPENDED'];
 
-type EditForm = { fullName: string; phone: string; location: string; membershipStatus: string; role: string };
+type EditForm = { fullName: string; phone: string; location: string; membershipStatus: string; role: string; monthlyAmount: string; nextDueDate: string };
 
 const userFilters: Array<{ id: UserFilterId; label: string; matches: (user: AdminOverviewUser) => boolean }> = [
   { id: 'all', label: 'All', matches: () => true },
@@ -175,7 +184,7 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [addForm, setAddForm] = useState<EditForm & { email: string }>({ email: '', fullName: '', phone: '', location: '', membershipStatus: 'ACTIVE_MEMBER', role: 'MEMBER' });
+  const [addForm, setAddForm] = useState<EditForm & { email: string }>({ email: '', fullName: '', phone: '', location: '', membershipStatus: 'ACTIVE_MEMBER', role: 'MEMBER', monthlyAmount: '', nextDueDate: '' });
   const [isCreating, setIsCreating] = useState(false);
   const [createdInvite, setCreatedInvite] = useState<{ to: string; setupUrl: string; temporaryPassword: string } | null>(null);
   useEscapeToClose(showAddForm, () => setShowAddForm(false));
@@ -261,7 +270,7 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
   }
 
   function openAddForm() {
-    setAddForm({ email: '', fullName: '', phone: '', location: '', membershipStatus: 'ACTIVE_MEMBER', role: 'MEMBER' });
+    setAddForm({ email: '', fullName: '', phone: '', location: '', membershipStatus: 'ACTIVE_MEMBER', role: 'MEMBER', monthlyAmount: '', nextDueDate: '' });
     setCreatedInvite(null);
     setError(null);
     setNotice(null);
@@ -340,6 +349,12 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
       location: selectedUser.profile?.location ?? '',
       membershipStatus: selectedUser.membership?.status ?? 'APPLICANT',
       role: selectedUser.role,
+      // Money as whole units in the field, converted on save.
+      monthlyAmount:
+        selectedUser.membership?.monthlyAmountCents != null
+          ? String(selectedUser.membership.monthlyAmountCents / 100)
+          : '',
+      nextDueDate: selectedUser.membership?.dueDate ? selectedUser.membership.dueDate.slice(0, 10) : '',
     });
     setIsEditing(true);
     setNotice(null);
@@ -351,9 +366,16 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
     setIsSaving(true);
     setError(null);
     try {
+      const { monthlyAmount, nextDueDate, ...rest } = editForm;
       const updated = await apiRequest<UserDetail>(`/admin/users/${selectedUser.id}`, {
         method: 'PATCH',
-        body: JSON.stringify(editForm),
+        body: JSON.stringify({
+          ...rest,
+          // Empty means "don't bill this member automatically", which is a real
+          // answer — so it's sent as null rather than left out.
+          monthlyAmountCents: monthlyAmount.trim() === '' ? null : Math.round(Number(monthlyAmount) * 100),
+          nextDueDate: nextDueDate.trim() === '' ? null : nextDueDate,
+        }),
       });
       setSelectedUser(updated);
       setIsEditing(false);
@@ -754,6 +776,27 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
                               <option key={status} value={status}>{status}</option>
                             ))}
                           </select>
+                        </label>
+                        <label>
+                          Monthly membership (USD)
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={editForm.monthlyAmount}
+                            onChange={(event) => setEditForm({ ...editForm, monthlyAmount: event.target.value })}
+                            placeholder="Leave empty for no automatic billing"
+                          />
+                        </label>
+                        <label>
+                          Next invoice due
+                          <input
+                            type="date"
+                            value={editForm.nextDueDate}
+                            onChange={(event) => setEditForm({ ...editForm, nextDueDate: event.target.value })}
+                          />
+                          {/* The job bills this date and rolls it forward a
+                              month, so it always shows the next one owed. */}
                         </label>
                         <label>
                           Role {isSuperAdmin ? '' : '(Super Admin only)'}

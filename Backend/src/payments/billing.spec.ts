@@ -1,4 +1,4 @@
-import { BillingService, startOfUtcDay } from './billing.service';
+import { addOneMonth, BillingService, billingPeriodOf, startOfUtcDay } from './billing.service';
 
 /**
  * The daily billing pass.
@@ -9,17 +9,20 @@ import { BillingService, startOfUtcDay } from './billing.service';
  */
 function makeService(rows: { overdue?: unknown[]; soon?: unknown[] } = {}) {
   const prisma = {
+    // No memberships to bill: these cases are about the two later passes.
+    membership: { findMany: jest.fn().mockResolvedValue([]), update: jest.fn().mockResolvedValue({}) },
     payment: {
       findMany: jest
         .fn()
         // markOverdue runs first, remindBeforeDue second.
         .mockResolvedValueOnce(rows.overdue ?? [])
         .mockResolvedValueOnce(rows.soon ?? []),
+      create: jest.fn().mockResolvedValue({}),
       update: jest.fn().mockResolvedValue({}),
     },
   };
   const notifications = { notify: jest.fn().mockResolvedValue(undefined) };
-  const mail = { sendPaymentOverdue: jest.fn().mockResolvedValue(undefined) };
+  const mail = { sendPaymentOverdue: jest.fn().mockResolvedValue(undefined), sendInvoiceIssued: jest.fn().mockResolvedValue(undefined) };
   return {
     service: new BillingService(prisma as never, notifications as never, mail as never),
     prisma,
@@ -128,5 +131,135 @@ describe('BillingService.runDaily — the nudge before the due date', () => {
 describe('startOfUtcDay', () => {
   it('is midnight UTC, whatever the time of day', () => {
     expect(startOfUtcDay(new Date('2026-08-10T23:59:59.000Z')).toISOString()).toBe('2026-08-10T00:00:00.000Z');
+  });
+});
+
+/**
+ * Monthly invoice generation.
+ *
+ * The property that matters is that nobody is billed twice for the same month.
+ * A duplicate invoice is money a member is asked for and didn't owe, and it
+ * survives every retry the job might make.
+ */
+function makeMonthlyService(memberships: unknown[] = [], createBehaviour?: () => never) {
+  const prisma = {
+    membership: {
+      findMany: jest.fn().mockResolvedValue(memberships),
+      update: jest.fn().mockResolvedValue({}),
+    },
+    payment: {
+      // issueMonthly runs first; the two later passes find nothing.
+      findMany: jest.fn().mockResolvedValue([]),
+      create: createBehaviour ? jest.fn().mockImplementation(createBehaviour) : jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({}),
+    },
+  };
+  const notifications = { notify: jest.fn().mockResolvedValue(undefined) };
+  const mail = { sendInvoiceIssued: jest.fn().mockResolvedValue(undefined), sendPaymentOverdue: jest.fn().mockResolvedValue(undefined) };
+  return {
+    service: new BillingService(prisma as never, notifications as never, mail as never),
+    prisma,
+    notifications,
+    mail,
+  };
+}
+
+function membership(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'mem-1',
+    userId: 'user-1',
+    monthlyAmountCents: 195000,
+    currency: 'USD',
+    dueDate: new Date('2026-09-01T00:00:00.000Z'),
+    finishDate: null,
+    user: { id: 'user-1', email: 'ada@builders.test', profile: { fullName: 'Ada Lovelace' } },
+    ...overrides,
+  };
+}
+
+describe('BillingService.runDaily — monthly invoices', () => {
+  it('raises the invoice and rolls the due date forward a month', async () => {
+    const { service, prisma, mail } = makeMonthlyService([membership()]);
+    const result = await service.runDaily(NOW);
+
+    expect(prisma.payment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ amountCents: 195000, billingPeriod: '2026-09', status: 'DUE' }),
+      }),
+    );
+    expect(prisma.membership.update).toHaveBeenCalledWith({
+      where: { id: 'mem-1' },
+      data: { dueDate: new Date('2026-10-01T00:00:00.000Z') },
+    });
+    expect(mail.sendInvoiceIssued).toHaveBeenCalledTimes(1);
+    expect(result.invoicesIssued).toBe(1);
+  });
+
+  it('only bills active memberships that have an amount, a week ahead', async () => {
+    const { service, prisma } = makeMonthlyService();
+    await service.runDaily(NOW);
+    expect(prisma.membership.findMany.mock.calls[0][0].where).toEqual({
+      status: 'ACTIVE_MEMBER',
+      monthlyAmountCents: { not: null },
+      dueDate: { not: null, lte: new Date('2026-08-17T00:00:00.000Z') },
+    });
+  });
+
+  it('does not bill the same month twice, and still moves the date on', async () => {
+    // Second run of the day: the unique constraint rejects the insert. That is
+    // the expected outcome, not a failure — but the due date must advance or
+    // the job would retry this month forever.
+    const duplicate = () => { throw Object.assign(new Error('unique'), { code: 'P2002' }); };
+    const { service, prisma, mail, notifications } = makeMonthlyService([membership()], duplicate);
+
+    const result = await service.runDaily(NOW);
+
+    expect(result.invoicesIssued).toBe(0);
+    expect(result.failures).toHaveLength(0);
+    expect(mail.sendInvoiceIssued).not.toHaveBeenCalled();
+    expect(notifications.notify).not.toHaveBeenCalled();
+    expect(prisma.membership.update).toHaveBeenCalled();
+  });
+
+  it('leaves the due date alone when the insert fails for a real reason', async () => {
+    // Otherwise a database blip would skip somebody's rent for a whole month.
+    const broken = () => { throw new Error('database is down'); };
+    const { service, prisma } = makeMonthlyService([membership()], broken);
+    const run = await service.runDaily(NOW);
+
+    expect(run.invoicesIssued).toBe(0);
+    expect(run.failures).toHaveLength(1);
+    expect(prisma.membership.update).not.toHaveBeenCalled();
+  });
+
+  it('stops billing once the stay has finished', async () => {
+    const { service, prisma } = makeMonthlyService([
+      membership({ finishDate: new Date('2026-08-31T00:00:00.000Z') }),
+    ]);
+    const result = await service.runDaily(NOW);
+    expect(result.invoicesIssued).toBe(0);
+    expect(prisma.payment.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('addOneMonth', () => {
+  it('keeps the same day of the month', () => {
+    expect(addOneMonth(new Date('2026-09-15T00:00:00.000Z')).toISOString()).toBe('2026-10-15T00:00:00.000Z');
+  });
+
+  it('clamps a 31st to the last day of a shorter month', () => {
+    // Otherwise it rolls into the 1st and every later invoice lands on a
+    // different day than the member agreed to.
+    expect(addOneMonth(new Date('2026-01-31T00:00:00.000Z')).toISOString()).toBe('2026-02-28T00:00:00.000Z');
+  });
+
+  it('crosses the year end', () => {
+    expect(addOneMonth(new Date('2026-12-01T00:00:00.000Z')).toISOString()).toBe('2027-01-01T00:00:00.000Z');
+  });
+});
+
+describe('billingPeriodOf', () => {
+  it('is the year and month of the due date, zero-padded', () => {
+    expect(billingPeriodOf(new Date('2026-09-01T00:00:00.000Z'))).toBe('2026-09');
   });
 });

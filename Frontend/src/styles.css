@@ -5957,7 +5957,10 @@ body:has(.modal-overlay) .onboarding-toast { display: none; }
   gap: 10px;
   justify-content: space-between;
 }
-.plan-row__toggle {
+/* Qualified with `label` on purpose: `.plan-row label` above is a class+element
+   selector, so an unqualified `.plan-row__toggle` loses to it and the checkbox
+   ends up stacked above an uppercased caption instead of sitting beside it. */
+.plan-row label.plan-row__toggle {
   align-items: center;
   display: flex;
   flex-direction: row;
@@ -5976,4 +5979,47 @@ body:has(.modal-overlay) .onboarding-toast { display: none; }
 }
 @media (max-width: 520px) {
   .plan-row__fields { grid-template-columns: 1fr; }
+}
+
+/* A plan at rest: what it is and what it costs, nothing to type into. */
+.plan-card {
+  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) auto auto;
+  gap: 16px;
+}
+.plan-card__id { min-width: 0; }
+.plan-card__id strong { display: block; font-size: 0.95rem; }
+.plan-card__id small { color: var(--muted); font-size: 0.8rem; }
+.plan-card__prices {
+  display: flex;
+  gap: 22px;
+  margin: 0;
+}
+.plan-card__prices dt {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.plan-card__prices dd { font-size: 0.95rem; font-weight: 650; margin: 2px 0 0; }
+.plan-card__end { align-items: center; display: flex; gap: 10px; justify-content: flex-end; }
+.plan-badge {
+  background: var(--surface-soft);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 3px 9px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.plan-badge--live { background: rgba(11, 143, 31, 0.12); color: var(--good); }
+.plan-row--editing { border-color: var(--accent); }
+
+@media (max-width: 900px) {
+  .plan-card { grid-template-columns: 1fr; }
+  .plan-card__end { justify-content: flex-start; }
 }

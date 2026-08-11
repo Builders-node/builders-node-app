@@ -543,6 +543,11 @@ type MembershipPlan = {
 /** The editable copy of a plan — money as typed, converted on save. */
 type PlanDraft = { name: string; description: string; price: string; shortStayPrice: string; occupancy: string; active: boolean };
 
+/** Whole dollars — these are prices, not invoice totals. */
+function planMoney(cents: number, currency: string): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(cents / 100);
+}
+
 function draftFrom(plan: MembershipPlan): PlanDraft {
   return {
     name: plan.name,
@@ -749,6 +754,9 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   const [membershipPlans, setMembershipPlans] = useState<MembershipPlan[]>([]);
   const [planDrafts, setPlanDrafts] = useState<Record<string, PlanDraft>>({});
   const [newPlan, setNewPlan] = useState<PlanDraft | null>(null);
+  // Read by default: a price is something you check far more often than you
+  // change, and four open inputs per plan made every row look like a task.
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [globalMealPlanId, setGlobalMealPlanId] = useState<string>('');
   const [customMealName, setCustomMealName] = useState('');
   const [customMealPrice, setCustomMealPrice] = useState('');
@@ -1461,6 +1469,12 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     }
   }
 
+  /** Close the row and put back what the server has. */
+  function cancelPlanEdit(plan: MembershipPlan) {
+    setPlanDrafts((current) => ({ ...current, [plan.id]: draftFrom(plan) }));
+    setEditingPlanId(null);
+  }
+
   async function savePlan(id: string) {
     const draft = planDrafts[id];
     if (!draft) return;
@@ -1477,6 +1491,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
           active: draft.active,
         }),
       });
+      setEditingPlanId(null);
       await loadMembershipPlans();
       setNotice('Plan saved.');
     } catch (caught) {
@@ -2792,11 +2807,47 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
 
             {membershipPlans.map((plan) => {
               const draft = planDrafts[plan.id] ?? draftFrom(plan);
+              const editing = editingPlanId === plan.id;
               const update = (patch: Partial<PlanDraft>) =>
                 setPlanDrafts((current) => ({ ...current, [plan.id]: { ...draft, ...patch } }));
 
+              if (!editing) {
+                return (
+                  <article className={plan.active ? 'plan-row' : 'plan-row plan-row--retired'} key={plan.id}>
+                    <div className="plan-card">
+                      <div className="plan-card__id">
+                        <strong>{plan.name}</strong>
+                        <small>
+                          {plan.occupancy} {plan.occupancy === 1 ? 'person' : 'people'}
+                          {plan.description ? ` · ${plan.description}` : ''}
+                        </small>
+                      </div>
+                      <dl className="plan-card__prices">
+                        <div>
+                          <dt>Monthly</dt>
+                          <dd>{planMoney(plan.priceCents, plan.currency)}</dd>
+                        </div>
+                        <div>
+                          <dt>1-month stay</dt>
+                          <dd>{planMoney(plan.shortStayPriceCents, plan.currency)}</dd>
+                        </div>
+                      </dl>
+                      <div className="plan-card__end">
+                        <span className={plan.active ? 'plan-badge plan-badge--live' : 'plan-badge'}>
+                          {plan.active ? 'On the apply form' : 'Retired'}
+                        </span>
+                        <button className="ghost-button compact-button" onClick={() => setEditingPlanId(plan.id)}>
+                          <Pencil size={14} />
+                          Edit
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              }
+
               return (
-                <article className={plan.active ? 'plan-row' : 'plan-row plan-row--retired'} key={plan.id}>
+                <article className="plan-row plan-row--editing" key={plan.id}>
                   <div className="plan-row__fields">
                     <label>
                       Name
@@ -2828,6 +2879,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                       {plan.active ? (
                         <button className="ghost-button compact-button" onClick={() => void retirePlan(plan.id, plan.name)}>Retire</button>
                       ) : null}
+                      <button className="ghost-button compact-button" onClick={() => cancelPlanEdit(plan)}>Cancel</button>
                       <button className="primary-button compact-button" onClick={() => void savePlan(plan.id)}>Save</button>
                     </div>
                   </div>

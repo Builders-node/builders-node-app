@@ -1568,7 +1568,7 @@ export class AdminService {
    */
   async updateUser(
     userId: string,
-    body: { fullName?: string; phone?: string; location?: string; membershipStatus?: string; role?: string },
+    body: { fullName?: string; phone?: string; location?: string; membershipStatus?: string; role?: string; monthlyAmountCents?: number | null; nextDueDate?: string | null },
     actor?: { userId?: string; role: string; via: 'key' | 'session' },
   ) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -1580,6 +1580,32 @@ export class AdminService {
     if (roleChanged) {
       await this.assertRoleChangeAllowed(userId, user.role, body.role, actor);
     }
+
+    // Money and a date, so both are validated before anything is written —
+    // a bad amount here becomes an invoice somebody actually receives.
+    const billing: { monthlyAmountCents?: number | null; dueDate?: Date | null } = {};
+    if (body.monthlyAmountCents !== undefined) {
+      if (body.monthlyAmountCents === null || body.monthlyAmountCents === ('' as unknown)) {
+        billing.monthlyAmountCents = null;
+      } else {
+        const cents = Math.round(Number(body.monthlyAmountCents));
+        if (!Number.isFinite(cents) || cents < 0) throw new BadRequestException('Monthly amount must be a positive number.');
+        if (cents > 100_000_00) throw new BadRequestException('That monthly amount looks like a typo — check it.');
+        billing.monthlyAmountCents = cents;
+      }
+    }
+    if (body.nextDueDate !== undefined) {
+      const raw = body.nextDueDate?.trim();
+      if (!raw) {
+        billing.dueDate = null;
+      } else {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) throw new BadRequestException('Next due date must be a calendar date (YYYY-MM-DD).');
+        const parsed = new Date(`${raw}T00:00:00.000Z`);
+        if (Number.isNaN(parsed.getTime())) throw new BadRequestException('That next due date is not a real date.');
+        billing.dueDate = parsed;
+      }
+    }
+    const hasBilling = Object.keys(billing).length > 0;
 
     const membershipStatus = body.membershipStatus?.trim();
     if (membershipStatus && !MEMBERSHIP_STATUSES.has(membershipStatus)) {
@@ -1607,6 +1633,17 @@ export class AdminService {
           where: { userId },
           create: { userId, status: membershipStatus },
           update: { status: membershipStatus },
+        });
+      }
+
+      // What the member is billed each month, and when the next one falls due.
+      // Both are what the monthly job reads; an amount of null switches
+      // automatic billing off for them without touching their membership.
+      if (hasBilling) {
+        await tx.membership.upsert({
+          where: { userId },
+          create: { userId, status: membershipStatus ?? 'APPLICANT', ...billing },
+          update: billing,
         });
       }
 
