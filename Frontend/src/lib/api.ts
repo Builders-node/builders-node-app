@@ -42,13 +42,16 @@ export function isTokenExpired(token: string | null): boolean {
  */
 export async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('terminus_access_token');
+  // `headers` after the spread, not before it: an options object carrying its
+  // own headers used to replace this merged one wholesale, silently dropping
+  // the Authorization header the line above just built.
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options?.headers ?? {}),
     },
-    ...options,
   });
 
   if (!response.ok) {

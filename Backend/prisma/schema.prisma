@@ -190,6 +190,13 @@ model Application {
   referralCode String?
   referredByUserId String?
   status     String   @default("SUBMITTED")
+  /// Proof that whoever is asking to set a password is the person who entered
+  /// the emailed code. Minted at confirm, handed back once, consumed by
+  /// create-account, and never stored anywhere the applicant can't reach.
+  /// Without it, knowing an applicant's address was enough to claim their
+  /// account — see ApplicationsService.createAccountFromApply.
+  setupToken String?  @unique
+  setupTokenExpiresAt DateTime?
   apartmentAvailable Boolean?
   paymentLink String?
   paymentStatus String @default("NOT_SENT")

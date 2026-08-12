@@ -26,9 +26,17 @@ function makeService(application: Record<string, unknown> = {}) {
     application: {
       findUnique: jest.fn().mockResolvedValue(app),
       update: jest.fn().mockResolvedValue(app),
+      // Both firstCheck and activateMembership claim the row conditionally now
+      // and send their email only when they were the request that moved it.
+      updateMany: jest.fn().mockResolvedValue({ count: app.status === 'CREDENTIALS_SENT' ? 0 : 1 }),
     },
     user: { findUnique: jest.fn().mockResolvedValue({ id: 'user-1' }) },
-    membership: { upsert: jest.fn().mockResolvedValue({}) },
+    membership: {
+      // Read before the upsert so an already-active member keeps their billing
+      // anchor — activation no longer resets dueDate on a re-run.
+      findUnique: jest.fn().mockResolvedValue(null),
+      upsert: jest.fn().mockResolvedValue({}),
+    },
   };
   const mail = {
     sendMeetingApproved: jest.fn().mockResolvedValue(undefined),

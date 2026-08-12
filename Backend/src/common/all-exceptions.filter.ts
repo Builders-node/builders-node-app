@@ -16,12 +16,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     const isHttp = exception instanceof HttpException;
-    const status = isHttp ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
+    const duplicate = !isHttp ? uniqueViolation(exception) : null;
+    const status = isHttp
+      ? exception.getStatus()
+      : duplicate
+        ? HttpStatus.CONFLICT
+        : HttpStatus.INTERNAL_SERVER_ERROR;
 
     let message: string | string[] = 'Internal server error.';
     if (isHttp) {
       const body = exception.getResponse();
       message = typeof body === 'string' ? body : ((body as { message?: string | string[] }).message ?? exception.message);
+    } else if (duplicate) {
+      message = duplicate;
     }
 
     if (status >= 500) {
@@ -37,4 +44,32 @@ export class AllExceptionsFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
     });
   }
+}
+
+/** Human-readable field names for the unique constraints users can actually hit. */
+const UNIQUE_FIELD_LABELS: Record<string, string> = {
+  email: 'email address',
+  name: 'name',
+  slug: 'slug',
+};
+
+/**
+ * Turn Prisma's unique-constraint error into a 409 with a sentence a person can
+ * act on.
+ *
+ * Signing up with an address that already had an account produced a bare
+ * "Internal server error" — the database was refusing a duplicate, which is a
+ * perfectly ordinary answer, but it reached the user as though the site had
+ * broken. Returns null for anything that isn't a unique violation, so genuine
+ * failures still surface as 500s.
+ */
+function uniqueViolation(exception: unknown): string | null {
+  const error = exception as { code?: string; meta?: { target?: unknown } };
+  if (error?.code !== 'P2002') return null;
+
+  const target = error.meta?.target;
+  const fields = Array.isArray(target) ? target.map(String) : typeof target === 'string' ? [target] : [];
+  const label = fields.map((field) => UNIQUE_FIELD_LABELS[field] ?? field).join(' and ');
+
+  return label ? `That ${label} is already taken.` : 'That value is already taken.';
 }

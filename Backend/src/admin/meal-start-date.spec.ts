@@ -11,8 +11,10 @@ function makeService() {
   const user = { id: 'user-1', email: 'ada@builders.test', profile: { fullName: 'Ada Lovelace', phone: null } };
   const prisma = {
     user: { findUnique: jest.fn().mockResolvedValue(user), update: jest.fn().mockResolvedValue({}) },
-    mealMenuItem: { deleteMany: jest.fn().mockResolvedValue({}), create: jest.fn().mockResolvedValue({ id: 'meal-1' }), update: jest.fn().mockResolvedValue({}) },
-    cleaningSchedule: { deleteMany: jest.fn().mockResolvedValue({}), create: jest.fn().mockResolvedValue({ id: 'clean-1' }) },
+    // findFirst: the plan being replaced is read before the row is deleted, so
+    // the subscription it mirrors can be cancelled instead of orphaned.
+    mealMenuItem: { findFirst: jest.fn().mockResolvedValue(null), deleteMany: jest.fn().mockResolvedValue({}), create: jest.fn().mockResolvedValue({ id: 'meal-1' }), update: jest.fn().mockResolvedValue({}) },
+    cleaningSchedule: { findFirst: jest.fn().mockResolvedValue(null), deleteMany: jest.fn().mockResolvedValue({}), create: jest.fn().mockResolvedValue({ id: 'clean-1' }) },
     auditEvent: { create: jest.fn().mockResolvedValue({}) },
   };
   const prosperaSub = {

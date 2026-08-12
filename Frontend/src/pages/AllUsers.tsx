@@ -5,6 +5,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { ADMIN_ROLES, type StatusTone } from '../data/dashboard';
 import { apiRequest } from '../lib/api';
 import { useEscapeToClose } from '../lib/useModalA11y';
+import { formatCalendarDay } from '../lib/calendar-day';
 
 type AdminOverviewUser = {
   id: string;
@@ -147,6 +148,11 @@ function formatMoney(cents: number, currency = 'USD') {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(cents / 100);
 }
 
+/**
+ * For timestamps — when something happened. Calendar days (move-in, due dates)
+ * go through formatCalendarDay instead: they are stored at UTC midnight and
+ * local formatting would show the day before to anyone west of UTC.
+ */
 function formatDate(value?: string | null) {
   return value ? new Date(value).toLocaleDateString() : '-';
 }
@@ -916,7 +922,7 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
                   <div className="detail-box">
                     <div><span>Apartment</span><strong>{selectedUser.assignedApartment?.apartment.name ?? '-'}</strong></div>
                     <div><span>Status</span><strong>{selectedUser.assignedApartment?.apartment.availability ?? '-'}</strong></div>
-                    <div><span>Move-in</span><strong>{formatDate(selectedUser.assignedApartment?.moveInDate)}</strong></div>
+                    <div><span>Move-in</span><strong>{formatCalendarDay(selectedUser.assignedApartment?.moveInDate, '-')}</strong></div>
                   </div>
                 </section>
               ) : null}
@@ -955,7 +961,7 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
                   {selectedUser.payments.map((payment) => (
                     <div className="admin-user-list-row" key={payment.id}>
                       <FileText size={18} />
-                      <div><strong>{payment.description}</strong><span>{formatMoney(payment.amountCents, payment.currency)} · Due {formatDate(payment.dueDate)}</span></div>
+                      <div><strong>{payment.description}</strong><span>{formatMoney(payment.amountCents, payment.currency)} · Due {formatCalendarDay(payment.dueDate, '-')}</span></div>
                       <StatusBadge tone={toneForStatus(payment.status)}>{payment.status}</StatusBadge>
                       {payment.status !== 'PAID' ? (
                         <button className="primary-button compact-button" onClick={() => void updatePaymentInline(payment.id, { status: 'PAID' })}>

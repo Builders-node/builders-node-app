@@ -48,12 +48,23 @@ export class NotificationsService {
     }
   }
 
-  async list(userId: string, limit = 30) {
-    const [items, unread] = await Promise.all([
-      this.prisma.notification.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: limit }),
+  /**
+   * A member's own notifications, newest first.
+   *
+   * Paged, with a total: this was a hard "newest 30 and nothing else", so once
+   * someone had been here a few months their earlier notices — invoices,
+   * cancellations, support replies — were simply unreachable.
+   */
+  async list(userId: string, limit = 30, offset = 0) {
+    const take = clampInt(limit, 1, 100, 30);
+    const skip = clampInt(offset, 0, Number.MAX_SAFE_INTEGER, 0);
+
+    const [items, unread, total] = await Promise.all([
+      this.prisma.notification.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take, skip }),
       this.prisma.notification.count({ where: { userId, readAt: null } }),
+      this.prisma.notification.count({ where: { userId } }),
     ]);
-    return { items, unread };
+    return { items, unread, total, limit: take, offset: skip };
   }
 
   /** Marks notifications read: all of the user's, or just the given ids. */

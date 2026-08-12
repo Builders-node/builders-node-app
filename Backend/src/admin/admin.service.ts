@@ -61,6 +61,9 @@ const APARTMENT_AVAILABILITY = new Set([
 /** How long a meeting reminder blocks the next one. See remindMeeting(). */
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** $100,000 — well past any real charge, close enough to catch a stray zero. */
+const MAX_INVOICE_CENTS = 100_000_00;
+
 @Injectable()
 export class AdminService {
   constructor(
@@ -205,6 +208,11 @@ export class AdminService {
     };
   }
 
+  /**
+   * The full picture of one member. No longer exposed as its own route — the
+   * admin UI that fetched it was unreachable — but still what updateUser hands
+   * back after a save, so the drawer refreshes with everything on it.
+   */
   async userDetail(userId: string) {
     const [user, referredApplications] = await Promise.all([
       this.prisma.user.findUnique({
@@ -401,27 +409,32 @@ export class AdminService {
     const application = await this.requireApplication(applicationId);
     const now = new Date();
 
-    const updated = await this.prisma.application.update({
-      where: { id: application.id },
-      data: approved
-        ? {
-            status: 'FIRST_APPROVED',
-            firstApprovedAt: now,
-            approvedAt: application.approvedAt ?? now,
-          }
-        : {
-            status: 'FIRST_REJECTED',
-          },
+    if (!approved) {
+      return this.prisma.application.update({
+        where: { id: application.id },
+        data: { status: 'FIRST_REJECTED' },
+      });
+    }
+
+    // Claim the approval with the "not approved yet" condition in the WHERE, so
+    // the database decides which request wins. Reading the row and then writing
+    // it left a gap: two clicks a moment apart both saw firstApprovedAt as null,
+    // both passed the check below, and the applicant got the invitation twice.
+    const claimed = await this.prisma.application.updateMany({
+      where: { id: application.id, firstApprovedAt: null },
+      data: {
+        status: 'FIRST_APPROVED',
+        firstApprovedAt: now,
+        approvedAt: application.approvedAt ?? now,
+      },
     });
 
-    // Invite them to book the call. Only on approval, and only on the first one:
-    // re-approving an already-approved application (a double click, a bulk run
-    // over a mixed selection) shouldn't email the same person twice.
-    if (approved && !application.firstApprovedAt) {
+    // Only the request that actually moved the row sends the invitation.
+    if (claimed.count > 0) {
       await this.mail.sendFirstCheckApproved(application.email, application.fullName);
     }
 
-    return updated;
+    return this.requireApplication(application.id);
   }
 
   /**
@@ -576,6 +589,18 @@ export class AdminService {
 
     if (user) {
       // Common case: applicant went through the self-serve apply flow — account already exists.
+      const existing = await this.prisma.membership.findUnique({
+        where: { userId: user.id },
+        select: { status: true },
+      });
+
+      // `dueDate` stopped being decoration when monthly billing started reading
+      // it: it is now the date the next invoice is raised on. Re-running this on
+      // someone already active would move their billing day to a month from
+      // today, so the dates are only written when the membership actually
+      // becomes active.
+      const becomingActive = existing?.status !== 'ACTIVE_MEMBER';
+
       await this.prisma.membership.upsert({
         where: { userId: user.id },
         create: {
@@ -586,13 +611,15 @@ export class AdminService {
           dueDate: dates.dueDate,
           finishDate: dates.finishDate,
         },
-        update: {
-          status: 'ACTIVE_MEMBER',
-          approvedAt: new Date(),
-          startingDate: dates.startingDate,
-          dueDate: dates.dueDate,
-          finishDate: dates.finishDate,
-        },
+        update: becomingActive
+          ? {
+              status: 'ACTIVE_MEMBER',
+              approvedAt: new Date(),
+              startingDate: dates.startingDate,
+              dueDate: dates.dueDate,
+              finishDate: dates.finishDate,
+            }
+          : { status: 'ACTIVE_MEMBER' },
       });
       await this.notifications.notify(user.id, {
         type: 'success',
@@ -602,15 +629,17 @@ export class AdminService {
       });
     }
 
-    // Mark the application as onboarded (top of the pipeline).
-    await this.prisma.application.update({
-      where: { id: application.id },
+    // Mark the application as onboarded (top of the pipeline). Conditional on
+    // not already being there, so two overlapping calls can't both believe they
+    // were the one that finished onboarding — see firstCheck for the same shape.
+    const claimed = await this.prisma.application.updateMany({
+      where: { id: application.id, status: { not: 'CREDENTIALS_SENT' } },
       data: { status: 'CREDENTIALS_SENT', approvedAt: application.approvedAt ?? new Date() },
     });
 
-    // This method is deliberately safe to run twice, so the welcome mail keys off
-    // the status it just moved past rather than off reaching this line.
-    if (application.status !== 'CREDENTIALS_SENT') {
+    // This method is deliberately safe to run twice, so the welcome mail keys
+    // off having actually moved the row rather than off reaching this line.
+    if (claimed.count > 0) {
       await this.mail.sendMembershipActivated(application.email, application.fullName);
     }
 
@@ -775,6 +804,16 @@ export class AdminService {
   }) {
     const { user, mealPlan, cleaningPlan } = input;
 
+    // What the member is on right now. Read BEFORE the rows are replaced,
+    // because the id of the subscription ProsperaSub is billing lives on them —
+    // deleting first threw it away, and the provisioning call below then
+    // created a second subscription that nothing could ever cancel. The member
+    // was billed twice, silently, and we no longer held the id to stop it.
+    const supersededIds = await this.currentSubscriptionIds(user.id, {
+      meal: Boolean(mealPlan),
+      cleaning: Boolean(cleaningPlan),
+    });
+
     // Local grant — do this first so the member sees their plan even if the
     // ProsperaSub call fails.
     let localMealRowId: string | null = null;
@@ -873,6 +912,13 @@ export class AdminService {
       });
     }
 
+    // Retire what they were on before. Only once the replacement actually
+    // exists: cancelling first would leave a member with no plan at all if the
+    // provisioning call then failed, and a plan we still hold the id for can be
+    // cancelled by hand — one we cancelled too early cannot be brought back.
+    await this.cancelSuperseded(user.id, 'meal', supersededIds.meal, result.externalFoodSubscriptionId);
+    await this.cancelSuperseded(user.id, 'cleaning', supersededIds.cleaning, result.externalCleaningSubscriptionId);
+
     await this.prisma.auditEvent.create({
       data: {
         userId: user.id,
@@ -881,11 +927,73 @@ export class AdminService {
           ...result,
           mealPlanId: mealPlan?.id ?? null,
           cleaningPlanId: cleaningPlan?.id ?? null,
+          supersededFoodSubscriptionId: supersededIds.meal,
+          supersededCleaningSubscriptionId: supersededIds.cleaning,
         }),
       },
     });
 
     return result;
+  }
+
+  /**
+   * The ProsperaSub subscription ids a member is currently on, for the kinds
+   * about to be replaced. Null when they have no plan or it was never mirrored.
+   */
+  private async currentSubscriptionIds(userId: string, kinds: { meal: boolean; cleaning: boolean }) {
+    const [meal, cleaning] = await Promise.all([
+      kinds.meal
+        ? this.prisma.mealMenuItem.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' }, select: { externalSubscriptionId: true } })
+        : Promise.resolve(null),
+      kinds.cleaning
+        ? this.prisma.cleaningSchedule.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' }, select: { externalSubscriptionId: true } })
+        : Promise.resolve(null),
+    ]);
+    return {
+      meal: meal?.externalSubscriptionId ?? null,
+      cleaning: cleaning?.externalSubscriptionId ?? null,
+    };
+  }
+
+  /**
+   * Cancel the subscription a new one has replaced.
+   *
+   * Skipped when the provider handed back the same id (it reused the
+   * subscription rather than creating another) or when the new one never
+   * materialised — cancelling then would take away a plan the member still has.
+   * Audited either way, so a failed cancel is something an admin can find and
+   * finish by hand rather than a charge nobody can trace.
+   */
+  private async cancelSuperseded(
+    userId: string,
+    kind: 'meal' | 'cleaning',
+    previousId: string | null,
+    replacementId: string | null,
+  ) {
+    if (!previousId || !replacementId || previousId === replacementId) return;
+
+    let cancel: { ok: boolean; status?: number; message: string };
+    try {
+      cancel = await this.prosperaSub.cancelSubscription(previousId);
+    } catch (error) {
+      cancel = { ok: false, message: error instanceof Error ? error.message : 'Cancel call failed.' };
+    }
+
+    await this.prisma.auditEvent.create({
+      data: {
+        userId,
+        action: 'prospera_sub_cancel',
+        metadataJson: JSON.stringify({
+          kind,
+          subscriptionId: previousId,
+          replacedBy: replacementId,
+          reason: 'superseded',
+          ok: cancel.ok,
+          status: cancel.status ?? null,
+          message: cancel.message,
+        }),
+      },
+    });
   }
 
   /**
@@ -1209,6 +1317,9 @@ export class AdminService {
     if (!userId) throw new BadRequestException('Pick a member.');
     const amountCents = Number(body.amountCents);
     if (!Number.isFinite(amountCents) || amountCents < 0) throw new BadRequestException('Amount must be a positive number of cents.');
+    // Same ceiling the monthly amount has. This one goes straight out as an
+    // email the member receives, so a stray zero is worse here, not better.
+    if (amountCents > MAX_INVOICE_CENTS) throw new BadRequestException('That amount looks like a typo — check it.');
     const description = body.description?.trim();
     if (!description) throw new BadRequestException('Description is required.');
     const dueDate = body.dueDate?.trim();
@@ -1648,7 +1759,7 @@ export class AdminService {
       } else {
         const cents = Math.round(Number(body.monthlyAmountCents));
         if (!Number.isFinite(cents) || cents < 0) throw new BadRequestException('Monthly amount must be a positive number.');
-        if (cents > 100_000_00) throw new BadRequestException('That monthly amount looks like a typo — check it.');
+        if (cents > MAX_INVOICE_CENTS) throw new BadRequestException('That monthly amount looks like a typo — check it.');
         billing.monthlyAmountCents = cents;
       }
     }

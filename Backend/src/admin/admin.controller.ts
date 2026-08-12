@@ -25,11 +25,6 @@ export class AdminController {
     return this.admin.referrals();
   }
 
-  @Get('users/:userId')
-  userDetail(@Param('userId') userId: string) {
-    return this.admin.userDetail(userId);
-  }
-
   @Post('applications/:applicationId/send-credentials')
   sendCredentials(@Param('applicationId') applicationId: string) {
     return this.admin.sendCredentials(applicationId);

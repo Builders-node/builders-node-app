@@ -17,6 +17,15 @@ const CODE_TTL_MS = 1000 * 60 * 10; // 10 minutes
 const MAX_CODE_ATTEMPTS = 5;
 
 /**
+ * How long the password step stays open after the code is confirmed.
+ *
+ * Generous, because it covers a real person picking a password on a page they
+ * may have left open — but finite, so an abandoned application doesn't leave a
+ * standing key to the account lying around.
+ */
+const SETUP_TOKEN_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
+
+/**
  * The profile fields an application can seed.
  *
  * Everything here is a starting point, not a lock: the member edits all of it
@@ -107,20 +116,49 @@ export class ApplicationsService {
     // If they don't have a login yet, the frontend will prompt them to set a
     // password (create-account below). If an account already exists, skip that.
     const accountExists = Boolean(await this.prisma.user.findUnique({ where: { email }, select: { id: true } }));
-    return { confirmed: true, applicationId: application.id, accountExists };
+
+    // Entering the emailed code is the only thing that proves this is their
+    // address, and it happens here. Hand back a one-time token so the password
+    // step can prove it too — otherwise create-account has nothing to go on but
+    // the email itself, and anyone who knows it can claim the account.
+    let setupToken: string | null = null;
+    if (!accountExists) {
+      setupToken = randomUUID();
+      await this.prisma.application.update({
+        where: { id: application.id },
+        data: { setupToken, setupTokenExpiresAt: new Date(Date.now() + SETUP_TOKEN_TTL_MS) },
+      });
+    }
+
+    return { confirmed: true, applicationId: application.id, accountExists, setupToken };
   }
 
   /**
-   * Finishes apply by creating the applicant's login. Only allowed for an email
-   * that has a confirmed application and no account yet. The name comes from the
-   * application (server-side, not the client), and the email is already verified.
+   * Finishes apply by creating the applicant's login.
+   *
+   * The setup token is the whole authorisation here. It used to be enough to
+   * name an email that had applied and had no account yet — so anyone who knew
+   * (or guessed) an applicant's address could set a password, get signed in as
+   * them, and inherit everything they typed into the form. The token is minted
+   * only when the emailed code is entered, so possessing it means possessing
+   * the mailbox.
+   *
+   * Looked up BY the token rather than by the email: that way the email in the
+   * request can't select a different application than the token belongs to.
    */
   async createAccountFromApply(dto: CreateAccountDto) {
     const email = dto.email.toLowerCase();
+    const token = dto.setupToken?.trim();
+    if (!token) {
+      throw new BadRequestException('This password link is no longer valid. Please apply again to get a new code.');
+    }
 
-    const application = await this.prisma.application.findUnique({ where: { email } });
-    if (!application) {
-      throw new BadRequestException('No confirmed application for this email. Please apply first.');
+    const application = await this.prisma.application.findUnique({ where: { setupToken: token } });
+    if (!application || application.email !== email) {
+      throw new BadRequestException('This password link is no longer valid. Please apply again to get a new code.');
+    }
+    if (!application.setupTokenExpiresAt || application.setupTokenExpiresAt < new Date()) {
+      throw new BadRequestException('This password link has expired. Please apply again to get a new code.');
     }
 
     const existing = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
@@ -140,6 +178,14 @@ export class ApplicationsService {
         profile: { create: profileSeedFrom(application) },
         membership: { create: { status: 'APPLICANT' } },
       },
+    });
+
+    // One use only. The account now exists, so the check above would refuse a
+    // replay anyway — but leaving a live token on the row would mean a spent
+    // key sitting in the database for no reason.
+    await this.prisma.application.update({
+      where: { id: application.id },
+      data: { setupToken: null, setupTokenExpiresAt: null },
     });
 
     await this.notifications.notify(user.id, {

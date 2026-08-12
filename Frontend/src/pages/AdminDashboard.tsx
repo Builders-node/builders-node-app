@@ -15,6 +15,7 @@ import {
 import { Units } from './Units';
 import { apiRequest } from '../lib/api';
 import { useEscapeToClose } from '../lib/useModalA11y';
+import { formatCalendarDay } from '../lib/calendar-day';
 
 type AdminOverview = {
   metrics: {
@@ -185,73 +186,6 @@ type ResidencyReview = {
   submittedAt?: string | null;
   reviewedAt?: string | null;
   reviewNote?: string | null;
-};
-
-type AdminUserDetail = {
-  id: string;
-  email: string;
-  referralCode?: string | null;
-  role: string;
-  mustChangePassword: boolean;
-  emailVerifiedAt?: string | null;
-  createdAt: string;
-  profile?: {
-    fullName?: string | null;
-    phone?: string | null;
-    location?: string | null;
-    avatarUrl?: string | null;
-  } | null;
-  membership?: {
-    status: string;
-    startingDate?: string | null;
-    dueDate?: string | null;
-    finishDate?: string | null;
-  } | null;
-  residencyApplication?: {
-    status: string;
-    stage: string;
-    continueUrl?: string | null;
-    requiredNextSteps?: string[];
-    lastSyncedAt?: string | null;
-    lastError?: string | null;
-  } | null;
-  subscriptionPlan?: {
-    planName: string;
-    status: string;
-    renewalDate?: string | null;
-    paymentUrl?: string | null;
-  } | null;
-  communityPlans: Array<{
-    id: string;
-    planName: string;
-    status: string;
-    amountCents: number;
-    currency: string;
-    purchasedAt: string;
-    startsAt?: string | null;
-    endsAt?: string | null;
-    renewalDate?: string | null;
-    source: string;
-  }>;
-  assignedApartment?: {
-    moveInDate?: string | null;
-    moveOutDate?: string | null;
-    notes?: string | null;
-    apartment: {
-      name: string;
-      description: string;
-      availability: string;
-    };
-  } | null;
-  meals: Array<{ id: string; day: string; meal: string; source: string }>;
-  cleaningSchedules: Array<{ id: string; frequency?: string | null; nextCleaning?: string | null; notes?: string | null; source: string }>;
-  payments: Array<{ id: string; amountCents: number; currency: string; status: string; dueDate: string; paidAt?: string | null; description: string }>;
-  supportTickets: Array<{ id: string; subject: string; message: string; status: string; createdAt: string }>;
-  summary: {
-    paidTotalCents: number;
-    openPayments: number;
-    supportTickets: number;
-  };
 };
 
 type MealOption = {
@@ -689,8 +623,6 @@ function dropOffFromPrevious(stage: FunnelStage, previous?: FunnelStage) {
 
 export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: AdminDashboardProps) {
   const [overview, setOverview] = useState<AdminOverview | null>(null);
-  const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
-  const [isUserDetailLoading, setIsUserDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   // Stable, because Toast keys its auto-dismiss timer off this identity — a
@@ -705,6 +637,8 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   const [expandedApplicantId, setExpandedApplicantId] = useState<string | null>(null);
   const [selectedApplicantIds, setSelectedApplicantIds] = useState<Set<string>>(new Set());
   const [isBulkRunning, setIsBulkRunning] = useState(false);
+  /** Which applicant has an action in flight — see updateApplication. */
+  const [pendingApplicationId, setPendingApplicationId] = useState<string | null>(null);
   const [maintenance, setMaintenance] = useState<AdminMaintenance[]>([]);
   const [maintenanceFilter, setMaintenanceFilter] = useState<'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'ALL'>('OPEN');
   const [maintenanceSearch, setMaintenanceSearch] = useState('');
@@ -1315,7 +1249,17 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     }
   }
 
+  /**
+   * Every action on an applicant card goes through here, and every one of them
+   * emails a real person. Nothing used to stop a second click while the first
+   * request was still in flight: both reads saw the same "not approved yet"
+   * row, both passed the server's guard, and the applicant got the same email
+   * twice. The id is held until the refresh lands, so the buttons on that card
+   * stay disabled for the whole round trip.
+   */
   async function updateApplication(applicationId: string, path: string, body?: object, success?: string) {
+    if (pendingApplicationId) return;
+    setPendingApplicationId(applicationId);
     setError(null);
     setNotice(null);
     try {
@@ -1327,6 +1271,8 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
       await refreshOverview();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not update application.');
+    } finally {
+      setPendingApplicationId(null);
     }
   }
 
@@ -1685,193 +1631,6 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     }
   }
 
-  async function openUserDetail(userId: string) {
-    setIsUserDetailLoading(true);
-    setError(null);
-    try {
-      const user = await apiRequest<AdminUserDetail>(`/admin/users/${userId}`);
-      setSelectedUser(user);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not load user detail.');
-    } finally {
-      setIsUserDetailLoading(false);
-    }
-  }
-
-  if (selectedUser) {
-    const displayName = selectedUser.profile?.fullName ?? selectedUser.email;
-    const initials = displayName
-      .split(' ')
-      .map((part) => part[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase();
-    const documentStats = [
-      { label: 'Payments', value: selectedUser.payments.length, detail: `${selectedUser.summary.openPayments} open` },
-      { label: 'Apartment', value: selectedUser.assignedApartment ? 1 : 0, detail: selectedUser.assignedApartment?.apartment.name ?? 'No assignment' },
-      { label: 'Support', value: selectedUser.summary.supportTickets, detail: 'Tickets' },
-    ];
-
-    return (
-      <div className="admin-shell">
-        <div className="admin-user-detail">
-          <aside className="admin-user-profile">
-            <button className="ghost-button compact-button" onClick={() => setSelectedUser(null)}>
-              <ArrowLeft size={16} />
-              Back
-            </button>
-            <div className="admin-user-avatar">{initials || '?'}</div>
-            <h2>{displayName}</h2>
-            <p>{selectedUser.email}</p>
-            <StatusBadge tone={toneForStatus(selectedUser.membership?.status ?? 'NONE')}>{selectedUser.membership?.status ?? 'NONE'}</StatusBadge>
-            <div className="admin-user-actions">
-              <a className="ghost-button compact-button" href={`mailto:${selectedUser.email}`}>Mail</a>
-              <a className="ghost-button compact-button" href={selectedUser.profile?.phone ? `tel:${selectedUser.profile.phone}` : undefined}>Call</a>
-            </div>
-            <div className="admin-user-facts">
-              <div><span>Role</span><strong>{roleLabel(selectedUser.role)}</strong></div>
-              <div><span>Phone</span><strong>{selectedUser.profile?.phone ?? '-'}</strong></div>
-              <div><span>Location</span><strong>{selectedUser.profile?.location ?? '-'}</strong></div>
-              <div><span>Joined</span><strong>{new Date(selectedUser.createdAt).toLocaleDateString()}</strong></div>
-            </div>
-          </aside>
-
-          <section className="admin-user-main">
-            <div className="admin-user-hero">
-              <div>
-                <button className="text-button admin-user-breadcrumb" onClick={() => setSelectedUser(null)}>
-                  <ArrowLeft size={18} />
-                  All users
-                </button>
-                <h1>{displayName}</h1>
-                <p>Created on {new Date(selectedUser.createdAt).toLocaleDateString()}</p>
-              </div>
-              <div className="status-stack">
-                <StatusBadge tone={toneForStatus(selectedUser.residencyApplication?.status ?? 'NOT_STARTED')}>
-                  {selectedUser.residencyApplication?.status ?? 'NOT_STARTED'}
-                </StatusBadge>
-                <StatusBadge tone={selectedUser.mustChangePassword ? 'attention' : 'good'}>
-                  {selectedUser.mustChangePassword ? 'Setup required' : 'Password set'}
-                </StatusBadge>
-              </div>
-            </div>
-
-            <nav className="admin-user-tabs" aria-label="User detail sections">
-              {['Details', 'Residency', 'Housing', 'Payments', 'Meals', 'Support'].map((tab, index) => (
-                <span className={index === 0 ? 'admin-user-tab admin-user-tab--active' : 'admin-user-tab'} key={tab}>{tab}</span>
-              ))}
-            </nav>
-
-            <section className="admin-user-document-panel">
-              <div className="admin-user-stat-grid">
-                {documentStats.map((stat) => (
-                  <article className="admin-user-stat" key={stat.label}>
-                    <span>{stat.label}</span>
-                    <strong>{stat.value}</strong>
-                    <p>{stat.detail}</p>
-                  </article>
-                ))}
-              </div>
-            </section>
-
-            <section className="admin-user-grid">
-              <article className="panel">
-                <h2>Account</h2>
-                <div className="detail-box">
-                  <div><span>Email verified</span><strong>{selectedUser.emailVerifiedAt ? 'Yes' : 'No'}</strong></div>
-                  <div><span>Referral code</span><strong>{selectedUser.referralCode ?? '-'}</strong></div>
-                  <div><span>Starting date</span><strong>{selectedUser.membership?.startingDate ? new Date(selectedUser.membership.startingDate).toLocaleDateString() : '-'}</strong></div>
-                  <div><span>Due date</span><strong>{selectedUser.membership?.dueDate ? new Date(selectedUser.membership.dueDate).toLocaleDateString() : '-'}</strong></div>
-                  <div><span>Finish date</span><strong>{selectedUser.membership?.finishDate ? new Date(selectedUser.membership.finishDate).toLocaleDateString() : '-'}</strong></div>
-                </div>
-              </article>
-
-              <article className="panel">
-                <h2>E-Residency</h2>
-                <p>{selectedUser.residencyApplication?.stage ?? 'Not started'}</p>
-                <div className="next-step-list">
-                  {(selectedUser.residencyApplication?.requiredNextSteps?.length ? selectedUser.residencyApplication.requiredNextSteps : ['No required next steps.']).map((step) => (
-                    <div className="next-step" key={step}>{step}</div>
-                  ))}
-                </div>
-              </article>
-
-              <article className="panel">
-                <h2>Housing</h2>
-                <div className="detail-box">
-                  <div><span>Apartment</span><strong>{selectedUser.assignedApartment?.apartment.name ?? '-'}</strong></div>
-                  <div><span>Status</span><strong>{selectedUser.assignedApartment?.apartment.availability ?? '-'}</strong></div>
-                  <div><span>Move-in</span><strong>{selectedUser.assignedApartment?.moveInDate ? new Date(selectedUser.assignedApartment.moveInDate).toLocaleDateString() : '-'}</strong></div>
-                </div>
-              </article>
-
-              <article className="panel">
-                <h2>Subscription</h2>
-                <div className="detail-box">
-                  <div><span>Plan</span><strong>{selectedUser.subscriptionPlan?.planName ?? '-'}</strong></div>
-                  <div><span>Status</span><strong>{selectedUser.subscriptionPlan?.status ?? '-'}</strong></div>
-                  <div><span>Renewal</span><strong>{selectedUser.subscriptionPlan?.renewalDate ? new Date(selectedUser.subscriptionPlan.renewalDate).toLocaleDateString() : '-'}</strong></div>
-                  <div><span>Community plans</span><strong>{selectedUser.communityPlans.length}</strong></div>
-                </div>
-              </article>
-            </section>
-
-            <section className="panel admin-user-list-panel">
-              <div className="admin-panel__head">
-                <div>
-                  <h2>Community plans</h2>
-                  <p>All Builders Node community plan purchases for this user.</p>
-                </div>
-              </div>
-              {selectedUser.communityPlans.length === 0 ? <div className="empty-state">No community plans purchased yet.</div> : null}
-              {selectedUser.communityPlans.map((plan) => (
-                <div className="admin-user-list-row" key={plan.id}>
-                  <FileText size={18} />
-                  <div><strong>{plan.planName}</strong><span>{plan.source} · Purchased {new Date(plan.purchasedAt).toLocaleDateString()} · {formatMoney(plan.amountCents, plan.currency)}</span></div>
-                  <StatusBadge tone={toneForStatus(plan.status)}>{plan.status}</StatusBadge>
-                </div>
-              ))}
-            </section>
-
-            <section className="panel admin-user-list-panel">
-              <div className="admin-panel__head">
-                <div>
-                  <h2>Payments</h2>
-                  <p>Total paid: {formatMoney(selectedUser.summary.paidTotalCents)}</p>
-                </div>
-              </div>
-              {selectedUser.payments.length === 0 ? <div className="empty-state">No payment records yet.</div> : null}
-              {selectedUser.payments.map((payment) => (
-                <div className="admin-user-list-row" key={payment.id}>
-                  <FileText size={18} />
-                  <div><strong>{payment.description}</strong><span>{formatMoney(payment.amountCents, payment.currency)} · Due {new Date(payment.dueDate).toLocaleDateString()}</span></div>
-                  <StatusBadge tone={toneForStatus(payment.status)}>{payment.status}</StatusBadge>
-                </div>
-              ))}
-            </section>
-
-            <section className="admin-user-grid">
-              <article className="panel">
-                <h2>Meals</h2>
-                <div className="next-step-list">
-                  {selectedUser.meals.length === 0 ? <div className="empty-state">No meals assigned.</div> : null}
-                  {selectedUser.meals.map((meal) => <div className="next-step" key={meal.id}><strong>{meal.day}</strong><span>{meal.meal}</span></div>)}
-                </div>
-              </article>
-              <article className="panel">
-                <h2>Cleaning</h2>
-                <div className="next-step-list">
-                  {selectedUser.cleaningSchedules.length === 0 ? <div className="empty-state">No cleaning schedule.</div> : null}
-                  {selectedUser.cleaningSchedules.map((cleaning) => <div className="next-step" key={cleaning.id}><strong>{cleaning.frequency ?? 'Cleaning'}</strong><span>{cleaning.notes ?? '-'}</span></div>)}
-                </div>
-              </article>
-            </section>
-          </section>
-        </div>
-      </div>
-    );
-  }
-
   const currentPage = adminPage ?? 'adminDashboard';
   const inInbox = INBOX_PAGES.includes(currentPage);
   const inSettings = SETTINGS_PAGES.includes(currentPage);
@@ -1926,7 +1685,6 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
         ) : null}
 
         {isLoading ? <section className="panel"><p>Loading admin data...</p></section> : null}
-        {isUserDetailLoading ? <section className="panel"><p>Loading user detail...</p></section> : null}
         {/* Errors stay in the flow: they need reading and often re-reading.
             Confirmations float instead — see Toast at the end of this tree. */}
         {error ? <section className="panel"><p className="form-error">{error}</p></section> : null}
@@ -2116,6 +1874,11 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                       {cards.length === 0 ? <p className="pipeline-empty">—</p> : null}
                       {cards.map((app) => {
                         const actions = applicantActions(app);
+                        // Any action in flight locks the whole board: the
+                        // refresh afterwards restacks every card, so letting a
+                        // second card be clicked mid-flight is how you act on a
+                        // row that has already moved.
+                        const isApplicantBusy = pendingApplicationId !== null;
                         return (
                           <article className="pipeline-card" key={app.id}>
                             <strong className="pipeline-card__name">{app.fullName}</strong>
@@ -2148,7 +1911,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                             {actions.primary || actions.secondary.length > 0 ? (
                               <div className="pipeline-card__actions">
                                 {actions.primary ? (
-                                  <button className="primary-button compact-button" onClick={actions.primary.run}>
+                                  <button className="primary-button compact-button" disabled={isApplicantBusy} onClick={actions.primary.run}>
                                     {actions.primary.icon}
                                     {actions.primary.label}
                                   </button>
@@ -2158,6 +1921,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                                     key={action.key}
                                     className={action.tone === 'danger' ? 'compact-button applicant-action--danger' : 'ghost-button compact-button'}
                                     title={action.hint}
+                                    disabled={isApplicantBusy}
                                     onClick={action.run}
                                   >
                                     {action.icon}
@@ -2271,6 +2035,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                           className={action.tone === 'danger' ? 'compact-button applicant-action applicant-action--danger' : 'ghost-button compact-button'}
                           key={action.key}
                           title={action.hint}
+                          disabled={pendingApplicationId !== null}
                           onClick={action.run}
                         >
                           {action.icon}
@@ -2278,7 +2043,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                         </button>
                       ))}
                       {actions.primary ? (
-                        <button className="primary-button compact-button applicant-action--primary" onClick={actions.primary.run}>
+                        <button className="primary-button compact-button applicant-action--primary" disabled={pendingApplicationId !== null} onClick={actions.primary.run}>
                           {actions.primary.icon}
                           {actions.primary.label}
                         </button>
@@ -2473,7 +2238,9 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
                 <div className="maintenance-admin-card__top">
                   <div>
                     <strong>{formatMoney(p.amountCents, p.currency)} · {p.description}</strong>
-                    <span>{(p.fullName ?? p.email)} · {p.email} · due {new Date(p.dueDate).toLocaleDateString()}{p.paidAt ? ` · paid ${new Date(p.paidAt).toLocaleDateString()}` : ''}</span>
+                    {/* Due date is a calendar day (UTC midnight); paidAt is a
+                        real timestamp, so it stays local. */}
+                    <span>{(p.fullName ?? p.email)} · {p.email} · due {formatCalendarDay(p.dueDate)}{p.paidAt ? ` · paid ${new Date(p.paidAt).toLocaleDateString()}` : ''}</span>
                   </div>
                   <StatusBadge tone={p.status === 'PAID' ? 'good' : p.status === 'OVERDUE' ? 'danger' : p.status === 'CANCELLED' ? 'neutral' : 'attention'}>{p.status}</StatusBadge>
                 </div>

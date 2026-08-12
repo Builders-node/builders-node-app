@@ -66,6 +66,8 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
   // Flow: form → confirm emailed 6-digit code → (set password if no account) → success.
   const [step, setStep] = useState<"form" | "code" | "password">("form");
   const [code, setCode] = useState("");
+  /** One-time proof from the code step that this mailbox is theirs. */
+  const [setupToken, setSetupToken] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [password, setPassword] = useState("");
@@ -169,6 +171,7 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
     setReferralSource("");
     setReferralCode("");
     setCode("");
+    setSetupToken("");
     setPassword("");
     setConfirmPassword("");
     setStep("form");
@@ -228,10 +231,14 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
     }
     setIsVerifying(true);
     try {
-      const result = await apiRequest<{ accountExists: boolean }>("/applications/confirm", {
+      const result = await apiRequest<{ accountExists: boolean; setupToken?: string | null }>("/applications/confirm", {
         method: "POST",
         body: JSON.stringify({ email, code }),
       });
+      // Entering the code is what proves this mailbox is theirs; the token is
+      // how the password step below inherits that proof. Held in state only —
+      // it is a key to the account, so it should not outlive the tab.
+      setSetupToken(result.setupToken ?? "");
 
       // Best-effort mirror to the Google Sheet (never blocks; only on confirmed apps).
       fetch(GOOGLE_SCRIPT_URL, {
@@ -302,7 +309,7 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
     try {
       const session = await apiRequest<{ accessToken: string; user: { id: string; role: string } }>(
         "/applications/create-account",
-        { method: "POST", body: JSON.stringify({ email, password }) },
+        { method: "POST", body: JSON.stringify({ email, password, setupToken }) },
       );
       onAuthenticated?.(session);
       resetForm();

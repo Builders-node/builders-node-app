@@ -20,6 +20,10 @@ function makeService(application: Record<string, unknown> = {}) {
     application: {
       findUnique: jest.fn().mockResolvedValue(app),
       update: jest.fn().mockResolvedValue({ ...app, status: 'FIRST_APPROVED' }),
+      // Approval claims the row with a conditional updateMany, so only one of
+      // two overlapping requests can send the invitation. `count` is what the
+      // service keys the email off.
+      updateMany: jest.fn().mockResolvedValue({ count: app.firstApprovedAt ? 0 : 1 }),
     },
   };
   const mail = { sendFirstCheckApproved: jest.fn().mockResolvedValue(undefined) };
@@ -54,9 +58,25 @@ describe('AdminService.firstCheck — applicant email', () => {
   it('still records the approval even so', async () => {
     const { service, prisma } = makeService();
     await service.firstCheck('app-1', true);
-    expect(prisma.application.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ status: 'FIRST_APPROVED' }) }),
+    // Written with the "not approved yet" condition in the WHERE, so two
+    // overlapping requests can't both decide they were the first.
+    expect(prisma.application.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ firstApprovedAt: null }),
+        data: expect.objectContaining({ status: 'FIRST_APPROVED' }),
+      }),
     );
+  });
+
+  it('sends nothing when another request already claimed the approval', async () => {
+    // The race the condition exists for: the row moved between our read and
+    // our write, so this request is the loser and must stay quiet.
+    const { service, prisma, mail } = makeService();
+    prisma.application.updateMany.mockResolvedValue({ count: 0 });
+
+    await service.firstCheck('app-1', true);
+
+    expect(mail.sendFirstCheckApproved).not.toHaveBeenCalled();
   });
 });
 

@@ -11,6 +11,7 @@ import { MaintenanceSection } from '../components/MaintenanceSection';
 import { CarsSection } from '../components/CarsSection';
 import { BillingSection } from '../components/BillingSection';
 import { SupportSection } from '../components/SupportSection';
+import { formatCalendarDay, formatCalendarDayLong } from '../lib/calendar-day';
 
 type ProfileProps = {
   currentUserId: string | null;
@@ -576,7 +577,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
                       <div className="stay-card__meta">
                         <strong>{unitType}</strong>
                         {apt.moveInDate ? (
-                          <span>Move-in {new Date(apt.moveInDate).toLocaleDateString()}</span>
+                          <span>Move-in {formatCalendarDay(apt.moveInDate)}</span>
                         ) : null}
                       </div>
                     </div>
@@ -633,7 +634,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
                         <strong>{planName || 'Meals plan'}</strong>
                         <span>
                           {startsAt
-                            ? `Deliveries start ${new Date(startsAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}`
+                            ? `Deliveries start ${formatCalendarDayLong(startsAt)}`
                             : 'Included with your membership'}
                         </span>
                       </div>

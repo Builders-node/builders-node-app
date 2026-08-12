@@ -68,4 +68,11 @@ export class CreateAccountDto {
   @IsString()
   @MinLength(8)
   password!: string;
+
+  /**
+   * The one-time token handed back by /applications/confirm. Required: it is
+   * the only proof that the caller is the person who read the emailed code.
+   */
+  @IsString()
+  setupToken!: string;
 }
