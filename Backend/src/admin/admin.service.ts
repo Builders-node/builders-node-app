@@ -405,7 +405,17 @@ export class AdminService {
     });
   }
 
-  async firstCheck(applicationId: string, approved: boolean) {
+  /**
+   * The first-check decision.
+   *
+   * `notify: false` moves the applicant on without the booking email. That is
+   * for the case where an admin has already reached the person themselves — on
+   * WhatsApp, usually — and sending the standard "here is my calendar" note
+   * afterwards would read as though nobody had noticed the conversation.
+   * Everything else about the approval is identical, so the reminder button
+   * still works for them later.
+   */
+  async firstCheck(applicationId: string, approved: boolean, options?: { notify?: boolean }) {
     const application = await this.requireApplication(applicationId);
     const now = new Date();
 
@@ -429,8 +439,9 @@ export class AdminService {
       },
     });
 
-    // Only the request that actually moved the row sends the invitation.
-    if (claimed.count > 0) {
+    // Only the request that actually moved the row sends the invitation, and
+    // only when the admin hasn't already written to them by hand.
+    if (claimed.count > 0 && options?.notify !== false) {
       await this.mail.sendFirstCheckApproved(application.email, application.fullName);
     }
 

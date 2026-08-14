@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, FileText, Home, Link as LinkIcon, Pencil, Search, Send, ShieldCheck, Users, X } from 'lucide-react';
+import { Check, FileText, Home, Link as LinkIcon, MessageCircle, Pencil, Search, Send, ShieldCheck, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
@@ -1316,7 +1316,20 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     if (status === 'SUBMITTED') {
       return {
         primary: { key: 'first', label: 'Approve first check', icon: <Check size={15} />, run: run('first-check', { approved: true }, 'First check approved.') },
-        secondary: [{ key: 'first-no', label: 'Reject', icon: <X size={15} />, tone: 'danger', run: run('first-check', { approved: false }, 'Applicant rejected at first check.') }],
+        secondary: [
+          // Same approval, no email. For when you've already spoken to them
+          // yourself and the standard "here is my calendar" note would read as
+          // though nobody had noticed the conversation.
+          {
+            key: 'first-quiet',
+            label: 'Already messaged',
+            icon: <MessageCircle size={15} />,
+            tone: 'ghost',
+            hint: 'Move to Meeting without emailing them — use when you have already reached out yourself',
+            run: run('first-check', { approved: true, notify: false }, 'Moved to Meeting — no email sent.'),
+          },
+          { key: 'first-no', label: 'Reject', icon: <X size={15} />, tone: 'danger', run: run('first-check', { approved: false }, 'Applicant rejected at first check.') },
+        ],
       };
     }
     if (status === 'FIRST_APPROVED') {

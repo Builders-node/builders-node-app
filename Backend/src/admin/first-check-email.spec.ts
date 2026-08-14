@@ -41,6 +41,25 @@ describe('AdminService.firstCheck — applicant email', () => {
     expect(mail.sendFirstCheckApproved).toHaveBeenCalledWith('robert@innerlife-ai.com', 'Robert Neufeld');
   });
 
+  it('moves them on without emailing when the admin already wrote to them', async () => {
+    // The "Already messaged" button: the applicant has been reached on
+    // WhatsApp, so the standard calendar note would be a non-sequitur.
+    const { service, prisma, mail } = makeService();
+
+    await service.firstCheck('app-1', true, { notify: false });
+
+    expect(mail.sendFirstCheckApproved).not.toHaveBeenCalled();
+    expect(prisma.application.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'FIRST_APPROVED' }) }),
+    );
+  });
+
+  it('still emails when notify is left unset', async () => {
+    const { service, mail } = makeService();
+    await service.firstCheck('app-1', true, {});
+    expect(mail.sendFirstCheckApproved).toHaveBeenCalled();
+  });
+
   it('sends nothing when the applicant is rejected', async () => {
     const { service, mail } = makeService();
     await service.firstCheck('app-1', false);

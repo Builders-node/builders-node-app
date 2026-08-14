@@ -48,12 +48,13 @@ export class AdminController {
     return this.admin.setApartmentAvailability(applicationId, body.available);
   }
 
+  /** `notify: false` approves without the booking email — see AdminService.firstCheck. */
   @Post('applications/:applicationId/first-check')
   firstCheck(
     @Param('applicationId') applicationId: string,
-    @Body() body: { approved: boolean },
+    @Body() body: { approved: boolean; notify?: boolean },
   ) {
-    return this.admin.firstCheck(applicationId, body.approved);
+    return this.admin.firstCheck(applicationId, body.approved, { notify: body.notify });
   }
 
   /** Follow-up email for an approved applicant who hasn't booked their call. */
