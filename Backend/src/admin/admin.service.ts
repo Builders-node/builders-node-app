@@ -49,6 +49,19 @@ export const TERMINAL_APPLICATION_STATUSES = [
   'MEETING_REJECTED',
 ];
 
+/**
+ * Statuses a payment link may be raised from — the "Past meeting" column.
+ *
+ * The two APARTMENT ones are historical: they were the step between the call
+ * and the payment link, which is what Past meeting is now, so anyone left on
+ * them keeps moving instead of getting stuck on a stage that no longer exists.
+ */
+const PAYMENT_READY_STATUSES = new Set([
+  'MEETING_APPROVED',
+  'APARTMENT_AVAILABLE',
+  'NO_APARTMENT_AVAILABLE',
+]);
+
 const APARTMENT_AVAILABILITY = new Set([
   'AVAILABLE',
   'AVAILABLE_SOON',
@@ -392,19 +405,6 @@ export class AdminService {
     });
   }
 
-  async setApartmentAvailability(applicationId: string, available: boolean) {
-    const application = await this.requireApplication(applicationId);
-    const status = available ? 'APARTMENT_AVAILABLE' : 'NO_APARTMENT_AVAILABLE';
-
-    return this.prisma.application.update({
-      where: { id: application.id },
-      data: {
-        apartmentAvailable: available,
-        status,
-      },
-    });
-  }
-
   /**
    * The first-check decision.
    *
@@ -503,6 +503,27 @@ export class AdminService {
     return updated;
   }
 
+  /**
+   * The applicant has booked their call — move them from Conversation to
+   * Meeting.
+   *
+   * Purely a marker: no email, nothing sent. Booking happens on a Google
+   * appointment schedule we don't get callbacks from, so the board can only
+   * know a call exists if an admin says so. Without this the two states were
+   * one column, and "Meeting" told you nothing about who still had to book.
+   */
+  async markMeetingScheduled(applicationId: string) {
+    const application = await this.requireApplication(applicationId);
+    if (application.status !== 'FIRST_APPROVED') {
+      throw new BadRequestException('Only applicants in Conversation can be moved to Meeting.');
+    }
+
+    return this.prisma.application.update({
+      where: { id: application.id },
+      data: { status: 'MEETING_SCHEDULED' },
+    });
+  }
+
   async onlineMeetingCheck(applicationId: string, approved: boolean) {
     const application = await this.requireApplication(applicationId);
     if (application.status === 'FIRST_REJECTED') {
@@ -532,11 +553,12 @@ export class AdminService {
 
   async sendPaymentLink(applicationId: string, paymentLink?: string) {
     const application = await this.requireApplication(applicationId);
-    if (!application.apartmentAvailable) {
-      throw new BadRequestException('Confirm apartment availability before sending a payment link.');
-    }
-    if (application.status !== 'MEETING_APPROVED' && application.status !== 'APARTMENT_AVAILABLE') {
-      throw new BadRequestException('Approve the online meeting before sending a payment link.');
+    // The apartment step is no longer part of the pipeline — availability is
+    // settled off the board — so the only thing that has to be true is that the
+    // call has happened. The two APARTMENT statuses stay accepted: applications
+    // filed before the change can still be carried through to payment.
+    if (!PAYMENT_READY_STATUSES.has(application.status)) {
+      throw new BadRequestException('Hold the call before sending a payment link.');
     }
 
     const link = paymentLink?.trim() || 'https://prosperasub.com/builders-node/pay';

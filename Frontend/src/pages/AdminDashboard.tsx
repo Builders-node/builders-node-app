@@ -1,4 +1,4 @@
-import { Check, FileText, Home, Link as LinkIcon, MessageCircle, Pencil, Search, Send, ShieldCheck, X } from 'lucide-react';
+import { CalendarCheck, Check, FileText, Link as LinkIcon, MessageCircle, Pencil, Search, Send, ShieldCheck, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
@@ -254,16 +254,21 @@ function toneForStatus(status: string): StatusTone {
   return 'neutral';
 }
 
-function nextStepFor(status: string, apartmentAvailable?: boolean | null, paymentStatus?: string) {
-  if (status === 'SUBMITTED') return 'Check apartment + first approval';
-  if (status === 'FIRST_APPROVED') return 'Online meeting check';
-  if (status === 'MEETING_APPROVED' && !apartmentAvailable) return 'Confirm apartment availability';
-  if ((status === 'MEETING_APPROVED' || status === 'APARTMENT_AVAILABLE') && paymentStatus !== 'PENDING' && paymentStatus !== 'SUCCESS') return 'Send payment link';
+function nextStepFor(status: string, _apartmentAvailable?: boolean | null, paymentStatus?: string) {
+  if (status === 'SUBMITTED') return 'First approval';
+  if (status === 'FIRST_APPROVED') return 'Get a call booked';
+  if (status === 'MEETING_SCHEDULED') return 'Hold the call';
+  if (
+    (status === 'MEETING_APPROVED' || status === 'APARTMENT_AVAILABLE' || status === 'NO_APARTMENT_AVAILABLE') &&
+    paymentStatus !== 'PENDING' &&
+    paymentStatus !== 'SUCCESS'
+  ) {
+    return 'Send payment link';
+  }
   if (status === 'PAYMENT_LINK_SENT') return 'Confirm payment';
   if (status === 'PAYMENT_CONFIRMED') return 'Activate membership';
   if (status === 'CREDENTIALS_SENT') return 'Onboarded — member is active';
   if (status.includes('REJECTED')) return 'Send waitlist/rejection message';
-  if (status === 'NO_APARTMENT_AVAILABLE') return 'Propose new apartment date';
   return 'Review';
 }
 
@@ -272,21 +277,31 @@ function nextStepFor(status: string, apartmentAvailable?: boolean | null, paymen
 // own password on the way in, during apply — it was left over from when an
 // admin mailed out credentials at the end, and it showed every applicant a
 // sixth hurdle that nobody has had to clear in a long time.
-const APPLICANT_STAGES = ['Apply', 'First check', 'Meeting', 'Apartment', 'Payment'];
+const APPLICANT_STAGES = ['Apply', 'First check', 'Conversation', 'Meeting', 'Past meeting', 'Payment'];
 
 // Kanban columns for the pipeline board, keyed by the applicant's current stage.
+//
+// The call used to be a single step: approved on Monday and approved-after-the-
+// call were the same column, so a board full of "Meeting" said nothing about who
+// still had to book one. It is three now — talking to them, call in the diary,
+// call held — because those are three different things to do next.
+//
+// Apartment is gone. Availability is settled off the board before the payment
+// link goes out; as a column it only ever held people who were already waiting
+// on the same thing the Past-meeting column was for.
 const PIPELINE_COLUMNS: { stage: number; title: string }[] = [
   { stage: 1, title: 'First check' },
-  { stage: 2, title: 'Meeting' },
-  { stage: 3, title: 'Apartment' },
-  { stage: 4, title: 'Payment' },
-  { stage: 5, title: 'Onboarded' },
+  { stage: 2, title: 'Conversation' },
+  { stage: 3, title: 'Meeting' },
+  { stage: 4, title: 'Past meeting' },
+  { stage: 5, title: 'Payment' },
+  { stage: 6, title: 'Onboarded' },
   { stage: -1, title: 'Rejected' },
 ];
 
 function pipelineStage(status: string, apartmentAvailable?: boolean | null): number {
   const index = applicantStageIndex(status, apartmentAvailable);
-  return index < 0 ? -1 : Math.min(index, 5);
+  return index < 0 ? -1 : Math.min(index, 6);
 }
 
 type ApplicantBucket = 'action' | 'onboarded' | 'rejected';
@@ -300,32 +315,34 @@ const NOTIFICATIONS_PER_PAGE = 10;
 // This has to agree with TERMINAL_APPLICATION_STATUSES on the server — the
 // sidebar badge counts with the server's list and these chips count with this
 // one, so any disagreement shows up as a badge that contradicts the filters.
-function applicantStageIndex(status: string, apartmentAvailable?: boolean | null): number {
+function applicantStageIndex(status: string, _apartmentAvailable?: boolean | null): number {
   switch (status) {
     case 'SUBMITTED':
       return 1;
+    // Approved, and now being talked to — nothing in the diary yet.
     case 'FIRST_APPROVED':
       return 2;
-    case 'MEETING_APPROVED':
-      return apartmentAvailable ? 4 : 3;
-    case 'APARTMENT_AVAILABLE':
-    case 'PAYMENT_LINK_SENT':
-      return 4;
-    // Still sitting on the Apartment step, waiting for an admin to propose a new
-    // date. It used to be bucketed as rejected, which hid a live task under a
-    // filter nobody checks.
-    case 'NO_APARTMENT_AVAILABLE':
+    // A call exists on a calendar somewhere.
+    case 'MEETING_SCHEDULED':
       return 3;
+    // The call happened and went well. The apartment statuses land here too:
+    // they were the old step between the call and the payment link, and that is
+    // exactly what this column is now.
+    case 'MEETING_APPROVED':
+    case 'APARTMENT_AVAILABLE':
+    case 'NO_APARTMENT_AVAILABLE':
+      return 4;
     // Paid, but an admin still has to click "Complete onboarding" — so they stay
     // on the Payment step rather than moving to a step of their own. Keeping
     // them here is what keeps them under "Action needed" instead of quietly
     // counting as onboarded before anyone finished them.
+    case 'PAYMENT_LINK_SENT':
     case 'PAYMENT_CONFIRMED':
-      return 4;
+      return 5;
     // Both ends of the pipeline: the current one, and the legacy direct approval.
     case 'CREDENTIALS_SENT':
     case 'APPROVED':
-      return 5;
+      return 6;
     default:
       return status.includes('REJECTED') ? -1 : 1;
   }
@@ -458,8 +475,10 @@ function applicantBucket(status: string, apartmentAvailable?: boolean | null): A
 
 const firstCheckPassed = new Set([
   'FIRST_APPROVED',
+  'MEETING_SCHEDULED',
   'MEETING_APPROVED',
   'APARTMENT_AVAILABLE',
+  'NO_APARTMENT_AVAILABLE',
   'PAYMENT_LINK_SENT',
   'PAYMENT_CONFIRMED',
   'CREDENTIALS_SENT',
@@ -468,6 +487,7 @@ const firstCheckPassed = new Set([
 const secondCheckPassed = new Set([
   'MEETING_APPROVED',
   'APARTMENT_AVAILABLE',
+  'NO_APARTMENT_AVAILABLE',
   'PAYMENT_LINK_SENT',
   'PAYMENT_CONFIRMED',
   'CREDENTIALS_SENT',
@@ -592,7 +612,11 @@ function buildFunnel(overview: AdminOverview | null): FunnelStage[] {
       label: 'Second Check',
       detail: 'Online meeting',
       count: applications.filter((application) => secondCheckPassed.has(application.status)).length,
-      waiting: applications.filter((application) => application.status === 'FIRST_APPROVED').length,
+      // Everyone between the first approval and the call being held: still
+      // talking, or booked and not yet met.
+      waiting: applications.filter(
+        (application) => application.status === 'FIRST_APPROVED' || application.status === 'MEETING_SCHEDULED',
+      ).length,
     },
     {
       key: 'approve',
@@ -1325,20 +1349,20 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
             label: 'Already messaged',
             icon: <MessageCircle size={15} />,
             tone: 'ghost',
-            hint: 'Move to Meeting without emailing them — use when you have already reached out yourself',
-            run: run('first-check', { approved: true, notify: false }, 'Moved to Meeting — no email sent.'),
+            hint: 'Move to Conversation without emailing them — use when you have already reached out yourself',
+            run: run('first-check', { approved: true, notify: false }, 'Moved to Conversation — no email sent.'),
           },
           { key: 'first-no', label: 'Reject', icon: <X size={15} />, tone: 'danger', run: run('first-check', { approved: false }, 'Applicant rejected at first check.') },
         ],
       };
     }
     if (status === 'FIRST_APPROVED') {
-      // This is the one stage where we're waiting on the applicant, so it's the
-      // one stage that gets a nudge. Listed before Reject: the destructive
-      // action stays last in the stack.
+      // Conversation: approved, and now we're waiting on them to pick a slot.
+      // The only stage where the applicant owes us something, so the only one
+      // with a nudge. Reject stays last — destructive actions at the bottom.
       const reminded = app.meetingReminderSentAt ? new Date(app.meetingReminderSentAt) : null;
       return {
-        primary: { key: 'meet', label: 'Approve meeting', icon: <ShieldCheck size={15} />, run: run('online-meeting-check', { approved: true }, 'Online meeting approved.') },
+        primary: { key: 'booked', label: 'Call booked', icon: <CalendarCheck size={15} />, run: run('meeting-scheduled', undefined, 'Moved to Meeting.') },
         secondary: [
           {
             key: 'remind',
@@ -1348,17 +1372,23 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
             hint: reminded ? `Last reminded ${reminded.toLocaleDateString()}` : 'Send the follow-up email with the booking link',
             run: run('remind-meeting', undefined, 'Reminder sent.'),
           },
-          { key: 'meet-no', label: 'Reject', icon: <X size={15} />, tone: 'danger', run: run('online-meeting-check', { approved: false }, 'Applicant rejected after meeting.') },
+          { key: 'meet-no', label: 'Reject', icon: <X size={15} />, tone: 'danger', run: run('online-meeting-check', { approved: false }, 'Applicant rejected.') },
         ],
       };
     }
-    if (status === 'MEETING_APPROVED' && !app.apartmentAvailable) {
+    if (status === 'MEETING_SCHEDULED') {
+      // Meeting: it's in the diary. Nothing to do until it happens, then say how
+      // it went. Reminding is pointless here — they've already booked.
       return {
-        primary: { key: 'apt', label: 'Apartment available', icon: <Home size={15} />, run: run('apartment-availability', { available: true }, 'Apartment availability confirmed.') },
-        secondary: [{ key: 'apt-no', label: 'No apartment', icon: <X size={15} />, tone: 'danger', run: run('apartment-availability', { available: false }, 'Marked no apartment available.') }],
+        primary: { key: 'meet', label: 'Meeting went well', icon: <ShieldCheck size={15} />, run: run('online-meeting-check', { approved: true }, 'Moved to Past meeting.') },
+        secondary: [{ key: 'meet-no', label: 'Reject', icon: <X size={15} />, tone: 'danger', run: run('online-meeting-check', { approved: false }, 'Applicant rejected after the call.') }],
       };
     }
-    if ((status === 'MEETING_APPROVED' || status === 'APARTMENT_AVAILABLE') && app.paymentStatus !== 'PENDING' && app.paymentStatus !== 'SUCCESS') {
+    if (
+      (status === 'MEETING_APPROVED' || status === 'APARTMENT_AVAILABLE' || status === 'NO_APARTMENT_AVAILABLE') &&
+      app.paymentStatus !== 'PENDING' &&
+      app.paymentStatus !== 'SUCCESS'
+    ) {
       return {
         primary: { key: 'pay', label: 'Send payment link', icon: <LinkIcon size={15} />, run: run('send-payment-link', undefined, 'Payment link prepared.') },
         secondary: [],

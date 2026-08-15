@@ -40,14 +40,6 @@ export class AdminController {
     return this.admin.setApplicationNote(applicationId, body.note);
   }
 
-  @Post('applications/:applicationId/apartment-availability')
-  setApartmentAvailability(
-    @Param('applicationId') applicationId: string,
-    @Body() body: { available: boolean },
-  ) {
-    return this.admin.setApartmentAvailability(applicationId, body.available);
-  }
-
   /** `notify: false` approves without the booking email — see AdminService.firstCheck. */
   @Post('applications/:applicationId/first-check')
   firstCheck(
@@ -61,6 +53,12 @@ export class AdminController {
   @Post('applications/:applicationId/remind-meeting')
   remindMeeting(@Param('applicationId') applicationId: string) {
     return this.admin.remindMeeting(applicationId);
+  }
+
+  /** Conversation → Meeting. A marker only; nothing is sent. */
+  @Post('applications/:applicationId/meeting-scheduled')
+  markMeetingScheduled(@Param('applicationId') applicationId: string) {
+    return this.admin.markMeetingScheduled(applicationId);
   }
 
   @Post('applications/:applicationId/online-meeting-check')
