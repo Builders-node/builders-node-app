@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { resolveFrontendBaseUrl } from '../common/frontend-url';
 import { PrismaService } from '../database/prisma.service';
-import { ProsperaSubClient } from '../subscriptions/prospera-sub.client';
+import { ProsperaSubClient, type DatedCleaningSlot } from '../subscriptions/prospera-sub.client';
 import {
   GLOBAL_CLEANING_PLAN_KEY,
   GLOBAL_MEAL_PLAN_KEY,
@@ -37,6 +37,15 @@ const RESIDENCE_UTC_OFFSET_HOURS = -6;
 
 /** Long enough for door codes and pet instructions, short enough to stay a note. */
 const MAX_MEMBER_NOTE = 500;
+
+/**
+ * How many weekly visits to book in one go.
+ *
+ * ProsperaSub publishes about five weeks of slots, so this is a ceiling rather
+ * than a target — it stops a booking run from ballooning if they ever publish a
+ * year of dates at once.
+ */
+const MAX_BOOKINGS_AHEAD = 8;
 
 /**
  * The next time the given weekly slot comes round, as a UTC instant.
@@ -389,6 +398,11 @@ export class HomeService {
       // implying a cleaner turns up for an unspecified length of time.
       windows: catalog.windows,
       slotsSource: catalog.source,
+      // Whether the cleaner actually knows. A slot that only reached our own
+      // database looks identical to a real booking without this.
+      confirmedWithProvider: parseIdList(schedule?.externalBookingIdsJson).length > 0,
+      bookedVisits: parseIdList(schedule?.externalBookingIdsJson).length,
+      bookingIssue: schedule?.bookingSyncError ?? null,
     };
   }
 
@@ -430,12 +444,141 @@ export class HomeService {
       frequency: 'Weekly',
     };
 
-    if (existing) {
-      await this.prisma.cleaningSchedule.update({ where: { id: existing.id }, data });
-    } else {
-      await this.prisma.cleaningSchedule.create({ data: { ...data, userId } });
-    }
+    const row = existing
+      ? await this.prisma.cleaningSchedule.update({ where: { id: existing.id }, data })
+      : await this.prisma.cleaningSchedule.create({ data: { ...data, userId } });
+
+    // The whole point of picking a slot. Without this the choice stayed in our
+    // database and no cleaner ever learned about it.
+    await this.syncBookingsToProsperaSub(row.id, userId);
 
     return this.getMyCleaning(userId);
+  }
+
+  /**
+   * Push the member's standing slot to ProsperaSub as real bookings.
+   *
+   * ProsperaSub books per date, not per weekday: one `cleaning_bookings` row
+   * against one dated slot. A weekly slot therefore becomes one booking per
+   * matching date in their published window — that window is about five weeks
+   * deep, and re-running this tops it up as new dates appear.
+   *
+   * Best-effort by design: the member's choice is already saved, and a provider
+   * outage should not lose it. But it is recorded either way — a booking that
+   * silently reached nobody is exactly the failure this replaces.
+   */
+  private async syncBookingsToProsperaSub(scheduleId: string, userId: string): Promise<void> {
+    const fail = (message: string) =>
+      this.prisma.cleaningSchedule
+        .update({ where: { id: scheduleId }, data: { bookingSyncError: message, bookingSyncedAt: new Date() } })
+        .then(() => undefined);
+
+    try {
+      const [schedule, user] = await Promise.all([
+        this.prisma.cleaningSchedule.findUnique({ where: { id: scheduleId } }),
+        this.prisma.user.findUnique({ where: { id: userId }, select: { externalMemberId: true } }),
+      ]);
+      if (!schedule?.timeSlot || schedule.weekday == null) return;
+
+      // Without their ProsperaSub id there is nobody to book for. Recorded
+      // rather than thrown: the member has still chosen a slot, and this is an
+      // admin problem (the member was never mirrored to the provider).
+      if (!user?.externalMemberId) {
+        this.logger.warn(`Cleaning slot for ${userId} not sent: no ProsperaSub member id.`);
+        await fail('This member has no ProsperaSub account yet, so the cleaner was not booked.');
+        return;
+      }
+
+      // Retract the visits this slot booked before, so a reschedule doesn't
+      // leave the old day standing. Only ids we created — anything the member
+      // booked directly in ProsperaSub is not ours to cancel.
+      const previous = parseIdList(schedule.externalBookingIdsJson);
+      for (const id of previous) {
+        try {
+          await this.prosperaSub.deleteCleaningBooking(id);
+        } catch (error) {
+          this.logger.warn(`Could not retract cleaning booking ${id}: ${(error as Error).message}`);
+        }
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      const slots = await this.prosperaSub.listDatedCleaningSlots(schedule.timeSlot, today);
+      const wanted = oncePerDate(
+        slots
+          .filter((slot) => new Date(`${slot.date}T00:00:00Z`).getUTCDay() === schedule.weekday)
+          // Don't book a window that is already full — capacity is theirs to
+          // enforce, and overbooking it just puts two members on one cleaner.
+          .filter((slot) => slot.maxBookings == null || (slot.currentBookings ?? 0) < slot.maxBookings),
+      ).slice(0, MAX_BOOKINGS_AHEAD);
+
+      const created: string[] = [];
+      for (const slot of wanted) {
+        try {
+          const booking = await this.prosperaSub.createCleaningBooking({
+            slotId: slot.id,
+            prosperaSubUserId: user.externalMemberId,
+            cleaningSubscriptionId: schedule.externalSubscriptionId,
+            notes: schedule.memberNote,
+          });
+          if (booking) created.push(booking.id);
+        } catch (error) {
+          this.logger.warn(`Cleaning booking failed for slot ${slot.id}: ${(error as Error).message}`);
+        }
+      }
+
+      await this.prisma.cleaningSchedule.update({
+        where: { id: scheduleId },
+        data: {
+          externalBookingIdsJson: JSON.stringify(created),
+          bookingSyncedAt: new Date(),
+          bookingSyncError:
+            created.length > 0
+              ? null
+              : wanted.length === 0
+                ? 'No matching slots are published for that day yet.'
+                : 'ProsperaSub did not accept the booking.',
+        },
+      });
+      this.logger.log(`Cleaning slot for ${userId}: ${created.length} visit(s) booked on ProsperaSub.`);
+    } catch (error) {
+      this.logger.error(`Cleaning booking sync failed for ${userId}: ${(error as Error).message}`);
+      await fail((error as Error).message);
+    }
+  }
+}
+
+/**
+ * One slot per date — the member wants a cleaner, not every cleaner.
+ *
+ * The same window is published once per provider, so a single Tuesday at ten
+ * can appear two or three times over. Booking each of them sends two cleaners
+ * to one apartment on the same morning and bills the member twice.
+ *
+ * Picks the emptiest slot for the date, breaking ties on id so the choice is
+ * stable between runs rather than following whatever order the API returned.
+ */
+function oncePerDate(slots: DatedCleaningSlot[]): DatedCleaningSlot[] {
+  const byDate = new Map<string, DatedCleaningSlot>();
+  for (const slot of slots) {
+    const held = byDate.get(slot.date);
+    if (!held || compareSlotPreference(slot, held) < 0) byDate.set(slot.date, slot);
+  }
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function compareSlotPreference(a: DatedCleaningSlot, b: DatedCleaningSlot): number {
+  const free = (slot: DatedCleaningSlot) =>
+    slot.maxBookings == null ? Number.MAX_SAFE_INTEGER : slot.maxBookings - (slot.currentBookings ?? 0);
+  return free(b) - free(a) || a.id.localeCompare(b.id);
+}
+
+/** A stored JSON array of booking ids, or an empty list if it's missing/broken. */
+function parseIdList(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    return [];
   }
 }

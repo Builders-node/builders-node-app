@@ -173,6 +173,28 @@ function toHhMm(raw: unknown): string | null {
   return match ? `${match[1]}:${match[2]}` : null;
 }
 
+/** One dated, bookable window from `cleaning_available_slots`. */
+export interface DatedCleaningSlot {
+  id: string;
+  /** YYYY-MM-DD, a calendar day at the residence. */
+  date: string;
+  /** "10:00" */
+  startTime: string;
+  maxBookings: number | null;
+  currentBookings: number | null;
+}
+
+/** What ProsperaSub needs to put a cleaner outside somebody's door. */
+export interface CleaningBookingInput {
+  slotId: string;
+  /** The member's ProsperaSub user id (User.externalMemberId here). */
+  prosperaSubUserId: string;
+  /** Their cleaning_subscriptions row, when we have it. */
+  cleaningSubscriptionId?: string | null;
+  /** Door codes, pets, "keys with reception" — whatever the cleaner needs. */
+  notes?: string | null;
+}
+
 export interface CreatePaymentInput {
   amountCents: number;
   currency?: string;
@@ -367,6 +389,73 @@ export class ProsperaSubClient {
       .filter((e) => e.dates.size >= MIN_DATES_FOR_RECURRING_SLOT)
       .map((e) => e.slot)
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }
+
+  /**
+   * Every dated slot in the published window that starts at `startTime`.
+   *
+   * Unlike getCleaningTimeSlots(), which collapses the table into the weekly
+   * windows on offer, this keeps the individual dates: a booking is made
+   * against one dated slot row, not against "Tuesdays at ten".
+   */
+  async listDatedCleaningSlots(startTime: string, fromDate: string): Promise<DatedCleaningSlot[]> {
+    if (!this.configured) return [];
+
+    const rows = await this.request<Record<string, unknown>[]>(
+      'GET',
+      `/v1/data/cleaning_available_slots?select=id,date,start_time,max_bookings,current_bookings` +
+        `&is_active=eq.true&date=gte.${fromDate}&start_time=eq.${encodeURIComponent(`${startTime}:00`)}&order=date.asc`,
+    );
+
+    return (rows ?? [])
+      .map((row) => ({
+        id: String(row.id),
+        date: String(row.date ?? '').slice(0, 10),
+        startTime: toHhMm(row.start_time) ?? '',
+        maxBookings: (row.max_bookings as number) ?? null,
+        currentBookings: (row.current_bookings as number) ?? null,
+      }))
+      .filter((slot) => slot.id && slot.date && slot.startTime);
+  }
+
+  /**
+   * Book one cleaning visit — a row in ProsperaSub's `cleaning_bookings`.
+   *
+   * This is the call that was missing entirely: a member could pick a slot in
+   * Builders Node, see it confirmed, and no cleaner would ever hear about it,
+   * because the choice was only ever written to our own database.
+   *
+   * `google_calendar_sync_status` is left to default; ProsperaSub's own sync is
+   * what turns the row into a calendar event for the cleaner.
+   */
+  async createCleaningBooking(input: CleaningBookingInput): Promise<{ id: string } | null> {
+    if (!this.configured) return null;
+
+    const rows = await this.request<Record<string, unknown>[]>('POST', '/v1/data/cleaning_bookings', {
+      slot_id: input.slotId,
+      user_id: input.prosperaSubUserId,
+      cleaning_subscription_id: input.cleaningSubscriptionId ?? null,
+      subscription_id: input.cleaningSubscriptionId ?? null,
+      status: 'booked',
+      // A value their own recurring bookings use, so the visit shows up in
+      // ProsperaSub exactly like one made on their side.
+      source: 'user_recurring_schedule',
+      reservation_type: 'confirmed_booking',
+      notes: input.notes ?? null,
+    });
+
+    const created = Array.isArray(rows) ? rows[0] : (rows as Record<string, unknown> | null);
+    const id = created?.id;
+    return id ? { id: String(id) } : null;
+  }
+
+  /**
+   * Drop a visit we booked. Path form, not a query filter: the query form
+   * answers 404 and silently leaves the row in place.
+   */
+  async deleteCleaningBooking(bookingId: string): Promise<void> {
+    if (!this.configured) return;
+    await this.request('DELETE', `/v1/data/cleaning_bookings/${encodeURIComponent(bookingId)}`);
   }
 
   /**

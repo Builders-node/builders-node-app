@@ -462,6 +462,16 @@ model CleaningSchedule {
   source                 String   @default("ProsperaSub.com")
   // ProsperaSub cleaning_subscriptions row id, once mirrored.
   externalSubscriptionId String?  @unique
+  /// The ProsperaSub cleaning_bookings ids this standing slot has created, as a
+  /// JSON array. Kept so a reschedule can retract exactly the visits we booked
+  /// and nothing else — a member may also have bookings made directly in
+  /// ProsperaSub, and those are not ours to cancel.
+  externalBookingIdsJson String?
+  /// When the standing slot was last pushed to ProsperaSub, and what happened.
+  /// A booking that only ever reached our own database is the bug this exists
+  /// to make visible.
+  bookingSyncedAt        DateTime?
+  bookingSyncError       String?
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
   user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
