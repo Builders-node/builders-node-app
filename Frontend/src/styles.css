@@ -5813,9 +5813,6 @@ body:has(.modal-overlay) .onboarding-toast { display: none; }
 }
 .support-empty { color: var(--muted); font-size: 0.88rem; margin: 0; }
 
-.support-form { display: grid; gap: 10px; }
-.support-form label { display: grid; font-size: 0.8rem; font-weight: 650; gap: 4px; }
-.support-form__actions { display: flex; gap: 8px; justify-content: flex-end; }
 
 .support-thread {
   border: 1px solid var(--border);

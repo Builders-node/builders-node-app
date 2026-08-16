@@ -1,6 +1,7 @@
-import { LifeBuoy, Send } from 'lucide-react';
+import { LifeBuoy, Send, X } from 'lucide-react';
 import { useState } from 'react';
 import { useCreateTicket, useReplyToTicket, useTickets, type SupportTicket } from '../lib/queries';
+import { useEscapeToClose } from '../lib/useModalA11y';
 
 /**
  * Support, from the member's side.
@@ -12,12 +13,23 @@ import { useCreateTicket, useReplyToTicket, useTickets, type SupportTicket } fro
 export function SupportSection({ currentUserId }: { currentUserId: string | null }) {
   const { data: tickets, isLoading } = useTickets(currentUserId);
   const createTicket = useCreateTicket(currentUserId);
+  // The form lives in a dialog, like Maintenance next to it — the panel itself
+  // is the thread list, and it used to lose its place as soon as the composer
+  // pushed everything down.
   const [composing, setComposing] = useState(false);
+  useEscapeToClose(composing, () => setComposing(false));
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   if (!currentUserId) return null;
+
+  function openComposer() {
+    setSubject('');
+    setMessage('');
+    setError(null);
+    setComposing(true);
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -36,59 +48,86 @@ export function SupportSection({ currentUserId }: { currentUserId: string | null
   const resolved = tickets?.filter((ticket) => ticket.status === 'RESOLVED') ?? [];
 
   return (
-    <section className="panel support-panel">
-      <div className="support-panel__head">
-        <span className="support-panel__title">
-          <span className="support-panel__icon" aria-hidden="true"><LifeBuoy size={16} /></span>
-          Ask us anything
-        </span>
-        {!composing ? (
-          <button className="primary-button compact-button" onClick={() => setComposing(true)}>
+    <>
+      <section className="panel support-panel">
+        <div className="support-panel__head">
+          <span className="support-panel__title">
+            <span className="support-panel__icon" aria-hidden="true"><LifeBuoy size={16} /></span>
+            Ask us anything
+          </span>
+          <button className="primary-button compact-button" onClick={openComposer}>
             New request
           </button>
+        </div>
+
+        {isLoading ? <p className="support-empty">Loading…</p> : null}
+        {!isLoading && open.length === 0 && resolved.length === 0 ? (
+          <p className="support-empty">Nothing open. Anything at all — the apartment, billing, your stay — starts here.</p>
         ) : null}
-      </div>
+
+        {open.map((ticket) => (
+          <Thread key={ticket.id} ticket={ticket} currentUserId={currentUserId} />
+        ))}
+
+        {resolved.length > 0 ? (
+          <details className="support-history">
+            <summary>Resolved ({resolved.length})</summary>
+            {resolved.map((ticket) => (
+              <Thread key={ticket.id} ticket={ticket} currentUserId={currentUserId} />
+            ))}
+          </details>
+        ) : null}
+      </section>
 
       {composing ? (
-        <form className="support-form" onSubmit={submit}>
-          <label>
-            Subject
-            <input value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="e.g. Wi-Fi in 602" required />
-          </label>
-          <label>
-            What do you need?
-            <textarea value={message} onChange={(event) => setMessage(event.target.value)} rows={3} placeholder="A sentence is fine." required />
-          </label>
-          {error ? <p className="form-error">{error}</p> : null}
-          <div className="support-form__actions">
-            <button type="button" className="ghost-button compact-button" onClick={() => { setComposing(false); setError(null); }}>
-              Cancel
+        <div className="modal-overlay" role="presentation" onClick={() => setComposing(false)}>
+          <form
+            className="profile-edit-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="New support request"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={submit}
+          >
+            <div className="modal-head">
+              <div>
+                <h2>Ask us anything</h2>
+                <p>The apartment, billing, your stay — whatever it is, it starts here.</p>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setComposing(false)} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+
+            <label>
+              Subject
+              <input
+                value={subject}
+                onChange={(event) => setSubject(event.target.value)}
+                placeholder="e.g. Wi-Fi in 602"
+                required
+                autoFocus
+              />
+            </label>
+            <label>
+              What do you need?
+              <textarea
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                rows={4}
+                placeholder="A sentence is fine."
+                required
+              />
+            </label>
+
+            {error ? <p className="form-error">{error}</p> : null}
+            <button className="primary-button" type="submit" disabled={createTicket.isPending}>
+              {createTicket.isPending ? 'Sending…' : 'Send request'}
             </button>
-            <button type="submit" className="primary-button compact-button" disabled={createTicket.isPending}>
-              {createTicket.isPending ? 'Sending…' : 'Send'}
-            </button>
-          </div>
-        </form>
+          </form>
+        </div>
       ) : null}
-
-      {isLoading ? <p className="support-empty">Loading…</p> : null}
-      {!isLoading && !composing && open.length === 0 && resolved.length === 0 ? (
-        <p className="support-empty">Nothing open. Anything at all — the apartment, billing, your stay — starts here.</p>
-      ) : null}
-
-      {open.map((ticket) => (
-        <Thread key={ticket.id} ticket={ticket} currentUserId={currentUserId} />
-      ))}
-
-      {resolved.length > 0 ? (
-        <details className="support-history">
-          <summary>Resolved ({resolved.length})</summary>
-          {resolved.map((ticket) => (
-            <Thread key={ticket.id} ticket={ticket} currentUserId={currentUserId} />
-          ))}
-        </details>
-      ) : null}
-    </section>
+    </>
   );
 }
 
