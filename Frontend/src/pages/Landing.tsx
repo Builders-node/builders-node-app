@@ -14,6 +14,7 @@ import SpeakersSection from '@/components/SpeakersSection';
 import EventsSection from '@/components/EventsSection';
 import FAQSection from '@/components/FAQSection';
 import Footer from '@/components/Footer';
+import TelegramCommunityButton from '@/components/TelegramCommunityButton';
 import { ApplyNavProvider, AccountNavProvider } from '@/lib/applyNav';
 import type { PageId } from '../data/dashboard';
 
@@ -47,6 +48,9 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
             <EventsSection />
             <FAQSection />
             <Footer />
+            {/* Outside the page flow on purpose — it follows the visitor down
+                the page rather than waiting in a section they may not reach. */}
+            <TelegramCommunityButton />
           </div>
           </AccountNavProvider>
           </ApplyNavProvider>
