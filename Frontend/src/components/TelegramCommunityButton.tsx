@@ -1,14 +1,5 @@
 import { Send } from "lucide-react";
-
-/**
- * The community chat. Kept in one place because it is the only thing on the
- * landing page that points at Telegram, and a wrong handle here is a visitor
- * dropped into somebody else's group.
- */
-const TELEGRAM_COMMUNITY_URL = "https://t.me/buildersnodecom";
-
-/** Telegram's own blue, so the button is recognisable before it is read. */
-const TELEGRAM_BLUE = "#229ED9";
+import { TELEGRAM_BLUE, TELEGRAM_COMMUNITY_URL } from "@/lib/telegram";
 
 /**
  * Floating link to the Telegram community.
