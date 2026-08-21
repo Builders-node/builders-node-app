@@ -84,7 +84,7 @@ type DesignationUser = AdminOverview['users'][number];
 type DesignationFilterId = 'all' | 'incomplete' | 'new' | 'members';
 type Applicant = AdminOverview['applications'][number];
 type ApplicantAction = { key: string; label: string; icon: ReactNode; tone?: 'ghost' | 'danger'; hint?: string; run: () => void };
-type AdminTab = 'overview' | 'applicants' | 'residency' | 'designations' | 'maintenance' | 'support' | 'payments' | 'notifications' | 'resources' | 'events' | 'vehicles' | 'units' | 'settings';
+type AdminTab = 'overview' | 'applicants' | 'residency' | 'designations' | 'maintenance' | 'support' | 'payments' | 'notifications' | 'resources' | 'events' | 'campaigns' | 'vehicles' | 'units' | 'settings';
 
 type AdminVehicle = {
   id: string;
@@ -186,6 +186,20 @@ type ResidencyReview = {
   submittedAt?: string | null;
   reviewedAt?: string | null;
   reviewNote?: string | null;
+};
+
+/** One tracked link plus what it has brought in. */
+type CampaignLink = {
+  id: string;
+  code: string;
+  label: string;
+  channel: string;
+  active: boolean;
+  createdAt: string;
+  views: number;
+  people: number;
+  applications: number;
+  conversionRate: number;
 };
 
 type MealOption = {
@@ -660,6 +674,9 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   // into a wall of prose you have to scroll past.
   const [expandedApplicantId, setExpandedApplicantId] = useState<string | null>(null);
   const [selectedApplicantIds, setSelectedApplicantIds] = useState<Set<string>>(new Set());
+  const [campaigns, setCampaigns] = useState<CampaignLink[]>([]);
+  const [campaignForm, setCampaignForm] = useState<{ label: string; channel: string; code: string } | null>(null);
+  const [copiedCampaignId, setCopiedCampaignId] = useState<string | null>(null);
   const [isBulkRunning, setIsBulkRunning] = useState(false);
   /** Which applicant has an action in flight — see updateApplication. */
   const [pendingApplicationId, setPendingApplicationId] = useState<string | null>(null);
@@ -1224,8 +1241,72 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     if (adminTab === 'notifications') void loadNotifications(notifPage);
     if (adminTab === 'events') void loadEvents();
     if (adminTab === 'settings') void loadMembershipPlans();
+    if (adminTab === 'campaigns') void loadCampaigns();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adminTab, supportFilter, paymentsFilter, notifPage]);
+
+async function loadCampaigns() {
+    try {
+      setCampaigns(await apiRequest<CampaignLink[]>('/admin/campaigns'));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not load traffic links.');
+    }
+  }
+
+  async function saveCampaign() {
+    if (!campaignForm) return;
+    setError(null);
+    try {
+      await apiRequest('/admin/campaigns', { method: 'POST', body: JSON.stringify(campaignForm) });
+      setCampaignForm(null);
+      setNotice('Link created.');
+      await loadCampaigns();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not create the link.');
+    }
+  }
+
+  async function setCampaignActive(id: string, active: boolean) {
+    setError(null);
+    try {
+      await apiRequest(`/admin/campaigns/${id}`, { method: 'PATCH', body: JSON.stringify({ active }) });
+      setNotice(active ? 'Link is live again.' : 'Link retired — its numbers are kept.');
+      await loadCampaigns();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not update the link.');
+    }
+  }
+
+  async function deleteCampaign(link: CampaignLink) {
+    // Deleting takes the history with it, so the confirmation says how much.
+    const visits = link.views === 1 ? '1 recorded visit' : `${link.views} recorded visits`;
+    if (!window.confirm(`Delete "${link.label}" and ${visits}? Retiring it instead keeps the numbers.`)) return;
+    setError(null);
+    try {
+      await apiRequest(`/admin/campaigns/${link.id}`, { method: 'DELETE' });
+      setNotice('Link deleted.');
+      await loadCampaigns();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not delete the link.');
+    }
+  }
+
+  /** The address to paste into a post. Built from the site it's served from. */
+  function campaignUrl(code: string): string {
+    return `${window.location.origin}/?src=${code}`;
+  }
+
+  async function copyCampaignUrl(link: CampaignLink) {
+    try {
+      await navigator.clipboard.writeText(campaignUrl(link.code));
+      setCopiedCampaignId(link.id);
+      window.setTimeout(() => setCopiedCampaignId((current) => (current === link.id ? null : current)), 2000);
+    } catch {
+      // Clipboard access can be refused outright; showing the URL is the
+      // fallback that always works.
+      window.prompt('Copy this link', campaignUrl(link.code));
+    }
+  }
 
   async function updateMaintenance(id: string, body: { status?: string; adminNote?: string }) {
     setError(null);
@@ -2469,6 +2550,112 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
         </section>
           );
         })() : null}
+
+        {adminTab === 'campaigns' ? (
+        <section className="panel admin-panel" id="admin-campaigns">
+          <div className="admin-panel__head">
+            <div>
+              <h2>Traffic</h2>
+              <p>A link per channel, so you can see which ones actually bring people — and which of those people apply.</p>
+            </div>
+            {!campaignForm ? (
+              <button className="primary-button compact-button" onClick={() => setCampaignForm({ label: '', channel: '', code: '' })}>
+                New link
+              </button>
+            ) : null}
+          </div>
+
+          {campaignForm ? (
+            <div className="campaign-form">
+              <div className="campaign-form__fields">
+                <label>
+                  Name
+                  <input
+                    value={campaignForm.label}
+                    onChange={(event) => setCampaignForm({ ...campaignForm, label: event.target.value })}
+                    placeholder="Launch thread"
+                    autoFocus
+                  />
+                </label>
+                <label>
+                  Channel
+                  <input
+                    value={campaignForm.channel}
+                    onChange={(event) => setCampaignForm({ ...campaignForm, channel: event.target.value })}
+                    placeholder="Twitter"
+                  />
+                </label>
+                <label>
+                  Code <span className="campaign-form__optional">optional</span>
+                  <input
+                    value={campaignForm.code}
+                    onChange={(event) => setCampaignForm({ ...campaignForm, code: event.target.value })}
+                    placeholder="from the name"
+                  />
+                </label>
+              </div>
+              <p className="campaign-form__hint">
+                The code is what appears in the link and can never be changed afterwards — it will already be printed in
+                whatever you posted.
+              </p>
+              <div className="campaign-form__actions">
+                <button className="ghost-button compact-button" onClick={() => setCampaignForm(null)}>Cancel</button>
+                <button className="primary-button compact-button" onClick={() => void saveCampaign()}>Create link</button>
+              </div>
+            </div>
+          ) : null}
+
+          {campaigns.length === 0 && !campaignForm ? (
+            <div className="empty-state">No links yet. Make one per channel you post on, and the numbers start here.</div>
+          ) : null}
+
+          {campaigns.map((link) => (
+            <article className={link.active ? 'campaign-row' : 'campaign-row campaign-row--retired'} key={link.id}>
+              <div className="campaign-row__main">
+                <div className="campaign-row__id">
+                  <strong>{link.label}</strong>
+                  <span className="campaign-row__channel">{link.channel}</span>
+                  {!link.active ? <StatusBadge tone="neutral">Retired</StatusBadge> : null}
+                </div>
+                <button className="campaign-row__url" onClick={() => void copyCampaignUrl(link)} title="Copy this link">
+                  {campaignUrl(link.code)}
+                  <span className="campaign-row__copy">{copiedCampaignId === link.id ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
+
+              <div className="campaign-row__stats">
+                <div>
+                  <span>Views</span>
+                  <strong>{link.views}</strong>
+                </div>
+                <div>
+                  {/* Distinct browsers, not arrivals — one person reading it
+                      four times is one person. */}
+                  <span>People</span>
+                  <strong>{link.people}</strong>
+                </div>
+                <div>
+                  <span>Applied</span>
+                  <strong>{link.applications}</strong>
+                </div>
+                <div>
+                  <span>Rate</span>
+                  <strong>{link.conversionRate}%</strong>
+                </div>
+              </div>
+
+              <div className="campaign-row__actions">
+                <button className="ghost-button compact-button" onClick={() => void setCampaignActive(link.id, !link.active)}>
+                  {link.active ? 'Retire' : 'Reactivate'}
+                </button>
+                <button className="compact-button applicant-action--danger" onClick={() => void deleteCampaign(link)}>
+                  Delete
+                </button>
+              </div>
+            </article>
+          ))}
+        </section>
+        ) : null}
 
         {adminTab === 'events' ? (
         <section className="panel admin-panel">

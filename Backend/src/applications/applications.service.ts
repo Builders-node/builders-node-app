@@ -11,6 +11,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { linksFromUrls, MAX_BIO } from '../common/profile-fields';
 import { parseMoveInDate } from './move-in-date';
 import { createReferralCode } from '../users/referral-code';
+import { normalizeCode } from '../campaigns/campaigns.service';
 import { ApplyDto, ConfirmApplicationDto, CreateAccountDto, SendCredentialsDto } from './dto';
 
 const CODE_TTL_MS = 1000 * 60 * 10; // 10 minutes
@@ -202,6 +203,21 @@ export class ApplicationsService {
     };
   }
 
+
+  /**
+   * The campaign code to credit, or null.
+   *
+   * Checked against the links that exist rather than trusted from the browser:
+   * `?src=` is in a URL anybody can edit, and an unchecked value would put rows
+   * in the traffic report for links no admin ever made.
+   */
+  private async resolveCampaignCode(raw?: string): Promise<string | null> {
+    const code = normalizeCode(raw);
+    if (!code) return null;
+    const link = await this.prisma.campaignLink.findUnique({ where: { code }, select: { code: true } });
+    return link?.code ?? null;
+  }
+
   async apply(dto: ApplyDto) {
     const referralCode = this.normalizeReferralCode(dto.referralCode);
     const referrer = referralCode
@@ -210,6 +226,11 @@ export class ApplicationsService {
           select: { id: true, referralCode: true },
         })
       : null;
+
+    // Only recorded when it matches a link that actually exists: a hand-edited
+    // `?src=` would otherwise invent rows in the traffic report that no admin
+    // ever created.
+    const campaignCode = await this.resolveCampaignCode(dto.campaignCode);
 
     const links = linksFromUrls(dto.socials);
     const application = await this.prisma.application.create({
@@ -223,6 +244,7 @@ export class ApplicationsService {
         socialLinksJson: Object.keys(links).length > 0 ? JSON.stringify(links) : null,
         referralCode,
         referredByUserId: referrer?.id,
+        campaignCode,
         status: 'SUBMITTED',
       },
     });

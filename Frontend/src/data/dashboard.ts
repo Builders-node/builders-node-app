@@ -63,6 +63,7 @@ export type PageId =
   | 'adminVehicles'
   | 'adminResources'
   | 'adminEvents'
+  | 'adminCampaigns'
   | 'adminSettings'
   | 'allUsers'
   | 'units'
@@ -87,6 +88,7 @@ export const ADMIN_SUB_PAGES: PageId[] = [
   'adminVehicles',
   'adminResources',
   'adminEvents',
+  'adminCampaigns',
   'adminSettings',
   'units',
 ];
@@ -118,6 +120,7 @@ export const ADMIN_PAGE_TO_TAB: Record<string, string> = {
   adminVehicles: 'vehicles',
   adminResources: 'resources',
   adminEvents: 'events',
+  adminCampaigns: 'campaigns',
   adminSettings: 'settings',
   units: 'units',
 };
@@ -142,6 +145,7 @@ export const SETTINGS_TABS: Array<{ page: PageId; label: string }> = [
   { page: 'units', label: 'Units' },
   { page: 'adminResources', label: 'Resources' },
   { page: 'adminEvents', label: 'Events' },
+  { page: 'adminCampaigns', label: 'Traffic' },
 ];
 
 export const INBOX_PAGES: PageId[] = INBOX_TABS.map((tab) => tab.page);
@@ -175,6 +179,7 @@ export const PAGE_PATHS: Record<PageId, string> = {
   units: '/admin/settings/units',
   adminResources: '/admin/settings/resources',
   adminEvents: '/admin/settings/events',
+  adminCampaigns: '/admin/settings/traffic',
   allUsers: '/users',
   dashboard: '/account',
   profile: '/account',
@@ -212,6 +217,7 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/admin/settings/units': 'units',
   '/admin/settings/resources': 'adminResources',
   '/admin/settings/events': 'adminEvents',
+  '/admin/settings/traffic': 'adminCampaigns',
   '/users': 'allUsers',
   // Legacy flat paths — kept so old bookmarks/links still resolve. The URL
   // sync effect in App.tsx rewrites them to the canonical path above.

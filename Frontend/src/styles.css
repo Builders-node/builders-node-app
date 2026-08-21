@@ -6020,3 +6020,93 @@ body:has(.modal-overlay) .onboarding-toast { display: none; }
   .plan-card { grid-template-columns: 1fr; }
   .plan-card__end { justify-content: flex-start; }
 }
+
+/* ── Traffic: one tracked link per channel ─────────────────────────────────── */
+.campaign-form {
+  background: var(--surface-muted, #f6f6f7);
+  border-radius: 14px;
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 16px;
+}
+.campaign-form__fields {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 2fr 1fr 1fr;
+}
+.campaign-form label {
+  color: var(--muted);
+  display: grid;
+  font-size: 0.72rem;
+  font-weight: 700;
+  gap: 4px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.campaign-form__optional { font-weight: 500; letter-spacing: 0; text-transform: none; }
+.campaign-form__hint { color: var(--muted); font-size: 0.78rem; margin: 0; }
+.campaign-form__actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+.campaign-row {
+  align-items: center;
+  border: 1px solid var(--border, #e6e6e8);
+  border-radius: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding: 14px 16px;
+}
+.campaign-row--retired { opacity: 0.6; }
+.campaign-row__main { display: grid; gap: 6px; min-width: 220px; }
+.campaign-row__id { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.campaign-row__channel {
+  background: var(--surface-muted, #f0f0f2);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  padding: 2px 10px;
+}
+/* The URL is the thing an admin came here to take away, so it is the control
+   itself rather than text with a button beside it. */
+.campaign-row__url {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.76rem;
+  gap: 8px;
+  padding: 0;
+  text-align: left;
+}
+.campaign-row__url:hover { color: var(--text, #111827); }
+.campaign-row__copy {
+  border: 1px solid var(--border, #e6e6e8);
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 650;
+  padding: 1px 8px;
+}
+.campaign-row__stats { display: flex; gap: 22px; }
+.campaign-row__stats div { display: grid; gap: 2px; }
+.campaign-row__stats span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.campaign-row__stats strong { font-size: 1.1rem; }
+.campaign-row__actions { display: flex; gap: 8px; }
+
+@media (max-width: 820px) {
+  .campaign-form__fields { grid-template-columns: 1fr; }
+  .campaign-row { align-items: flex-start; flex-direction: column; }
+  .campaign-row__stats { gap: 18px; }
+}

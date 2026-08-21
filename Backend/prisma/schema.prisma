@@ -189,6 +189,10 @@ model Application {
   moveInDate DateTime?
   referralCode String?
   referredByUserId String?
+  /// Which marketing link brought them, if any. Distinct from `referralCode`:
+  /// that credits a member who invited them, this credits a channel we posted
+  /// on. Someone can arrive through both.
+  campaignCode String?
   status     String   @default("SUBMITTED")
   /// Proof that whoever is asking to set a password is the person who entered
   /// the emailed code. Minted at confirm, handed back once, consumed by
@@ -578,4 +582,49 @@ model MembershipPlan {
   updatedAt           DateTime @updatedAt
 
   @@index([active, order])
+}
+
+
+/**
+ * A trackable link an admin hands to a channel — a tweet, a Telegram post, a
+ * podcast description. The whole point is comparing them, so there is no limit
+ * on how many exist and each one carries only what is needed to tell them
+ * apart when the numbers come back.
+ */
+model CampaignLink {
+  id          String   @id @default(uuid())
+  /// The `?src=` value. Lower-case and url-safe so it survives being pasted
+  /// into a bio, a QR code, or somebody's newsletter.
+  code        String   @unique
+  /// What an admin will recognise a month later — "Ivan's launch thread".
+  label       String
+  /// The channel it was posted to, so several links can be totalled per channel.
+  channel     String
+  /// Retired links keep their history but stop being offered for copying.
+  active      Boolean  @default(true)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  visits      CampaignVisit[]
+
+  @@index([active])
+}
+
+/**
+ * One arrival through a link.
+ *
+ * Deliberately not a person: no address, no fingerprint, nothing that survives
+ * the browser it came from. `visitorKey` is a random value the browser makes up
+ * for itself, and its only job is telling a hundred visits from one hundred
+ * people apart from a hundred visits by one.
+ */
+model CampaignVisit {
+  id         String   @id @default(uuid())
+  linkId     String
+  visitorKey String
+  createdAt  DateTime @default(now())
+  link       CampaignLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([linkId, createdAt])
+  @@index([linkId, visitorKey])
 }

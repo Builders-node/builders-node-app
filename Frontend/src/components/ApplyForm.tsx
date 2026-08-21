@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/api";
 import { useBatch } from "@/lib/batch";
 import { clearStoredReferral, storedReferralCode } from "@/lib/referral";
+import { clearStoredCampaign, storedCampaignCode } from "@/lib/campaign";
 
 interface ApplyFormProps {
   onClose?: () => void;
@@ -61,6 +62,10 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
   // who was told a code by hand can type it over the top.
   const [referralCode, setReferralCode] = useState(storedReferralCode);
   const [arrivedWithReferral] = useState(() => Boolean(storedReferralCode()));
+  // Read once, at mount: the answer must not change while they fill the form,
+  // and unlike the referral code this is never shown or edited — it belongs to
+  // the traffic report, not to the applicant.
+  const [campaignCode] = useState(storedCampaignCode);
   const maxChars = 1000;
 
   // Flow: form → confirm emailed 6-digit code → (set password if no account) → success.
@@ -152,6 +157,7 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
         moveInDate: visitDate || undefined,
         socials: [social1, social2].filter(Boolean),
         referralCode: referralCode || undefined,
+        campaignCode: campaignCode || undefined,
       }),
     });
   };
@@ -275,6 +281,7 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
       // The application exists now, so the invite has done its job. Forget the
       // code — the next person to apply on this browser isn't their recruit.
       clearStoredReferral();
+      clearStoredCampaign();
 
       if (result.accountExists) {
         // Already has a login — nothing to set up, go straight to success.

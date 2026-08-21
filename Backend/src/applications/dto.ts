@@ -45,6 +45,14 @@ export class ApplyDto {
   @IsOptional()
   @IsString()
   referralCode?: string;
+
+  /**
+   * The `?src=` code of the marketing link they arrived through, if any. Kept
+   * separate from `referralCode`, which credits a member who invited them.
+   */
+  @IsOptional()
+  @IsString()
+  campaignCode?: string;
 }
 
 export class SendCredentialsDto {

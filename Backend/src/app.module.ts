@@ -23,6 +23,7 @@ import { AppController } from './app.controller';
 import { ApplicationsModule } from './applications/applications.module';
 import { HomeModule } from './home/home.module';
 import { AdminModule } from './admin/admin.module';
+import { CampaignsModule } from './campaigns/campaigns.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { AdminModule } from './admin/admin.module';
     VehiclesModule,
     DatabaseModule,
     AdminModule,
+    CampaignsModule,
     ApplicationsModule,
     AuthModule,
     UsersModule,
