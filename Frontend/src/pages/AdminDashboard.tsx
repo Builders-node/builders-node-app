@@ -1,5 +1,5 @@
 import { CalendarCheck, Check, FileText, Link as LinkIcon, MessageCircle, Pencil, Search, Send, ShieldCheck, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import { Toast } from '../components/Toast';
@@ -677,6 +677,8 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   const [campaigns, setCampaigns] = useState<CampaignLink[]>([]);
   const [campaignForm, setCampaignForm] = useState<{ label: string; channel: string; code: string } | null>(null);
   const [copiedCampaignId, setCopiedCampaignId] = useState<string | null>(null);
+  /** Which channel's links are showing; 'all' groups them under headings. */
+  const [campaignChannel, setCampaignChannel] = useState('all');
   const [isBulkRunning, setIsBulkRunning] = useState(false);
   /** Which applicant has an action in flight — see updateApplication. */
   const [pendingApplicationId, setPendingApplicationId] = useState<string | null>(null);
@@ -1290,6 +1292,41 @@ async function loadCampaigns() {
       setError(caught instanceof Error ? caught.message : 'Could not delete the link.');
     }
   }
+
+  /**
+   * Links gathered by channel, with each channel's totals.
+   *
+   * Grouped case-insensitively: "Linkedin" and "LinkedIn" are one channel, and
+   * splitting them would mean comparing halves of the same number. The first
+   * spelling seen is the one shown, so an admin sees what they typed.
+   */
+  const campaignChannels = useMemo(() => {
+    const groups = new Map<string, { name: string; links: CampaignLink[]; views: number; people: number; applications: number }>();
+    for (const link of campaigns) {
+      const key = link.channel.trim().toLowerCase();
+      const group = groups.get(key) ?? { name: link.channel.trim(), links: [], views: 0, people: 0, applications: 0 };
+      group.links.push(link);
+      group.views += link.views;
+      group.people += link.people;
+      group.applications += link.applications;
+      groups.set(key, group);
+    }
+    // Busiest first: the point of the screen is which channel is working.
+    return [...groups.values()].sort((a, b) => b.people - a.people || b.views - a.views || a.name.localeCompare(b.name));
+  }, [campaigns]);
+
+  /**
+   * The channels to render.
+   *
+   * Falls back to all of them when the selected one no longer exists — retiring
+   * the last link in a channel would otherwise leave an empty screen with the
+   * tab that caused it already gone.
+   */
+  const visibleCampaignChannels =
+    campaignChannel === 'all'
+      ? campaignChannels
+      : campaignChannels.filter((group) => group.name === campaignChannel);
+  const campaignGroupsToRender = visibleCampaignChannels.length > 0 ? visibleCampaignChannels : campaignChannels;
 
   /** The address to paste into a post. Built from the site it's served from. */
   function campaignUrl(code: string): string {
@@ -2609,12 +2646,48 @@ async function loadCampaigns() {
             <div className="empty-state">No links yet. Make one per channel you post on, and the numbers start here.</div>
           ) : null}
 
-          {campaigns.map((link) => (
+          {/* One tab per channel. A flat list stops being readable at about a
+              dozen links, and the comparison an admin came for is between
+              channels anyway — so the tabs carry each channel's totals. */}
+          {campaigns.length > 0 ? (
+            <div className="designation-filter-bar campaign-tabs" role="group" aria-label="Traffic channels">
+              <button
+                className={campaignChannel === 'all' ? 'designation-filter designation-filter--active' : 'designation-filter'}
+                onClick={() => setCampaignChannel('all')}
+              >
+                <span>All channels</span>
+                <strong>{campaigns.length}</strong>
+              </button>
+              {campaignChannels.map((group) => (
+                <button
+                  key={group.name}
+                  className={campaignChannel === group.name ? 'designation-filter designation-filter--active' : 'designation-filter'}
+                  onClick={() => setCampaignChannel(group.name)}
+                >
+                  <span>{group.name}</span>
+                  <strong>{group.links.length}</strong>
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {campaignGroupsToRender.map((group) => (
+              <section className="campaign-group" key={group.name}>
+                <header className="campaign-group__head">
+                  <h3>{group.name}</h3>
+                  {/* The channel's own totals, so the comparison doesn't have
+                      to be done by adding rows up in your head. */}
+                  <div className="campaign-group__totals">
+                    <span>{group.views} views</span>
+                    <span>{group.people} people</span>
+                    <span>{group.applications} applied</span>
+                  </div>
+                </header>
+                {group.links.map((link) => (
             <article className={link.active ? 'campaign-row' : 'campaign-row campaign-row--retired'} key={link.id}>
               <div className="campaign-row__main">
                 <div className="campaign-row__id">
                   <strong>{link.label}</strong>
-                  <span className="campaign-row__channel">{link.channel}</span>
                   {!link.active ? <StatusBadge tone="neutral">Retired</StatusBadge> : null}
                 </div>
                 <button className="campaign-row__url" onClick={() => void copyCampaignUrl(link)} title="Copy this link">
@@ -2653,7 +2726,9 @@ async function loadCampaigns() {
                 </button>
               </div>
             </article>
-          ))}
+                ))}
+              </section>
+            ))}
         </section>
         ) : null}
 

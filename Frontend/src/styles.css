@@ -6110,3 +6110,24 @@ body:has(.modal-overlay) .onboarding-toast { display: none; }
   .campaign-row { align-items: flex-start; flex-direction: column; }
   .campaign-row__stats { gap: 18px; }
 }
+
+/* Channel sections inside Traffic. */
+.campaign-tabs { margin-bottom: 16px; }
+.campaign-group { margin-bottom: 18px; }
+.campaign-group__head {
+  align-items: baseline;
+  border-bottom: 1px solid var(--border, #e6e6e8);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+}
+.campaign-group__head h3 { font-size: 0.95rem; margin: 0; }
+.campaign-group__totals {
+  color: var(--muted);
+  display: flex;
+  font-size: 0.78rem;
+  gap: 14px;
+}
