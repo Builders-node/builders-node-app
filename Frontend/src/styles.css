@@ -1280,6 +1280,25 @@ select:disabled {
   width: auto;
 }
 
+/* How somebody arrived — currently only the affiliate page. Grey rather than
+   accent-coloured: it is a fact about them, not a permission or a warning, and
+   it sits next to two badges that do carry urgency. */
+.badge-source {
+  align-items: center;
+  background: var(--surface-muted, #f0f0f2);
+  border-radius: 999px;
+  color: var(--muted);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  padding: 3px 7px;
+  text-transform: uppercase;
+  width: auto;
+}
+
 /* Who has admin access, visible without opening anyone. Outlined rather than
    filled so it doesn't compete with the accent-coloured NEW badge next to it. */
 .badge-role {

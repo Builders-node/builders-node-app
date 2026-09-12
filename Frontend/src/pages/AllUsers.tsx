@@ -12,6 +12,8 @@ type AdminOverviewUser = {
   fullName?: string | null;
   email: string;
   referralCode?: string | null;
+  /** Which of our pages sent them to the signup form; null for every other way in. */
+  signupSource?: string | null;
   role: string;
   membershipStatus?: string | null;
   residencyStatus: string;
@@ -85,7 +87,10 @@ type ReferralsReport = {
 };
 
 type UserDrawerTab = 'account' | 'referrals' | 'residency' | 'housing' | 'plans' | 'payments' | 'meals' | 'support';
-type UserFilterId = 'all' | 'current' | 'applicants' | 'past' | 'setup' | 'approved';
+type UserFilterId = 'all' | 'current' | 'applicants' | 'affiliates' | 'past' | 'setup' | 'approved';
+
+/** Must match the server's allowlist in Backend `auth/signup-source.ts`. */
+const AFFILIATE_SIGNUP_SOURCE = 'affiliate-page';
 
 const userDrawerTabs: Array<{ id: UserDrawerTab; label: string }> = [
   { id: 'account', label: 'Account' },
@@ -115,6 +120,14 @@ const userFilters: Array<{ id: UserFilterId; label: string; matches: (user: Admi
     id: 'applicants',
     label: 'Applicants',
     matches: (user) => user.membershipStatus === 'APPLICANT' || user.residencyStatus !== 'APPROVED',
+  },
+  {
+    // Everyone who registered from /affiliate. The affiliate report lives in
+    // Admin → Settings → Affiliates with their link and what they're owed;
+    // this is the same people in the list where every other person is.
+    id: 'affiliates',
+    label: 'From affiliate page',
+    matches: (user) => user.signupSource === AFFILIATE_SIGNUP_SOURCE,
   },
   {
     id: 'past',
@@ -691,6 +704,10 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
                         would put a badge on almost every row and tell you
                         nothing — the point is spotting who has access. */}
                     {ADMIN_ROLES.includes(user.role) ? <span className="badge-role">{roleLabel(user.role)}</span> : null}
+                    {/* Visible in every view, not only under the filter: an
+                        admin looking at one person shouldn't have to switch
+                        tabs to find out how they arrived. */}
+                    {user.signupSource === AFFILIATE_SIGNUP_SOURCE ? <span className="badge-source">AFFILIATE</span> : null}
                   </strong>
                   <small>{user.email} · Joined {formatDate(user.createdAt)}</small>
                 </span>

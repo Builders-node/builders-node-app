@@ -178,6 +178,10 @@ export class AdminService {
         id: user.id,
         email: user.email,
         referralCode: user.referralCode,
+        // Which of our pages sent them to the signup form. Null for everyone
+        // who arrived any other way — an admin created them, they were
+        // onboarded from the applicant pipeline, or they just went to /signup.
+        signupSource: user.signupSource,
         role: user.role,
         fullName: user.profile?.fullName,
         membershipStatus: user.membership?.status,
