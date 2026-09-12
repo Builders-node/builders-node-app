@@ -628,3 +628,49 @@ model CampaignVisit {
   @@index([linkId, createdAt])
   @@index([linkId, visitorKey])
 }
+
+/**
+ * Somebody asking to promote Builders Node for a fee.
+ * Kept apart from `Application` on purpose: an applicant wants to live here, an
+ * affiliate wants to send people who will. They answer different questions, are
+ * reviewed against different things, and only one of them ends in a room.
+ * The payout is deliberately not modelled here. What an affiliate has earned is
+ * a question about the people they actually sent — answered by counting
+ * `Application.referredByUserId` against the account approval creates — and a
+ * second, hand-maintained number on this row would only ever disagree with it.
+ */
+model AffiliateApplication {
+  id           String    @id @default(uuid())
+  fullName     String
+  email        String    @unique
+  /// How to reach them quickly. Most of this audience lives in Telegram.
+  telegram     String?
+  country      String?
+  /// Where they would promote — "YouTube, 40k subs, startup interviews".
+  audience     String?
+  /// Their own estimate of reach, as they wrote it. Free text rather than a
+  /// number: "12k on X, ~3k newsletter" is the honest answer and a single
+  /// integer column would force them to throw half of it away.
+  audienceSize String?
+  /// Channel URLs, as the `{ label: url }` JSON shape profiles already use.
+  linksJson    String?
+  about        String?
+  /// PENDING → APPROVED | DECLINED. No intermediate states: unlike a residency
+  /// application there is nothing to schedule, pay, or arrive for.
+  status       String    @default("PENDING")
+  adminNote    String?
+  /**
+   * The account created when they were approved.
+   * This is what makes an affiliate's link work at all: referral credit is
+   * resolved through `User.referralCode`, so an approved affiliate has to own a
+   * user row before they have anything to share. Null while PENDING.
+   */
+  userId       String?
+  /// Which marketing link brought them to the affiliate page, if any.
+  campaignCode String?
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([status, createdAt])
+}

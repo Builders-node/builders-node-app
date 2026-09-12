@@ -6131,3 +6131,50 @@ body:has(.modal-overlay) .onboarding-toast { display: none; }
   font-size: 0.78rem;
   gap: 14px;
 }
+
+/* ── Affiliates: the queue of people asking to promote us ─────────────────── */
+/* Built on .campaign-row — same card, but these rows carry prose (what they'd
+   say about us) rather than four numbers, so the main column takes the width. */
+.affiliate-row__main { flex: 1 1 320px; gap: 8px; min-width: 260px; }
+.affiliate-row__email {
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-decoration: none;
+  width: fit-content;
+}
+.affiliate-row__email:hover { text-decoration: underline; }
+.affiliate-row__facts {
+  color: var(--text, #111827);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  gap: 4px 16px;
+}
+.affiliate-row__facts em {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-right: 5px;
+  text-transform: uppercase;
+}
+.affiliate-row__links { display: flex; flex-wrap: wrap; gap: 10px; }
+.affiliate-row__links a {
+  color: var(--muted);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+.affiliate-row__about {
+  border-left: 2px solid var(--border, #e6e6e8);
+  color: var(--text, #111827);
+  font-size: 0.84rem;
+  line-height: 1.5;
+  margin: 2px 0 0;
+  padding-left: 10px;
+  white-space: pre-line;
+}
+.affiliate-row__note { color: var(--muted); font-size: 0.78rem; margin: 0; }
+/* The applied-on date sits in a stats slot built for a big number; at that
+   size a date takes two lines. */
+.affiliate-row__date { font-size: 0.85rem !important; font-weight: 600; }

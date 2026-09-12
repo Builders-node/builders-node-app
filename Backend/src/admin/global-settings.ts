@@ -7,6 +7,40 @@
 export const GLOBAL_MEAL_PLAN_KEY = 'global_meal_plan';
 export const GLOBAL_CLEANING_PLAN_KEY = 'global_cleaning_plan';
 export const BATCH_KEY = 'batch_start';
+export const AFFILIATE_KEY = 'affiliate_reward';
+
+/**
+ * What an affiliate is paid for one person who joins through them.
+ *
+ * Stored rather than written into the affiliate page, for the same reason
+ * membership prices are: this number is a promise printed on a public page and
+ * repeated in the emails we send affiliates, and the day it changes it has to
+ * change in one place, not four.
+ */
+export interface AffiliateReward {
+  /** Paid once, per person who joins. */
+  rewardCents: number;
+  currency: string;
+}
+
+/** Used until an admin sets one — the terms the program launched with. */
+export const DEFAULT_AFFILIATE_REWARD: AffiliateReward = { rewardCents: 20_000, currency: 'USD' };
+
+export function parseAffiliateReward(value: string | null | undefined): AffiliateReward {
+  if (!value) return DEFAULT_AFFILIATE_REWARD;
+  try {
+    const parsed = JSON.parse(value) as Partial<AffiliateReward>;
+    const cents = Number(parsed.rewardCents);
+    return {
+      // A missing or nonsense amount falls back rather than printing "$0 per
+      // referral" on a recruiting page.
+      rewardCents: Number.isFinite(cents) && cents > 0 ? Math.round(cents) : DEFAULT_AFFILIATE_REWARD.rewardCents,
+      currency: typeof parsed.currency === 'string' && parsed.currency.trim() ? parsed.currency.trim().toUpperCase() : 'USD',
+    };
+  } catch {
+    return DEFAULT_AFFILIATE_REWARD;
+  }
+}
 
 export interface BatchInfo {
   /** ISO date (YYYY-MM-DD) the batch starts. */

@@ -25,6 +25,7 @@ const AllUsers = lazy(() => import('./pages/AllUsers').then((m) => ({ default: m
 const Units = lazy(() => import('./pages/Units').then((m) => ({ default: m.Units })));
 const Landing = lazy(() => import('./pages/Landing').then((m) => ({ default: m.Landing })));
 const Apply = lazy(() => import('./pages/Apply').then((m) => ({ default: m.Apply })));
+const Affiliate = lazy(() => import('./pages/Affiliate').then((m) => ({ default: m.Affiliate })));
 const AdminLogin = lazy(() => import('./pages/AdminLogin').then((m) => ({ default: m.AdminLogin })));
 const Security = lazy(() => import('./pages/Security').then((m) => ({ default: m.Security })));
 const Resources = lazy(() => import('./pages/Resources').then((m) => ({ default: m.Resources })));
@@ -39,6 +40,7 @@ const SITE_NAME = 'Builders Node';
 const PAGE_TITLES: Partial<Record<PageId, string>> = {
   landing: 'Builders Node — Startup Society in Próspera',
   apply: 'Apply — Builders Node',
+  affiliate: 'Affiliate programme — Builders Node',
   login: 'Log in — Builders Node',
   signup: 'Create your account — Builders Node',
   setupPassword: 'Set your password — Builders Node',
@@ -65,6 +67,8 @@ const PAGE_TITLES: Partial<Record<PageId, string>> = {
   adminVehicles: 'Vehicles — Builders Node',
   adminResources: 'Resources — Builders Node',
   adminEvents: 'Events — Builders Node',
+  adminCampaigns: 'Traffic — Builders Node',
+  adminAffiliates: 'Affiliates — Builders Node',
   adminSettings: 'Admin settings — Builders Node',
   pass: 'Member pass — Builders Node',
 };
@@ -245,6 +249,9 @@ function App() {
       if (canAccessAdmin) return <AdminDashboard currentUserRole={currentUserRole} setActivePage={setActivePage} />;
       return <Profile currentUserId={currentUserId} setActivePage={setActivePage} />;
     }
+    // Public, and stays public for a signed-in member too: a member can be an
+    // affiliate, and the landing-page redirect below must not sweep them off it.
+    if (activePage === 'affiliate') return <Affiliate setActivePage={setActivePage} currentUserId={currentUserId} />;
     if (activePage === 'apply') return <Apply currentUserId={currentUserId} currentUserRole={currentUserRole} setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
     if (activePage === 'adminLogin') {
       return (
@@ -315,7 +322,7 @@ function App() {
 
   // Full-screen views (no app shell): the landing, every auth screen, and any
   // protected page viewed while logged out (which falls back to the login panel).
-  const AUTH_PAGES: PageId[] = ['apply', 'login', 'signup', 'setupPassword', 'forgotPassword', 'resetPassword', 'verifyEmail', 'adminLogin', 'pass'];
+  const AUTH_PAGES: PageId[] = ['apply', 'affiliate', 'login', 'signup', 'setupPassword', 'forgotPassword', 'resetPassword', 'verifyEmail', 'adminLogin', 'pass'];
   const PROTECTED_PAGES: PageId[] = ['profile', 'community', 'myProfile', 'resources', 'security', 'allUsers', 'units', ...ADMIN_SUB_PAGES];
   if (
     showLanding ||

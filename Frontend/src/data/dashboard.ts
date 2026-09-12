@@ -45,6 +45,7 @@ export type NavSection = {
 export type PageId =
   | 'landing'
   | 'apply'
+  | 'affiliate'
   | 'login'
   | 'signup'
   | 'forgotPassword'
@@ -64,6 +65,7 @@ export type PageId =
   | 'adminResources'
   | 'adminEvents'
   | 'adminCampaigns'
+  | 'adminAffiliates'
   | 'adminSettings'
   | 'allUsers'
   | 'units'
@@ -89,6 +91,7 @@ export const ADMIN_SUB_PAGES: PageId[] = [
   'adminResources',
   'adminEvents',
   'adminCampaigns',
+  'adminAffiliates',
   'adminSettings',
   'units',
 ];
@@ -121,6 +124,7 @@ export const ADMIN_PAGE_TO_TAB: Record<string, string> = {
   adminResources: 'resources',
   adminEvents: 'events',
   adminCampaigns: 'campaigns',
+  adminAffiliates: 'affiliates',
   adminSettings: 'settings',
   units: 'units',
 };
@@ -136,6 +140,7 @@ export const INBOX_TABS: Array<{ page: PageId; label: string; attentionKey: stri
   { page: 'adminSupport', label: 'Support', attentionKey: 'openTickets' },
   { page: 'adminPayments', label: 'Payments', attentionKey: 'overduePayments' },
   { page: 'adminMaintenance', label: 'Maintenance', attentionKey: 'openMaintenance' },
+  { page: 'adminAffiliates', label: 'Affiliates', attentionKey: 'pendingAffiliates' },
 ];
 
 /** Rarely-touched CRUD, grouped as sub-tabs under a single "Settings" entry. */
@@ -157,6 +162,7 @@ export const ADMIN_ROLES = ['SUPER_ADMIN', 'MODERATOR', 'COMMUNITY_LEADER'];
 export const PAGE_PATHS: Record<PageId, string> = {
   landing: '/',
   apply: '/apply',
+  affiliate: '/affiliate',
   login: '/login',
   signup: '/signup',
   forgotPassword: '/forgot-password',
@@ -171,6 +177,7 @@ export const PAGE_PATHS: Record<PageId, string> = {
   adminSupport: '/admin/inbox/support',
   adminPayments: '/admin/inbox/payments',
   adminMaintenance: '/admin/inbox/maintenance',
+  adminAffiliates: '/admin/inbox/affiliates',
   adminDesignations: '/admin/designations',
   adminNotifications: '/admin/notifications',
   // Rarely-touched CRUD lives under the Settings group.
@@ -194,6 +201,7 @@ export const PAGE_PATHS: Record<PageId, string> = {
 const PATH_TO_PAGE: Record<string, PageId> = {
   '/': 'landing',
   '/apply': 'apply',
+  '/affiliate': 'affiliate',
   '/login': 'login',
   '/signup': 'signup',
   '/forgot-password': 'forgotPassword',
@@ -211,6 +219,7 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/admin/inbox/support': 'adminSupport',
   '/admin/inbox/payments': 'adminPayments',
   '/admin/inbox/maintenance': 'adminMaintenance',
+  '/admin/inbox/affiliates': 'adminAffiliates',
   // Settings group.
   '/admin/settings': 'adminSettings',
   '/admin/settings/vehicles': 'adminVehicles',

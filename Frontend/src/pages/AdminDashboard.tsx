@@ -84,7 +84,7 @@ type DesignationUser = AdminOverview['users'][number];
 type DesignationFilterId = 'all' | 'incomplete' | 'new' | 'members';
 type Applicant = AdminOverview['applications'][number];
 type ApplicantAction = { key: string; label: string; icon: ReactNode; tone?: 'ghost' | 'danger'; hint?: string; run: () => void };
-type AdminTab = 'overview' | 'applicants' | 'residency' | 'designations' | 'maintenance' | 'support' | 'payments' | 'notifications' | 'resources' | 'events' | 'campaigns' | 'vehicles' | 'units' | 'settings';
+type AdminTab = 'overview' | 'applicants' | 'residency' | 'designations' | 'maintenance' | 'support' | 'payments' | 'notifications' | 'resources' | 'events' | 'campaigns' | 'affiliates' | 'vehicles' | 'units' | 'settings';
 
 type AdminVehicle = {
   id: string;
@@ -202,6 +202,29 @@ type CampaignLink = {
   conversionRate: number;
 };
 
+/** One row of the affiliate queue, as /admin/affiliates returns it. */
+type AffiliateRow = {
+  id: string;
+  fullName: string;
+  email: string;
+  telegram: string | null;
+  country: string | null;
+  audience: string | null;
+  audienceSize: string | null;
+  links: string[];
+  about: string | null;
+  status: string;
+  adminNote: string | null;
+  campaignCode: string | null;
+  /** Null until they're approved — the code only exists from then. */
+  referralCode: string | null;
+  inviteLink: string | null;
+  /** People who applied with their code. The only number payouts come from. */
+  referredCount: number;
+  reviewedAt: string | null;
+  createdAt: string;
+};
+
 type MealOption = {
   id: string;
   name: string;
@@ -240,6 +263,8 @@ type GlobalSettings = {
   cleaningOptions: CleaningOption[];
   apartmentOptions: ApartmentOption[];
   batch: { startDate: string | null; label: string | null };
+  /** What one referral pays an affiliate, quoted by the /affiliate page. */
+  affiliate: { rewardCents: number; currency: string };
 };
 
 type AdminDashboardProps = {
@@ -266,6 +291,38 @@ function toneForStatus(status: string): StatusTone {
   if (status === 'SUBMITTED' || status === 'IN_PROGRESS' || status === 'PAYMENT_LINK_SENT' || status === 'PENDING') return 'attention';
   if (status.includes('REJECTED') || status === 'NO_APARTMENT_AVAILABLE') return 'danger';
   return 'neutral';
+}
+
+/** The affiliate queue's status filter. Pending is the working view. */
+const AFFILIATE_FILTERS = [
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'APPROVED', label: 'Approved' },
+  { value: 'DECLINED', label: 'Declined' },
+  { value: 'ALL', label: 'All' },
+];
+
+function affiliateStatusLabel(status: string): string {
+  if (status === 'PENDING') return 'Pending';
+  if (status === 'APPROVED') return 'Affiliate';
+  if (status === 'DECLINED') return 'Declined';
+  return status;
+}
+
+function affiliateTone(status: string): StatusTone {
+  if (status === 'APPROVED') return 'good';
+  if (status === 'PENDING') return 'attention';
+  if (status === 'DECLINED') return 'danger';
+  return 'neutral';
+}
+
+/**
+ * "https://youtube.com/@nina" → "youtube.com/@nina".
+ *
+ * An affiliate lists several channels and the scheme is the same on all of
+ * them, so it is three characters of noise repeated down the row.
+ */
+function prettyLink(url: string): string {
+  return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 }
 
 function nextStepFor(status: string, _apartmentAvailable?: boolean | null, paymentStatus?: string) {
@@ -679,6 +736,10 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   const [copiedCampaignId, setCopiedCampaignId] = useState<string | null>(null);
   /** Which channel's links are showing; 'all' groups them under headings. */
   const [campaignChannel, setCampaignChannel] = useState('all');
+  const [affiliates, setAffiliates] = useState<AffiliateRow[]>([]);
+  const [affiliateFilter, setAffiliateFilter] = useState('PENDING');
+  const [affiliateBusyId, setAffiliateBusyId] = useState<string | null>(null);
+  const [copiedAffiliateId, setCopiedAffiliateId] = useState<string | null>(null);
   const [isBulkRunning, setIsBulkRunning] = useState(false);
   /** Which applicant has an action in flight — see updateApplication. */
   const [pendingApplicationId, setPendingApplicationId] = useState<string | null>(null);
@@ -756,6 +817,10 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   const [globalCleaningPlanId, setGlobalCleaningPlanId] = useState<string>('');
   const [batchStartDate, setBatchStartDate] = useState('');
   const [batchLabel, setBatchLabel] = useState('');
+  // Held in whole units, not cents: nobody sets an affiliate payout of $200.50,
+  // and "20000" in a money field is how you accidentally promise $20,000.
+  const [affiliateReward, setAffiliateReward] = useState('');
+  const [isSavingAffiliate, setIsSavingAffiliate] = useState(false);
   const [isSavingBatch, setIsSavingBatch] = useState(false);
   const [globalMessage, setGlobalMessage] = useState<string | null>(null);
   const [isSavingGlobal, setIsSavingGlobal] = useState(false);
@@ -1244,8 +1309,74 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     if (adminTab === 'events') void loadEvents();
     if (adminTab === 'settings') void loadMembershipPlans();
     if (adminTab === 'campaigns') void loadCampaigns();
+    if (adminTab === 'affiliates') void loadAffiliates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adminTab, supportFilter, paymentsFilter, notifPage]);
+
+async function loadAffiliates() {
+    try {
+      setAffiliates(await apiRequest<AffiliateRow[]>('/admin/affiliates'));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not load affiliate applications.');
+    }
+  }
+
+  /**
+   * Approve, and say plainly what that does — it creates the applicant an
+   * account (that is where their referral code lives) and emails it to them.
+   * Neither is undoable from here, so it is worth a sentence before the click.
+   */
+  async function approveAffiliate(row: AffiliateRow) {
+    if (!window.confirm(`Approve ${row.fullName}? This creates their account, generates their referral link, and emails both to ${row.email}.`)) return;
+    setError(null);
+    setAffiliateBusyId(row.id);
+    try {
+      setAffiliates(await apiRequest<AffiliateRow[]>(`/admin/affiliates/${row.id}/approve`, { method: 'POST', body: JSON.stringify({}) }));
+      setNotice(`${row.fullName} is an affiliate — their link is on its way.`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not approve that application.');
+    } finally {
+      setAffiliateBusyId(null);
+    }
+  }
+
+  async function declineAffiliate(row: AffiliateRow) {
+    const note = window.prompt(`Decline ${row.fullName}? Leave a note for us (they never see it).`, row.adminNote ?? '');
+    // Cancel returns null; an empty string is a deliberate "no note".
+    if (note === null) return;
+    setError(null);
+    setAffiliateBusyId(row.id);
+    try {
+      setAffiliates(await apiRequest<AffiliateRow[]>(`/admin/affiliates/${row.id}/decline`, { method: 'POST', body: JSON.stringify({ adminNote: note }) }));
+      setNotice(`${row.fullName} was declined.`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not decline that application.');
+    } finally {
+      setAffiliateBusyId(null);
+    }
+  }
+
+  async function deleteAffiliate(row: AffiliateRow) {
+    if (!window.confirm(`Delete ${row.fullName}'s application? Their account and referrals, if any, are untouched.`)) return;
+    setError(null);
+    try {
+      setAffiliates(await apiRequest<AffiliateRow[]>(`/admin/affiliates/${row.id}`, { method: 'DELETE' }));
+      setNotice('Application deleted.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not delete that application.');
+    }
+  }
+
+  async function copyAffiliateLink(row: AffiliateRow) {
+    if (!row.inviteLink) return;
+    try {
+      await navigator.clipboard.writeText(row.inviteLink);
+      setCopiedAffiliateId(row.id);
+      setTimeout(() => setCopiedAffiliateId(null), 1600);
+    } catch {
+      window.prompt('Copy this link', row.inviteLink);
+    }
+  }
 
 async function loadCampaigns() {
     try {
@@ -1678,6 +1809,7 @@ async function loadCampaigns() {
     setGlobalCleaningPlanId(data.cleaningPlan?.id ?? '');
     setBatchStartDate(data.batch?.startDate ?? '');
     setBatchLabel(data.batch?.label ?? '');
+    setAffiliateReward(data.affiliate ? String(data.affiliate.rewardCents / 100) : '');
     if (data.mealPlan?.id === 'custom') {
       setCustomMealName(data.mealPlan.name);
       setCustomMealPrice(data.mealPlan.weeklyPriceCents != null ? String(data.mealPlan.weeklyPriceCents / 100) : '');
@@ -1702,6 +1834,29 @@ async function loadCampaigns() {
       setError(caught instanceof Error ? caught.message : 'Could not save batch start.');
     } finally {
       setIsSavingBatch(false);
+    }
+  }
+
+  async function saveAffiliateReward() {
+    const dollars = Number(affiliateReward);
+    if (!Number.isFinite(dollars) || dollars <= 0) {
+      setError('Enter what one referral pays, in dollars.');
+      return;
+    }
+    setError(null);
+    setGlobalMessage(null);
+    setIsSavingAffiliate(true);
+    try {
+      const data = await apiRequest<GlobalSettings>('/admin/settings/global/affiliate-reward', {
+        method: 'PUT',
+        body: JSON.stringify({ rewardCents: Math.round(dollars * 100) }),
+      });
+      applyGlobalSettings(data);
+      setGlobalMessage(`Affiliates now earn ${formatMoney(data.affiliate.rewardCents, data.affiliate.currency)} per referral.`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not save the affiliate reward.');
+    } finally {
+      setIsSavingAffiliate(false);
     }
   }
 
@@ -1791,6 +1946,9 @@ async function loadCampaigns() {
       setError(caught instanceof Error ? caught.message : 'Could not update role.');
     }
   }
+
+  const visibleAffiliates =
+    affiliateFilter === 'ALL' ? affiliates : affiliates.filter((row) => row.status === affiliateFilter);
 
   const currentPage = adminPage ?? 'adminDashboard';
   const inInbox = INBOX_PAGES.includes(currentPage);
@@ -2732,6 +2890,120 @@ async function loadCampaigns() {
         </section>
         ) : null}
 
+        {adminTab === 'affiliates' ? (
+        <section className="panel admin-panel" id="admin-affiliates">
+          <div className="admin-panel__head">
+            <div>
+              <h2>Affiliates</h2>
+              <p>People asking to promote Builders Node for a fee. Approving one creates their account, mints their referral link, and emails both.</p>
+            </div>
+          </div>
+
+          {/* Pending first, and selected by default: this is a queue, and the
+              decided rows are history you go looking for. */}
+          <div className="designation-filter-bar" role="group" aria-label="Affiliate status">
+            {AFFILIATE_FILTERS.map((option) => {
+              const count = option.value === 'ALL' ? affiliates.length : affiliates.filter((row) => row.status === option.value).length;
+              return (
+                <button
+                  key={option.value}
+                  className={affiliateFilter === option.value ? 'designation-filter designation-filter--active' : 'designation-filter'}
+                  onClick={() => setAffiliateFilter(option.value)}
+                >
+                  <span>{option.label}</span>
+                  <strong>{count}</strong>
+                </button>
+              );
+            })}
+          </div>
+
+          {visibleAffiliates.length === 0 ? (
+            <div className="empty-state">
+              {affiliates.length === 0
+                ? 'No affiliate applications yet. The programme lives at /affiliate.'
+                : 'Nothing here with that status.'}
+            </div>
+          ) : null}
+
+          {visibleAffiliates.map((row) => (
+            <article className="campaign-row affiliate-row" key={row.id}>
+              <div className="campaign-row__main affiliate-row__main">
+                <div className="campaign-row__id">
+                  <strong>{row.fullName}</strong>
+                  <StatusBadge tone={affiliateTone(row.status)}>{affiliateStatusLabel(row.status)}</StatusBadge>
+                </div>
+                <a className="affiliate-row__email" href={`mailto:${row.email}`}>{row.email}</a>
+
+                <div className="affiliate-row__facts">
+                  {row.audience ? <span><em>Promotes on</em> {row.audience}</span> : null}
+                  {row.audienceSize ? <span><em>Reach</em> {row.audienceSize}</span> : null}
+                  {row.telegram ? <span><em>Telegram</em> {row.telegram}</span> : null}
+                  {row.country ? <span><em>Based in</em> {row.country}</span> : null}
+                  {row.campaignCode ? <span><em>Arrived via</em> {row.campaignCode}</span> : null}
+                </div>
+
+                {row.links.length > 0 ? (
+                  <div className="affiliate-row__links">
+                    {row.links.map((link) => (
+                      <a key={link} href={link} target="_blank" rel="noopener noreferrer">{prettyLink(link)}</a>
+                    ))}
+                  </div>
+                ) : null}
+
+                {row.about ? <p className="affiliate-row__about">{row.about}</p> : null}
+                {row.adminNote ? <p className="affiliate-row__note">Note: {row.adminNote}</p> : null}
+
+                {/* Only an approved affiliate has a link, because the code does
+                    not exist before then. */}
+                {row.inviteLink ? (
+                  <button className="campaign-row__url" onClick={() => void copyAffiliateLink(row)} title="Copy their referral link">
+                    {row.inviteLink}
+                    <span className="campaign-row__copy">{copiedAffiliateId === row.id ? 'Copied' : 'Copy'}</span>
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="campaign-row__stats">
+                <div>
+                  {/* What they are owed is counted from this, and nowhere else. */}
+                  <span>Referred</span>
+                  <strong>{row.referredCount}</strong>
+                </div>
+                <div>
+                  <span>Applied</span>
+                  <strong className="affiliate-row__date">{new Date(row.createdAt).toLocaleDateString()}</strong>
+                </div>
+              </div>
+
+              <div className="campaign-row__actions">
+                {row.status === 'PENDING' ? (
+                  <>
+                    <button
+                      className="primary-button compact-button"
+                      disabled={affiliateBusyId === row.id}
+                      onClick={() => void approveAffiliate(row)}
+                    >
+                      {affiliateBusyId === row.id ? 'Working…' : 'Approve'}
+                    </button>
+                    <button
+                      className="ghost-button compact-button"
+                      disabled={affiliateBusyId === row.id}
+                      onClick={() => void declineAffiliate(row)}
+                    >
+                      Decline
+                    </button>
+                  </>
+                ) : (
+                  <button className="compact-button applicant-action--danger" onClick={() => void deleteAffiliate(row)}>
+                    Delete
+                  </button>
+                )}
+              </div>
+            </article>
+          ))}
+        </section>
+        ) : null}
+
         {adminTab === 'events' ? (
         <section className="panel admin-panel">
           <div className="admin-panel__head">
@@ -3144,6 +3416,31 @@ async function loadCampaigns() {
             {globalSettings?.batch?.startDate
               ? `Landing shows batch start: ${globalSettings.batch.startDate}${globalSettings.batch.label ? ` · "${globalSettings.batch.label}"` : ''}`
               : 'No batch start set — landing shows its default date.'}
+          </p>
+
+          <div className="global-settings global-settings--batch">
+            <label className="global-settings__field">
+              Affiliate reward, per person who joins (USD)
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={affiliateReward}
+                onChange={(event) => setAffiliateReward(event.target.value)}
+                placeholder="200"
+              />
+            </label>
+            <button className="primary-button" disabled={isSavingAffiliate} onClick={() => void saveAffiliateReward()}>
+              {isSavingAffiliate ? 'Saving…' : 'Save reward'}
+            </button>
+          </div>
+          <p className="global-settings__current">
+            {/* Changing this rewrites the public page and every approval email
+                sent from here on — it does not change what an affiliate who was
+                already promised the old amount is owed. */}
+            {globalSettings?.affiliate
+              ? `The /affiliate page offers ${formatMoney(globalSettings.affiliate.rewardCents, globalSettings.affiliate.currency)} per person who joins.`
+              : 'Affiliate reward not set — the page shows its default.'}
           </p>
 
           {globalMessage ? <p className="form-success">{globalMessage}</p> : null}

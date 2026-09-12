@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { PrismaService } from './database/prisma.service';
-import { BATCH_KEY, parseBatch } from './admin/global-settings';
+import { AFFILIATE_KEY, BATCH_KEY, parseAffiliateReward, parseBatch } from './admin/global-settings';
 
 @Controller()
 export class AppController {
@@ -18,7 +18,14 @@ export class AppController {
   /** Public site config (read by the landing page — no auth). */
   @Get('public/settings')
   async publicSettings() {
-    const row = await this.prisma.globalSetting.findUnique({ where: { key: BATCH_KEY } });
-    return { batch: parseBatch(row?.value) };
+    const [batchRow, affiliateRow] = await Promise.all([
+      this.prisma.globalSetting.findUnique({ where: { key: BATCH_KEY } }),
+      this.prisma.globalSetting.findUnique({ where: { key: AFFILIATE_KEY } }),
+    ]);
+    return {
+      batch: parseBatch(batchRow?.value),
+      // The affiliate page quotes this instead of naming its own figure.
+      affiliate: parseAffiliateReward(affiliateRow?.value),
+    };
   }
 }

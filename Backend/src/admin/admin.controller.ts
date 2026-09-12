@@ -236,6 +236,12 @@ export class AdminController {
     return this.admin.setBatch(body);
   }
 
+  /** What an affiliate earns per person who joins through them. */
+  @Put('settings/global/affiliate-reward')
+  setAffiliateReward(@Body() body: { rewardCents?: number; currency?: string }) {
+    return this.admin.setAffiliateReward(body);
+  }
+
   @Post('users/:userId/designations')
   designateUser(
     @Param('userId') userId: string,

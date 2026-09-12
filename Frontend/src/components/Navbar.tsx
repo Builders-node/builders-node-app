@@ -17,17 +17,23 @@ const useScrollProgress = () => {
   return progress;
 };
 
-const navItems = [
+// `href` scrolls within this page; `page` leaves it for another route, which
+// has to go through the nav context rather than an anchor — an <a href> would
+// reload the whole bundle to reach a page React is already holding.
+type NavItem = { num: string; label: string; href?: string; page?: 'affiliate' };
+
+const navItems: NavItem[] = [
   { num: "/01", label: "Home", href: "#home" },
   { num: "/02", label: "About", href: "#about" },
   { num: "/03", label: "Events", href: "#events" },
-  { num: "/04", label: "Contact", href: "#contact" },
+  { num: "/04", label: "Affiliates", page: "affiliate" },
+  { num: "/05", label: "Contact", href: "#contact" },
 ];
 
 const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const openApply = useApplyNav();
-  const { currentUserId, openAccount, openLogin } = useAccountNav();
+  const { currentUserId, openAccount, openLogin, openAffiliate } = useAccountNav();
   const [scrolled, setScrolled] = useState(false);
   const progress = useScrollProgress();
   const textColor = scrolled ? "hsl(0 0% 10%)" : "hsl(0 0% 100%)";
@@ -80,18 +86,31 @@ const Navbar = () => {
           />
         </a>
 
-        <div className="hidden md:flex items-center gap-10">
-          {navItems.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className="text-sm hover:opacity-70 transition-opacity tracking-wide"
-              style={{ color: textColor }}
-            >
-              <span className="text-[10px] mr-1" style={{ color: mutedColor }}>{item.num}</span>
-              <span className="font-medium">{item.label}</span>
-            </a>
-          ))}
+        <div className="hidden md:flex items-center gap-8">
+          {navItems.map((item) =>
+            item.page ? (
+              <button
+                key={item.label}
+                type="button"
+                onClick={openAffiliate}
+                className="text-sm hover:opacity-70 transition-opacity tracking-wide"
+                style={{ color: textColor, background: "none", border: "none", padding: 0, cursor: "pointer" }}
+              >
+                <span className="text-[10px] mr-1" style={{ color: mutedColor }}>{item.num}</span>
+                <span className="font-medium">{item.label}</span>
+              </button>
+            ) : (
+              <a
+                key={item.label}
+                href={item.href}
+                className="text-sm hover:opacity-70 transition-opacity tracking-wide"
+                style={{ color: textColor }}
+              >
+                <span className="text-[10px] mr-1" style={{ color: mutedColor }}>{item.num}</span>
+                <span className="font-medium">{item.label}</span>
+              </a>
+            ),
+          )}
           <div className="ml-2 flex items-center gap-2">
             <button
               onClick={openApply}
@@ -141,18 +160,31 @@ const Navbar = () => {
               <X size={24} />
             </button>
             <div className="flex flex-col gap-8 mt-8">
-              {navItems.map((item) => (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  className="block text-2xl tracking-wide font-light"
-                  style={{ color: "hsl(0 0% 10%)" }}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <span className="text-xs mr-3" style={{ color: "hsl(0 0% 45%)" }}>{item.num}</span>
-                  {item.label}
-                </a>
-              ))}
+              {navItems.map((item) =>
+                item.page ? (
+                  <button
+                    key={item.label}
+                    type="button"
+                    className="block text-2xl tracking-wide font-light text-left"
+                    style={{ color: "hsl(0 0% 10%)", background: "none", border: "none", padding: 0 }}
+                    onClick={() => { openAffiliate(); setMobileOpen(false); }}
+                  >
+                    <span className="text-xs mr-3" style={{ color: "hsl(0 0% 45%)" }}>{item.num}</span>
+                    {item.label}
+                  </button>
+                ) : (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    className="block text-2xl tracking-wide font-light"
+                    style={{ color: "hsl(0 0% 10%)" }}
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    <span className="text-xs mr-3" style={{ color: "hsl(0 0% 45%)" }}>{item.num}</span>
+                    {item.label}
+                  </a>
+                ),
+              )}
             </div>
             <div className="mt-auto flex flex-col gap-3">
               <button

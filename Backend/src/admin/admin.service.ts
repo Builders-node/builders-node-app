@@ -12,9 +12,11 @@ import { moveInDateOf } from '../applications/move-in-date';
 import { isAdminRole, isUserRole } from '../users/roles';
 import { ProsperaSubClient } from '../subscriptions/prospera-sub.client';
 import {
+  AFFILIATE_KEY,
   BATCH_KEY,
   GLOBAL_CLEANING_PLAN_KEY,
   GLOBAL_MEAL_PLAN_KEY,
+  parseAffiliateReward,
   parseBatch,
   parseGlobalCleaningPlan,
   parseGlobalMealPlan,
@@ -87,25 +89,26 @@ export class AdminService {
   ) {}
 
   /**
-   * Just the five Inbox counts. The sidebar badge polls this every minute, and
+   * Just the Inbox counts. The sidebar badge polls this every minute, and
    * `overview()` is far too heavy for that — it returns every application,
    * every user with six nested includes, and every paid payment.
    *
-   * Five COUNT queries, no rows.
+   * One COUNT query per queue, no rows.
    */
   async counters() {
     const now = new Date();
 
-    const [pendingApplications, pendingResidency, openTickets, overduePayments, openMaintenance] =
+    const [pendingApplications, pendingResidency, openTickets, overduePayments, openMaintenance, pendingAffiliates] =
       await Promise.all([
         this.prisma.application.count({ where: { status: { notIn: TERMINAL_APPLICATION_STATUSES } } }),
         this.prisma.residencyApplication.count({ where: { status: 'PENDING_REVIEW' } }),
         this.prisma.supportTicket.count({ where: { status: 'OPEN' } }),
         this.prisma.payment.count({ where: { status: { in: ['DUE', 'OVERDUE'] }, dueDate: { lt: now } } }),
         this.prisma.maintenanceRequest.count({ where: { status: { not: 'RESOLVED' } } }),
+        this.prisma.affiliateApplication.count({ where: { status: 'PENDING' } }),
       ]);
 
-    return { pendingApplications, pendingResidency, openTickets, overduePayments, openMaintenance };
+    return { pendingApplications, pendingResidency, openTickets, overduePayments, openMaintenance, pendingAffiliates };
   }
 
   async overview() {
@@ -114,7 +117,7 @@ export class AdminService {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const yearStart = new Date(now.getFullYear(), 0, 1);
 
-    const [applications, users, paidPayments, pendingResidency, openTickets, overduePayments, openMaintenance] = await Promise.all([
+    const [applications, users, paidPayments, pendingResidency, openTickets, overduePayments, openMaintenance, pendingAffiliates] = await Promise.all([
       this.prisma.application.findMany({ orderBy: { createdAt: 'desc' } }),
       this.prisma.user.findMany({
         orderBy: { createdAt: 'desc' },
@@ -142,6 +145,7 @@ export class AdminService {
       this.prisma.supportTicket.count({ where: { status: 'OPEN' } }),
       this.prisma.payment.count({ where: { status: { in: ['DUE', 'OVERDUE'] }, dueDate: { lt: now } } }),
       this.prisma.maintenanceRequest.count({ where: { status: { not: 'RESOLVED' } } }),
+      this.prisma.affiliateApplication.count({ where: { status: 'PENDING' } }),
     ]);
     const income = this.buildIncomeSummary(paidPayments, { weekStart, monthStart, yearStart });
 
@@ -169,6 +173,7 @@ export class AdminService {
         openTickets,
         overduePayments,
         openMaintenance,
+        pendingAffiliates,
       },
       income,
       applications,
@@ -1533,10 +1538,11 @@ export class AdminService {
   }
 
   async getGlobalSettings() {
-    const [mealRow, cleaningRow, batchRow, mealOptions, cleaningOptions, apartments] = await Promise.all([
+    const [mealRow, cleaningRow, batchRow, affiliateRow, mealOptions, cleaningOptions, apartments] = await Promise.all([
       this.prisma.globalSetting.findUnique({ where: { key: GLOBAL_MEAL_PLAN_KEY } }),
       this.prisma.globalSetting.findUnique({ where: { key: GLOBAL_CLEANING_PLAN_KEY } }),
       this.prisma.globalSetting.findUnique({ where: { key: BATCH_KEY } }),
+      this.prisma.globalSetting.findUnique({ where: { key: AFFILIATE_KEY } }),
       this.prosperaSub.getMealsMenu('admin').catch(() => []),
       this.prosperaSub.getCleaningSchedule('admin').catch(() => []),
       this.prisma.apartment.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
@@ -1549,6 +1555,7 @@ export class AdminService {
       cleaningOptions,
       apartmentOptions: apartments,
       batch: parseBatch(batchRow?.value),
+      affiliate: parseAffiliateReward(affiliateRow?.value),
     };
   }
 
@@ -1562,6 +1569,30 @@ export class AdminService {
     await this.prisma.globalSetting.upsert({
       where: { key: BATCH_KEY },
       create: { key: BATCH_KEY, value },
+      update: { value },
+    });
+    return this.getGlobalSettings();
+  }
+
+  /**
+   * What one referral earns an affiliate.
+   *
+   * Stored rather than written into the affiliate page because it is a promise
+   * printed in public and repeated in every approval email — changing it has to
+   * be one edit, not a deploy.
+   */
+  async setAffiliateReward(body: { rewardCents?: number; currency?: string }) {
+    const cents = Number(body.rewardCents);
+    if (!Number.isFinite(cents) || cents <= 0) {
+      throw new BadRequestException('Enter what one referral pays, in cents (20000 = $200).');
+    }
+    const value = JSON.stringify({
+      rewardCents: Math.round(cents),
+      currency: body.currency?.trim().toUpperCase() || 'USD',
+    });
+    await this.prisma.globalSetting.upsert({
+      where: { key: AFFILIATE_KEY },
+      create: { key: AFFILIATE_KEY, value },
       update: { value },
     });
     return this.getGlobalSettings();

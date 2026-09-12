@@ -24,6 +24,7 @@ import { ApplicationsModule } from './applications/applications.module';
 import { HomeModule } from './home/home.module';
 import { AdminModule } from './admin/admin.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
+import { AffiliatesModule } from './affiliates/affiliates.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { CampaignsModule } from './campaigns/campaigns.module';
     DatabaseModule,
     AdminModule,
     CampaignsModule,
+    AffiliatesModule,
     ApplicationsModule,
     AuthModule,
     UsersModule,

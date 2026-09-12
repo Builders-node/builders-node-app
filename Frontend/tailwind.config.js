@@ -8,6 +8,7 @@ export default {
     './src/components/**/*.{ts,tsx}',
     './src/pages/Landing.tsx',
     './src/pages/Apply.tsx',
+    './src/pages/Affiliate.tsx',
     './src/pages/legal/**/*.{ts,tsx}',
   ],
   prefix: '',

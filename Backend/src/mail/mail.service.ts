@@ -423,6 +423,108 @@ export class MailService {
     });
   }
 
+  /**
+   * Sent the moment an affiliate application lands.
+   *
+   * Says plainly that nothing is owed yet and a person still has to read it —
+   * the alternative is somebody posting their "affiliate link" to an audience
+   * the same afternoon, before anyone here has seen their name.
+   */
+  async sendAffiliateApplicationReceived(to: string, fullName: string): Promise<void> {
+    const name = firstNameOf(fullName);
+    await this.send({
+      to,
+      subject: 'We got your affiliate application',
+      text: `Hi ${name},\n\nThanks for applying to the Builders Node affiliate programme. We review every application by hand and will get back to you shortly. You'll get your referral link once you're approved — it doesn't exist until then.\n\nBuilders Node`,
+      html: layout(
+        'Application received',
+        `<p>Hi ${escapeHtml(name)},</p>
+         <p>Thanks for applying to the Builders Node affiliate programme. We read every application by hand, so give us a few days.</p>
+         <p>If you're approved we'll email you your personal referral link and everything you need to start sharing it. Until then there's nothing to post — the link doesn't exist yet.</p>
+         <p>Builders Node</p>`,
+      ),
+    });
+  }
+
+  /**
+   * Approved: the link, the terms, and — only when the account was created for
+   * them just now — a way to sign in.
+   */
+  async sendAffiliateApproved(
+    to: string,
+    fullName: string,
+    details: {
+      inviteLink: string;
+      referralCode: string;
+      rewardCents: number;
+      currency: string;
+      setupUrl?: string;
+      temporaryPassword?: string;
+    },
+  ): Promise<void> {
+    const name = firstNameOf(fullName);
+    const reward = formatMoney(details.rewardCents, details.currency);
+    const credentials = details.setupUrl && details.temporaryPassword
+      ? `\n\nYour account is ready too — temporary password: ${details.temporaryPassword}\nSet a permanent one: ${details.setupUrl}`
+      : '\n\nSign in with your existing Builders Node account to see how many people have joined through you.';
+
+    await this.send({
+      to,
+      subject: "You're a Builders Node affiliate",
+      text: `Hi ${name},\n\nYou're in. Here's your referral link:\n${details.inviteLink}\n\nYour code is ${details.referralCode}. Anyone who applies through the link — or types the code into the application form — is credited to you, and you earn ${reward} for each one who joins.${credentials}\n\nBuilders Node`,
+      html: layout(
+        "You're an affiliate",
+        `<p>Hi ${escapeHtml(name)},</p>
+         <p>You're in. This is your referral link — everything you share should point here:</p>
+         ${button('Your referral link', details.inviteLink)}
+         <p>Your code is <strong style="font-family:monospace">${escapeHtml(details.referralCode)}</strong>, for anyone who'd rather type it into the application form than follow a link. Either way they're credited to you.</p>
+         <p>You earn <strong>${reward}</strong> for every person who joins Builders Node through you, paid once they're a member.</p>
+         ${
+           details.setupUrl && details.temporaryPassword
+             ? `<hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0" />
+                <p>We've made you an account so you can watch your referrals come in. Temporary password:</p>
+                <p style="font-family:monospace;font-size:16px;background:#f3f4f6;padding:10px 14px;border-radius:8px;display:inline-block">${escapeHtml(details.temporaryPassword)}</p>
+                ${button('Set your password', details.setupUrl)}`
+             : `<p style="color:#6b7280;font-size:13px">Sign in with your existing Builders Node account to see how many people have joined through you.</p>`
+         }`,
+      ),
+    });
+  }
+
+  /**
+   * Declined. Short, and without a reason: the note an admin wrote is for us,
+   * and a form letter explaining someone's audience to them helps nobody.
+   */
+  async sendAffiliateDeclined(to: string, fullName: string): Promise<void> {
+    const name = firstNameOf(fullName);
+    await this.send({
+      to,
+      subject: 'About your Builders Node affiliate application',
+      text: `Hi ${name},\n\nThanks for applying to the Builders Node affiliate programme. We're not taking it forward this time.\n\nIt isn't a permanent no — if your audience or focus changes, write to us and we'll look again.\n\nBuilders Node`,
+      html: layout(
+        'Your affiliate application',
+        `<p>Hi ${escapeHtml(name)},</p>
+         <p>Thanks for applying to the Builders Node affiliate programme. We're not taking it forward this time.</p>
+         <p>It isn't a permanent no — if your audience or what you cover changes, reply to this email and we'll look again.</p>
+         <p>Builders Node</p>`,
+      ),
+    });
+  }
+
+  /** Tells an admin an affiliate application is waiting, and where to read it. */
+  async sendAffiliateApplicationAlert(to: string, fullName: string, applicantEmail: string, link: string): Promise<void> {
+    await this.send({
+      to,
+      subject: `Affiliate application: ${fullName}`,
+      text: `${fullName} (${applicantEmail}) applied to the affiliate programme.\n\nReview it: ${link}`,
+      html: layout(
+        'New affiliate application',
+        `<p><strong>${escapeHtml(fullName)}</strong> (${escapeHtml(applicantEmail)}) applied to the affiliate programme.</p>
+         ${button('Review the application', link)}`,
+      ),
+    });
+  }
+
   async sendInvitation(invitation: InvitationEmail): Promise<void> {
     await this.send({
       to: invitation.to,

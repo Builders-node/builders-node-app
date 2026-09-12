@@ -17,12 +17,19 @@ type AccountNav = {
   currentUserId: string | null;
   openAccount: () => void;
   openLogin: () => void;
+  /**
+   * The affiliate page. Routed through here rather than a plain `<a href>` so
+   * the nav and the footer navigate in-app — an href would reload the whole
+   * bundle to reach a page React already has.
+   */
+  openAffiliate: () => void;
 };
 
 const AccountNavContext = createContext<AccountNav>({
   currentUserId: null,
   openAccount: () => {},
   openLogin: () => {},
+  openAffiliate: () => {},
 });
 
 export function AccountNavProvider({ value, children }: { value: AccountNav; children: ReactNode }) {

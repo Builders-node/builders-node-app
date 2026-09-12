@@ -33,6 +33,7 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
               currentUserId: currentUserId ?? null,
               openAccount: () => setActivePage('profile'),
               openLogin: () => setActivePage('login'),
+              openAffiliate: () => setActivePage('affiliate'),
             }}
           >
           <div className="landing-root min-h-screen" style={{ backgroundColor: 'hsl(30 30% 93%)', color: 'hsl(0 0% 10%)' }}>

@@ -1,4 +1,4 @@
-import { useApplyNav } from "@/lib/applyNav";
+import { useAccountNav, useApplyNav } from "@/lib/applyNav";
 import { Mail, ArrowUpRight } from "lucide-react";
 import logo from "@/assets/logo.svg";
 
@@ -14,6 +14,7 @@ const socialLinks = [
 
 const Footer = () => {
   const openApply = useApplyNav();
+  const { openAffiliate } = useAccountNav();
 
   return (
     <>
@@ -88,6 +89,16 @@ const Footer = () => {
                   {link.label}
                 </a>
               ))}
+              {/* A button, not an anchor: the affiliate page is another route,
+                  and an href would reload the bundle to reach it. */}
+              <button
+                type="button"
+                onClick={openAffiliate}
+                className="block text-sm hover:opacity-70 transition-opacity text-left"
+                style={{ color: textWhite, background: "none", border: "none", padding: 0, cursor: "pointer" }}
+              >
+                Affiliate programme
+              </button>
             </div>
           </div>
 
