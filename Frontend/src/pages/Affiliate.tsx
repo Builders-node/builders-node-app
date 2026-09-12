@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, Link2, Minus, Plus, Send, Share2, Wallet } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Minus, Plus, Send, Share2, UserPlus, Wallet } from 'lucide-react';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
@@ -8,6 +8,7 @@ import Footer from '@/components/Footer';
 import AffiliateForm from '@/components/AffiliateForm';
 import { ApplyNavProvider, AccountNavProvider } from '@/lib/applyNav';
 import { useAffiliateReward } from '@/lib/affiliate';
+import { rememberPostAuthPage } from '@/lib/postAuth';
 import { useStartingPrice } from '@/lib/membership-plans';
 import { useGsapTitle } from '@/hooks/useGsapTitle';
 import { TELEGRAM_COMMUNITY_URL } from '@/lib/telegram';
@@ -62,24 +63,34 @@ export function Affiliate({ setActivePage, currentUserId }: AffiliateProps) {
 
   const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
+  /**
+   * The main way in. Every account carries a referral code from the moment it
+   * exists, so registering *is* getting the link — there is nothing to approve
+   * first. Someone already signed in skips the detour through the auth screen.
+   */
+  const getMyLink = () => {
+    rememberPostAuthPage('affiliateHub');
+    setActivePage(currentUserId ? 'affiliateHub' : 'signup');
+  };
+
   const steps = [
     {
       num: '/01',
-      icon: Send,
-      title: 'Apply',
-      body: 'Tell us who you reach and how you would talk about us. We read every application by hand and answer either way.',
+      icon: UserPlus,
+      title: 'Create your account',
+      body: 'A minute, and your link and code are waiting on the other side. Nothing to approve, nothing to wait for.',
     },
     {
       num: '/02',
-      icon: Link2,
-      title: 'Get your link',
-      body: 'Approved affiliates get a personal link and a code. Anyone who applies through either one is credited to you — no spreadsheets, no screenshots.',
+      icon: Share2,
+      title: 'Share it',
+      body: 'Post it, say the code on a podcast, send it to the one person you know it fits. No quota and no exclusivity.',
     },
     {
       num: '/03',
-      icon: Share2,
-      title: 'Share it',
-      body: 'Post it, say it on a podcast, send it to the one person you know it fits. There is no quota and no exclusivity.',
+      icon: Send,
+      title: 'Tell us who you are',
+      body: "Fill in the short form below so we know whose audience this is and where to send the money. Do it whenever — before you share, or after your first referral lands.",
     },
     {
       num: '/04',
@@ -103,6 +114,10 @@ export function Affiliate({ setActivePage, currentUserId }: AffiliateProps) {
       a: "No. Members make excellent affiliates because they can describe the place first-hand, but it isn't a requirement. What matters is that the people you reach would genuinely fit here.",
     },
     {
+      q: 'Do I have to be approved before I can share my link?',
+      a: 'No. The link exists the moment your account does, so you can start straight away. The form is how we learn whose audience it is and where to send the money — fill it in before your first payout is due.',
+    },
+    {
       q: 'How is a referral tracked?',
       a: "Your link carries your code. Someone who follows it is remembered in their browser for 30 days, so they can read the site, sleep on it and still be credited to you when they apply. If they'd rather type the code into the application form themselves, that counts the same.",
     },
@@ -120,7 +135,7 @@ export function Affiliate({ setActivePage, currentUserId }: AffiliateProps) {
     },
     {
       q: 'How do I know how many people joined through me?',
-      a: 'Approved affiliates get an account here. It shows your link, your code, and a running count of everyone who applied with it.',
+      a: 'Your account has an Affiliate page. It shows your link, your code, how many people applied with it, how many of those got in, and what you have earned so far.',
     },
   ];
 
@@ -151,11 +166,11 @@ export function Affiliate({ setActivePage, currentUserId }: AffiliateProps) {
                   <div className="flex items-center gap-2 sm:gap-3">
                     <button
                       type="button"
-                      onClick={scrollToForm}
+                      onClick={getMyLink}
                       className="rounded-full px-5 py-2 text-xs tracking-[0.15em] uppercase font-semibold transition-transform hover:scale-105"
                       style={{ backgroundColor: accent, color: '#fff', boxShadow: '0 6px 20px rgba(234, 84, 4, 0.35)' }}
                     >
-                      Apply
+                      {currentUserId ? 'My link' : 'Sign up'}
                     </button>
                     <button
                       type="button"
@@ -195,27 +210,48 @@ export function Affiliate({ setActivePage, currentUserId }: AffiliateProps) {
                       founders, from {startingPrice}/month. If you know the people who belong here, share your link and get paid
                       for each one who joins.
                     </p>
+                    {/* Registering is the ask: the account is what carries the
+                        referral code, so this button is the whole funnel. The
+                        form below is for the payout, not for access — which is
+                        why it sits second rather than competing here. */}
                     <div className="mt-9 flex flex-wrap items-center gap-3">
                       <button
                         type="button"
-                        onClick={scrollToForm}
+                        onClick={getMyLink}
                         className="inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-xs tracking-[0.25em] uppercase font-semibold transition-transform hover:scale-105"
                         style={{ backgroundColor: accent, color: '#fff', boxShadow: '0 10px 28px rgba(234, 84, 4, 0.45)' }}
                       >
-                        Become an affiliate
-                        <ArrowRight size={14} aria-hidden="true" />
+                        <UserPlus size={14} aria-hidden="true" />
+                        {currentUserId ? 'Open my affiliate page' : 'Sign up & get my link'}
                       </button>
-                      <a
-                        href={TELEGRAM_COMMUNITY_URL}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={scrollToForm}
                         className="inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-xs tracking-[0.25em] uppercase font-semibold border transition-colors hover:bg-black/5"
                         style={{ borderColor: 'hsl(0 0% 10% / 0.25)', color: textDark }}
                       >
-                        <Send size={14} aria-hidden="true" />
-                        Ask us first
-                      </a>
+                        How we pay you
+                        <ArrowRight size={14} aria-hidden="true" />
+                      </button>
                     </div>
+                    <p className="mt-4 text-sm" style={{ color: textMuted }}>
+                      {currentUserId ? (
+                        'Your link is ready — it was created with your account.'
+                      ) : (
+                        <>
+                          Already have an account?{' '}
+                          <button
+                            type="button"
+                            onClick={() => { rememberPostAuthPage('affiliateHub'); setActivePage('login'); }}
+                            className="underline underline-offset-2"
+                            style={{ color: textDark, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                          >
+                            Log in
+                          </button>{' '}
+                          and your link is already there.
+                        </>
+                      )}
+                    </p>
 
                     <div className="mt-12 grid grid-cols-3 gap-6 max-w-lg">
                       {[
@@ -388,36 +424,44 @@ export function Affiliate({ setActivePage, currentUserId }: AffiliateProps) {
                         <CheckCircle2 className="w-8 h-8" />
                       </div>
                       <h2 className="text-3xl md:text-5xl font-light tracking-tight" style={{ color: textDark }}>
-                        Application received
+                        Got it — thanks
                       </h2>
                       <p className="mt-5 text-base md:text-lg max-w-lg mx-auto leading-relaxed" style={{ color: textMuted }}>
-                        We&apos;ve emailed you a confirmation. Someone here reads every application by hand, so give us a few
-                        days — you&apos;ll hear back either way, and your link comes with the yes.
+                        We&apos;ve emailed you a confirmation and someone here will read it by hand. Nothing is blocked on
+                        that: {currentUserId ? 'your link is on your affiliate page right now.' : 'create your account and your link is ready immediately.'}
                       </p>
                       <button
                         type="button"
-                        onClick={() => setActivePage('landing')}
-                        className="mt-9 h-12 px-8 text-xs tracking-[0.25em] uppercase font-semibold rounded-full"
-                        style={{ backgroundColor: textDark, color: 'hsl(30 30% 93%)' }}
+                        onClick={getMyLink}
+                        className="mt-9 h-12 px-8 text-xs tracking-[0.25em] uppercase font-semibold rounded-full inline-flex items-center gap-2"
+                        style={{ backgroundColor: accent, color: '#fff' }}
                       >
-                        Back to Builders Node
+                        <UserPlus size={14} aria-hidden="true" />
+                        {currentUserId ? 'Open my affiliate page' : 'Sign up & get my link'}
                       </button>
                     </div>
                   ) : (
                     <>
                       <p className="text-xs tracking-[0.25em] uppercase mb-4" style={{ color: textMuted }}>
-                        Apply
+                        How we pay you
                       </p>
                       <h2 className="text-3xl md:text-5xl font-light tracking-tight" style={{ color: textDark }}>
                         Tell us who you reach
                       </h2>
                       <p className="mt-4 text-base md:text-lg font-light leading-relaxed max-w-xl" style={{ color: textMuted }}>
-                        Five minutes, and no obligation on either side. If it&apos;s a fit we&apos;ll send your link straight
-                        back.
+                        Your link works without this. This is how we learn whose audience it is and where to send the money,
+                        so fill it in before your first referral is due a payout. Two minutes.
                       </p>
                       <div className="mt-10">
                         <AffiliateForm onSuccess={() => setDone(true)} />
                       </div>
+                      <p className="mt-8 text-sm" style={{ color: textMuted }}>
+                        Rather ask a person first?{' '}
+                        <a href={TELEGRAM_COMMUNITY_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2" style={{ color: textDark }}>
+                          Talk to us on Telegram
+                        </a>
+                        .
+                      </p>
                     </>
                   )}
                 </div>

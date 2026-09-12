@@ -14,6 +14,15 @@ import { PrismaService } from '../database/prisma.service';
 import { DiscordService } from '../discord/discord.service';
 import { purgeUser } from './purge-user';
 
+/**
+ * An application that made it in.
+ *
+ * The two statuses an approved applicant ends on — approved, and approved with
+ * their credentials already sent. Rejections are terminal too, which is why this
+ * can't simply be "reached a terminal status".
+ */
+const JOINED_APPLICATION_STATUSES = ['APPROVED', 'CREDENTIALS_SENT'];
+
 /** Everything the unified profile page can write. All fields optional. */
 export type ProfileUpdateInput = {
   fullName?: string;
@@ -102,11 +111,17 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException('User not found.');
     }
-    // How many people applied using this member's referral link.
-    const referredCount = await this.prisma.application.count({
-      where: { referredByUserId: userId },
-    });
-    return { referralCode: user.referralCode, referredCount };
+    // Two different numbers, and the difference is what an affiliate is paid on.
+    // `referredCount` is everyone who applied with the link; `joinedCount` is the
+    // subset who actually got in. Showing only the first would quietly imply a
+    // payout for every form submission.
+    const [referredCount, joinedCount] = await Promise.all([
+      this.prisma.application.count({ where: { referredByUserId: userId } }),
+      this.prisma.application.count({
+        where: { referredByUserId: userId, status: { in: JOINED_APPLICATION_STATUSES } },
+      }),
+    ]);
+    return { referralCode: user.referralCode, referredCount, joinedCount };
   }
 
   /**

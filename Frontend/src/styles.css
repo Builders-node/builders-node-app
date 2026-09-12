@@ -2824,11 +2824,13 @@ select:disabled {
   gap: 20px;
 }
 
+/* A prompt, not a landing page. It used to be a 360px-tall block with a
+   72px headline — on an account that has one thing to do, that read as the
+   whole screen shouting rather than a card saying what's next. */
 .residency-gate-panel {
-  align-content: center;
   display: grid;
-  gap: 18px;
-  min-height: 360px;
+  gap: 10px;
+  justify-items: start;
   text-align: left;
 }
 
@@ -2836,26 +2838,27 @@ select:disabled {
    it answers a worry rather than making the pitch. */
 .residency-gate-note {
   color: var(--muted);
-  font-size: 0.9rem;
-  margin: -6px 0 0;
+  font-size: 0.85rem;
+  margin: 0;
   max-width: 560px;
 }
 
 .residency-gate-panel h2 {
-  font-size: clamp(38px, 6vw, 72px);
-  letter-spacing: 0;
-  line-height: 0.95;
+  font-size: clamp(20px, 2.4vw, 26px);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
   margin: 0;
-  max-width: 760px;
+  max-width: 620px;
 }
 
 .residency-gate-panel p {
-  font-size: 18px;
+  font-size: 0.95rem;
+  margin: 0;
   max-width: 620px;
 }
 
 .residency-gate-panel .primary-button {
-  justify-self: start;
+  margin-top: 4px;
 }
 
 .progress-track {
@@ -6178,3 +6181,47 @@ body:has(.modal-overlay) .onboarding-toast { display: none; }
 /* The applied-on date sits in a stats slot built for a big number; at that
    size a date takes two lines. */
 .affiliate-row__date { font-size: 0.85rem !important; font-weight: 600; }
+
+/* ── Affiliate hub: the member's own link and what it has earned ───────────── */
+.affiliate-hub__share { display: grid; gap: 12px; justify-items: start; }
+.affiliate-hub__modes { margin-bottom: 2px; }
+.affiliate-hub__value {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+}
+.affiliate-hub__value input {
+  background: var(--surface-muted, #f6f6f7);
+  border: 1px solid var(--border, #e6e6e8);
+  border-radius: 12px;
+  flex: 1 1 260px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.86rem;
+  min-width: 0;
+  padding: 12px 14px;
+}
+.affiliate-hub__hint { color: var(--muted); font-size: 0.85rem; margin: 0; max-width: 560px; }
+
+/* The numbers sit under their label rather than in a badge beside it — these
+   are figures to read, not statuses to scan. */
+.affiliate-hub__stats .status-card { min-height: 0; }
+.affiliate-hub__figure { display: block; font-size: 2rem; line-height: 1.1; margin-top: 6px; }
+
+.affiliate-hub__steps { display: grid; gap: 16px; list-style: none; margin: 0; padding: 0; }
+.affiliate-hub__steps li { display: flex; gap: 12px; }
+.affiliate-hub__steps strong { display: block; margin-bottom: 2px; }
+.affiliate-hub__steps p { color: var(--muted); font-size: 0.88rem; margin: 0; max-width: 620px; }
+.affiliate-hub__step-icon {
+  align-items: center;
+  background: var(--surface-muted, #f6f6f7);
+  border-radius: 999px;
+  color: var(--accent);
+  display: inline-flex;
+  flex-shrink: 0;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+}
+.affiliate-hub__ask { margin-top: 18px; width: fit-content; }

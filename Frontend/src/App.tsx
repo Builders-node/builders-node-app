@@ -26,6 +26,7 @@ const Units = lazy(() => import('./pages/Units').then((m) => ({ default: m.Units
 const Landing = lazy(() => import('./pages/Landing').then((m) => ({ default: m.Landing })));
 const Apply = lazy(() => import('./pages/Apply').then((m) => ({ default: m.Apply })));
 const Affiliate = lazy(() => import('./pages/Affiliate').then((m) => ({ default: m.Affiliate })));
+const AffiliateHub = lazy(() => import('./pages/AffiliateHub').then((m) => ({ default: m.AffiliateHub })));
 const AdminLogin = lazy(() => import('./pages/AdminLogin').then((m) => ({ default: m.AdminLogin })));
 const Security = lazy(() => import('./pages/Security').then((m) => ({ default: m.Security })));
 const Resources = lazy(() => import('./pages/Resources').then((m) => ({ default: m.Resources })));
@@ -50,6 +51,7 @@ const PAGE_TITLES: Partial<Record<PageId, string>> = {
   adminLogin: 'Admin login — Builders Node',
   profile: 'Account — Builders Node',
   resources: 'Resources — Builders Node',
+  affiliateHub: 'Affiliate — Builders Node',
   community: 'Community — Builders Node',
   myProfile: 'Your profile — Builders Node',
   security: 'Security — Builders Node',
@@ -285,6 +287,10 @@ function App() {
       if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
       return <Resources />;
     }
+    if (activePage === 'affiliateHub') {
+      if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+      return <AffiliateHub currentUserId={currentUserId} />;
+    }
     if (activePage === 'security') {
       if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
       return <Security currentUserId={currentUserId} setCurrentUserId={updateCurrentUserId} setActivePage={setActivePage} />;
@@ -323,7 +329,7 @@ function App() {
   // Full-screen views (no app shell): the landing, every auth screen, and any
   // protected page viewed while logged out (which falls back to the login panel).
   const AUTH_PAGES: PageId[] = ['apply', 'affiliate', 'login', 'signup', 'setupPassword', 'forgotPassword', 'resetPassword', 'verifyEmail', 'adminLogin', 'pass'];
-  const PROTECTED_PAGES: PageId[] = ['profile', 'community', 'myProfile', 'resources', 'security', 'allUsers', 'units', ...ADMIN_SUB_PAGES];
+  const PROTECTED_PAGES: PageId[] = ['profile', 'community', 'myProfile', 'resources', 'affiliateHub', 'security', 'allUsers', 'units', ...ADMIN_SUB_PAGES];
   if (
     showLanding ||
     AUTH_PAGES.includes(activePage) ||

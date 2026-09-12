@@ -1,5 +1,6 @@
 import type { PageId } from '../data/dashboard';
 import { apiRequest } from '../lib/api';
+import { takePostAuthPage } from '../lib/postAuth';
 import { useState } from 'react';
 import { GoogleSignInButton } from './GoogleSignInButton';
 
@@ -36,6 +37,15 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
     localStorage.setItem('terminus_access_token', session.accessToken);
     setCurrentUserId(session.user.id);
     setCurrentUserRole(session.user.role);
+    // Someone who arrived here from a specific page — "Create account" on the
+    // affiliate page, say — goes back to the thing they came for. It wins over
+    // the admin panel too: an admin who pressed that button wants their link,
+    // not the applicant queue.
+    const intended = takePostAuthPage();
+    if (intended) {
+      setActivePage(intended);
+      return;
+    }
     setActivePage(ADMIN_ROLES.includes(session.user.role) ? 'adminDashboard' : 'profile');
   }
 

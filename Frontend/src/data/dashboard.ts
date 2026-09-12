@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Megaphone,
   Settings,
+  Share2,
   Sliders,
   UserCheck,
   UsersRound,
@@ -75,6 +76,7 @@ export type PageId =
   | 'community'
   | 'myProfile'
   | 'resources'
+  | 'affiliateHub'
   | 'security';
 
 /** Sub-page ids that render inside the AdminDashboard. */
@@ -194,6 +196,7 @@ export const PAGE_PATHS: Record<PageId, string> = {
   community: '/community',
   myProfile: '/profile',
   resources: '/resources',
+  affiliateHub: '/account/affiliate',
   security: '/security',
 };
 
@@ -242,6 +245,7 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/community': 'community',
   '/profile': 'myProfile',
   '/resources': 'resources',
+  '/account/affiliate': 'affiliateHub',
   '/security': 'security',
 };
 
@@ -285,6 +289,7 @@ export const navSections: NavSection[] = [
       { id: 'profile', label: 'Home', icon: Home },
       { id: 'community', label: 'Community', icon: UsersRound },
       { id: 'resources', label: 'Resources', icon: BookOpen },
+      { id: 'affiliateHub', label: 'Affiliate', icon: Share2 },
       { id: 'security', label: 'Settings', icon: Settings },
     ],
   },

@@ -27,6 +27,10 @@ const MAX_ABOUT = 1000;
  * because an application creates an account; here it creates a row an admin
  * reads, and an unverified address costs us one wasted read rather than a
  * half-built account nobody can sign into.
+ *
+ * Note what this form is *not*: it does not hand out the referral link. Every
+ * account carries a code already, so the link comes with registering. This is
+ * how the team learns whose audience it is and where to send the money.
  */
 const AffiliateForm = ({ onSuccess }: AffiliateFormProps) => {
   const { toast } = useToast();
@@ -144,7 +148,7 @@ const AffiliateForm = ({ onSuccess }: AffiliateFormProps) => {
               />
             </div>
             <p className="text-xs" style={{ color: "hsl(0 0% 45%)" }}>
-              This is where your referral link goes if you&apos;re approved.
+              Use the same address as your Builders Node account, so we can match the two.
             </p>
           </div>
         </div>
@@ -300,12 +304,12 @@ const AffiliateForm = ({ onSuccess }: AffiliateFormProps) => {
               Sending...
             </>
           ) : (
-            "Apply to the programme"
+            "Send this to the team"
           )}
         </Button>
 
         <p className="text-xs text-center" style={{ color: "hsl(0 0% 45%)" }}>
-          We read every application by hand. You&apos;ll hear back either way.
+          A person reads every one of these. You&apos;ll hear back either way.
         </p>
       </form>
     </div>

@@ -93,9 +93,12 @@ export function ReferralModal({ userId, inviteLink, referralCode, onClose }: Ref
           {copied ? 'Copied' : mode === 'link' ? 'Copy link' : 'Copy code'}
         </button>
 
+        {/* "Applied", not "joined": this is the count of applications carrying
+            the code, and most of them are still in review. The affiliate page
+            breaks the two apart — saying "joined" here contradicted it. */}
         <div className="referral-modal__stat">
           <strong>{count ?? '—'}</strong>
-          <span>{count === 1 ? 'person has' : 'people have'} joined via your link</span>
+          <span>{count === 1 ? 'person has' : 'people have'} applied with your link</span>
         </div>
 
         <div className="referral-modal__steps">
