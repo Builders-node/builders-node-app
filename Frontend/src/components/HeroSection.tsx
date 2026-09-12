@@ -1,18 +1,15 @@
 import { Send } from "lucide-react";
 import { useGsapTitle } from "@/hooks/useGsapTitle";
 import { TELEGRAM_COMMUNITY_URL } from "@/lib/telegram";
-import { useBatch } from "@/lib/batch";
 import { useStartingPrice } from "@/lib/membership-plans";
 import { useApplyNav } from "@/lib/applyNav";
 
 const HeroSection = () => {
   const openApply = useApplyNav();
   const titleRef = useGsapTitle<HTMLHeadingElement>();
-  const batch = useBatch();
   // Quoted from the plan catalogue, so a price change in the admin reaches
   // the landing too — this sentence used to name its own number.
   const { price: startingPrice } = useStartingPrice();
-  const badgeText = batch.label ?? `First Batch · Starting ${batch.longDate}`;
 
   return (
     <section
@@ -50,21 +47,6 @@ const HeroSection = () => {
 
       {/* Main content — centered */}
       <div className="relative z-10 w-full px-6 md:px-12 flex flex-col items-center text-center gap-6">
-        {/* Held hidden (not unmounted) until the real batch date arrives: it keeps
-            its place in the layout, so the headline doesn't jump, and the visitor
-            never reads a date that's about to be corrected.
-            `visibility` rather than an animated opacity on purpose — a tab opened
-            in the background has its transitions frozen, and a fade that never
-            runs would leave the badge invisible for good. */}
-        <span
-          className={`inline-flex items-center gap-2 text-[10px] md:text-xs tracking-[0.25em] uppercase text-white px-3 py-1.5 rounded-full border border-white/40 backdrop-blur-sm bg-white/5 ${
-            batch.isLoaded ? "visible" : "invisible"
-          }`}
-          aria-hidden={!batch.isLoaded}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-[hsl(15_85%_55%)] animate-pulse" />
-          {badgeText}
-        </span>
         <h1 ref={titleRef} className="text-4xl sm:text-5xl md:text-6xl lg:text-[5.5rem] font-light leading-[1.05] text-white max-w-6xl tracking-tight">
           Come to build. <br />Stay for the people
         </h1>
