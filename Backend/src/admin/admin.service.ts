@@ -98,17 +98,16 @@ export class AdminService {
   async counters() {
     const now = new Date();
 
-    const [pendingApplications, pendingResidency, openTickets, overduePayments, openMaintenance, pendingAffiliates] =
+    const [pendingApplications, pendingResidency, openTickets, overduePayments, openMaintenance] =
       await Promise.all([
         this.prisma.application.count({ where: { status: { notIn: TERMINAL_APPLICATION_STATUSES } } }),
         this.prisma.residencyApplication.count({ where: { status: 'PENDING_REVIEW' } }),
         this.prisma.supportTicket.count({ where: { status: 'OPEN' } }),
         this.prisma.payment.count({ where: { status: { in: ['DUE', 'OVERDUE'] }, dueDate: { lt: now } } }),
         this.prisma.maintenanceRequest.count({ where: { status: { not: 'RESOLVED' } } }),
-        this.prisma.affiliateApplication.count({ where: { status: 'PENDING' } }),
       ]);
 
-    return { pendingApplications, pendingResidency, openTickets, overduePayments, openMaintenance, pendingAffiliates };
+    return { pendingApplications, pendingResidency, openTickets, overduePayments, openMaintenance };
   }
 
   async overview() {
@@ -117,7 +116,7 @@ export class AdminService {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const yearStart = new Date(now.getFullYear(), 0, 1);
 
-    const [applications, users, paidPayments, pendingResidency, openTickets, overduePayments, openMaintenance, pendingAffiliates] = await Promise.all([
+    const [applications, users, paidPayments, pendingResidency, openTickets, overduePayments, openMaintenance] = await Promise.all([
       this.prisma.application.findMany({ orderBy: { createdAt: 'desc' } }),
       this.prisma.user.findMany({
         orderBy: { createdAt: 'desc' },
@@ -145,7 +144,6 @@ export class AdminService {
       this.prisma.supportTicket.count({ where: { status: 'OPEN' } }),
       this.prisma.payment.count({ where: { status: { in: ['DUE', 'OVERDUE'] }, dueDate: { lt: now } } }),
       this.prisma.maintenanceRequest.count({ where: { status: { not: 'RESOLVED' } } }),
-      this.prisma.affiliateApplication.count({ where: { status: 'PENDING' } }),
     ]);
     const income = this.buildIncomeSummary(paidPayments, { weekStart, monthStart, yearStart });
 
@@ -173,7 +171,6 @@ export class AdminService {
         openTickets,
         overduePayments,
         openMaintenance,
-        pendingAffiliates,
       },
       income,
       applications,

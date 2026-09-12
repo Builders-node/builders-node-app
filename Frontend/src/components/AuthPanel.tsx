@@ -1,6 +1,6 @@
 import type { PageId } from '../data/dashboard';
 import { apiRequest } from '../lib/api';
-import { takePostAuthPage } from '../lib/postAuth';
+import { signupSource, takePostAuthPage } from '../lib/postAuth';
 import { useState } from 'react';
 import { GoogleSignInButton } from './GoogleSignInButton';
 
@@ -56,7 +56,9 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
     try {
       const session = await apiRequest<{ accessToken: string; user: { id: string; role: string } }>('/auth/google', {
         method: 'POST',
-        body: JSON.stringify({ credential }),
+        // Same attribution as the password signup — the server only records it
+        // on the branch that creates a new account.
+        body: JSON.stringify({ credential, source: signupSource() }),
       });
       startSession(session);
     } catch (caught) {
@@ -118,7 +120,9 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
         }
         const session = await apiRequest<{ accessToken: string; user: { id: string; role: string } }>('/auth/signup', {
           method: 'POST',
-          body: JSON.stringify({ fullName: fullName.trim(), email, password }),
+          // Which page sent them here. The affiliate page has no form, so this
+          // is the only record that somebody arrived to promote us.
+          body: JSON.stringify({ fullName: fullName.trim(), email, password, source: signupSource() }),
         });
         startSession(session);
         return;

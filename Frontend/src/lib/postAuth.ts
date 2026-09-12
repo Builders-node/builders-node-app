@@ -15,14 +15,40 @@ import type { PageId } from '../data/dashboard';
  */
 const STORAGE_KEY = 'terminus_post_auth';
 
+/**
+ * Which page sent them to the signup form.
+ *
+ * Stored beside the destination and sent with the signup, so an account created
+ * from the affiliate page can be told apart afterwards. The affiliate page has
+ * no form any more — this is the only record of who arrived to promote us.
+ */
+const SOURCE_KEY = 'terminus_signup_source';
+
 /** Only pages it makes sense to be dropped on straight after signing in. */
 const ALLOWED: PageId[] = ['affiliateHub', 'profile', 'community', 'resources', 'myProfile'];
 
-export function rememberPostAuthPage(page: PageId): void {
+export function rememberPostAuthPage(page: PageId, source?: string): void {
   try {
     sessionStorage.setItem(STORAGE_KEY, page);
+    if (source) sessionStorage.setItem(SOURCE_KEY, source);
   } catch {
     /* private mode — the redirect just falls back to the default home */
+  }
+}
+
+/**
+ * The remembered source, for the signup request to carry.
+ *
+ * Read rather than taken: signing up can fail on a weak password or a taken
+ * address, and clearing it on the first attempt would lose the attribution of
+ * everyone who got it wrong once. It is cleared with the destination, on the
+ * sign-in that actually succeeds.
+ */
+export function signupSource(): string | undefined {
+  try {
+    return sessionStorage.getItem(SOURCE_KEY) ?? undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -34,6 +60,7 @@ export function takePostAuthPage(): PageId | null {
   try {
     const stored = sessionStorage.getItem(STORAGE_KEY);
     sessionStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(SOURCE_KEY);
     // Validated against the list rather than trusted: this value is writable by
     // anything running in the tab, and it decides where a fresh session lands.
     return stored && ALLOWED.includes(stored as PageId) ? (stored as PageId) : null;

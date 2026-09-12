@@ -1,194 +1,143 @@
 import { AffiliatesService } from './affiliates.service';
+import { normalizeSignupSource } from '../auth/signup-source';
 
 /**
- * The affiliate programme.
+ * The affiliate programme, after the application form was dropped.
  *
- * What's pinned here is the handful of rules that decide whether an affiliate
- * link works and whether the wrong person gets paid: an approved affiliate must
- * end up owning a referral code, somebody who already has a login must keep the
- * password they chose, and a decision once made must not be quietly undone by
- * the applicant resubmitting the form.
+ * Nothing is stored about "being an affiliate" — the list is derived from how
+ * someone signed up and what their link has done. What's pinned here is that
+ * the derivation catches both kinds of affiliate, and that the money is counted
+ * on people who got in rather than on forms submitted.
  */
-function makeService(
-  options: {
-    application?: Record<string, unknown> | null;
-    existingUser?: Record<string, unknown> | null;
-    campaignLink?: Record<string, unknown> | null;
-  } = {},
-) {
+function makeService(options: {
+  sourced?: Array<Record<string, unknown>>;
+  applied?: Array<{ referredByUserId: string | null; _count: { _all: number } }>;
+  joined?: Array<{ referredByUserId: string | null; _count: { _all: number } }>;
+  extra?: Array<Record<string, unknown>>;
+} = {}) {
   const {
-    application = { id: 'aff-1', email: 'nina@example.com', fullName: 'Nina Alvarez', status: 'PENDING', telegram: '@nina', adminNote: null },
-    existingUser = null,
-    campaignLink = null,
+    sourced = [user('u1', 'nina@example.com', 'Nina Alvarez', 'affiliate-page')],
+    applied = [],
+    joined = [],
+    extra = [],
   } = options;
 
+  const groupBy = jest
+    .fn()
+    // First call is "who has been credited at all", second is "who got in".
+    .mockResolvedValueOnce(applied)
+    .mockResolvedValueOnce(joined);
+
   const prisma = {
-    affiliateApplication: {
-      findUnique: jest.fn().mockResolvedValue(application),
-      findMany: jest.fn().mockResolvedValue([]),
-      create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'aff-new', ...data })),
-      update: jest.fn().mockImplementation(({ data }) => Promise.resolve({ ...application, ...data })),
-      delete: jest.fn().mockResolvedValue({}),
-      count: jest.fn().mockResolvedValue(0),
-    },
     user: {
-      findUnique: jest.fn().mockResolvedValue(existingUser),
-      findMany: jest.fn().mockResolvedValue([]),
-      create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'user-new', referralCode: data.referralCode })),
-      update: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'user-old', referralCode: data.referralCode })),
+      findMany: jest.fn().mockResolvedValueOnce(sourced).mockResolvedValueOnce(extra),
     },
-    application: { groupBy: jest.fn().mockResolvedValue([]) },
-    campaignLink: { findUnique: jest.fn().mockResolvedValue(campaignLink) },
-    passwordResetToken: { create: jest.fn().mockResolvedValue({}) },
+    application: { groupBy },
     globalSetting: { findUnique: jest.fn().mockResolvedValue(null) },
   };
+  const mail = { frontendBaseUrl: jest.fn().mockReturnValue('https://buildersnode.com') };
 
-  const mail = {
-    frontendBaseUrl: jest.fn().mockReturnValue('https://buildersnode.com'),
-    sendAffiliateApplicationReceived: jest.fn().mockResolvedValue(undefined),
-    sendAffiliateApplicationAlert: jest.fn().mockResolvedValue(undefined),
-    sendAffiliateApproved: jest.fn().mockResolvedValue(undefined),
-    sendAffiliateDeclined: jest.fn().mockResolvedValue(undefined),
-  };
-  const notifications = { notifyAdmins: jest.fn().mockResolvedValue(undefined) };
+  return { service: new AffiliatesService(prisma as never, mail as never), prisma };
+}
 
+function user(id: string, email: string, fullName: string, signupSource: string | null) {
   return {
-    service: new AffiliatesService(prisma as never, mail as never, notifications as never),
-    prisma,
-    mail,
+    id,
+    email,
+    role: 'MEMBER',
+    referralCode: `BUILDERS-${id.toUpperCase()}`,
+    signupSource,
+    createdAt: new Date('2026-09-01'),
+    profile: { fullName, phone: null },
   };
 }
 
-describe('AffiliatesService.apply', () => {
-  it('stores a first-time application and tells the applicant it landed', async () => {
-    const { service, prisma, mail } = makeService({ application: null });
-
-    const result = await service.apply({ fullName: 'Nina Alvarez', email: 'Nina@Example.com ' });
-
-    expect(result).toEqual({ submitted: true, email: 'nina@example.com' });
-    // Addresses are matched, mailed and deduplicated by this value — a stray
-    // capital would make the same person two applicants.
-    expect(prisma.affiliateApplication.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ email: 'nina@example.com', status: 'PENDING' }) }),
-    );
-    expect(mail.sendAffiliateApplicationReceived).toHaveBeenCalledWith('nina@example.com', 'Nina Alvarez');
-  });
-
-  it('lets a pending applicant resubmit rather than hitting a wall', async () => {
-    // People do come back having remembered a channel they forgot to list.
-    const { service, prisma } = makeService();
-
-    await service.apply({ fullName: 'Nina Alvarez', email: 'nina@example.com', audience: 'YouTube, 40k' });
-
-    expect(prisma.affiliateApplication.update).toHaveBeenCalled();
-    expect(prisma.affiliateApplication.create).not.toHaveBeenCalled();
-  });
-
-  it('refuses to reopen an application that was already decided', async () => {
-    const { service } = makeService({ application: { id: 'aff-1', email: 'nina@example.com', status: 'DECLINED' } });
-
-    await expect(service.apply({ fullName: 'Nina Alvarez', email: 'nina@example.com' })).rejects.toThrow();
-  });
-
-  it('ignores a campaign code no admin ever created', async () => {
-    // `?src=` sits in a URL anyone can edit; an unchecked value would invent
-    // rows in the traffic report.
-    const { service, prisma } = makeService({ application: null, campaignLink: null });
-
-    await service.apply({ fullName: 'Nina Alvarez', email: 'nina@example.com', campaignCode: 'made-up' });
-
-    expect(prisma.affiliateApplication.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ campaignCode: null }) }),
-    );
-  });
-
-  it('keeps only real URLs, and every channel rather than the first', async () => {
-    const { service, prisma } = makeService({ application: null });
-
-    await service.apply({
-      fullName: 'Nina Alvarez',
-      email: 'nina@example.com',
-      links: ['https://youtube.com/@nina', 'not a url', 'https://instagram.com/nina'],
-    });
-
-    const { data } = prisma.affiliateApplication.create.mock.calls[0][0];
-    expect(JSON.parse(data.linksJson)).toEqual(['https://youtube.com/@nina', 'https://instagram.com/nina']);
-  });
-});
-
-describe('AffiliatesService.approve', () => {
-  it('gives a new affiliate the account their referral code hangs off', async () => {
-    // Referral credit is resolved through User.referralCode, so without this
-    // an approved affiliate has nothing to share.
-    const { service, prisma, mail } = makeService();
-
-    await service.approve('aff-1');
-
-    expect(prisma.user.create).toHaveBeenCalled();
-    const approval = mail.sendAffiliateApproved.mock.calls[0][2];
-    expect(approval.inviteLink).toMatch(/^https:\/\/buildersnode\.com\/\?ref=BUILDERS-/);
-    // Nobody set this number in the test, so it is the launch default.
-    expect(approval.rewardCents).toBe(20_000);
-    // The account was made just now, so the credentials to reach it go too.
-    expect(approval.temporaryPassword).toBeTruthy();
-  });
-
-  it('never resets the password of somebody who already has a login', async () => {
-    // Members and admins apply too. Minting a temporary password over their
-    // account would lock them out of the one they actually use.
-    const { service, prisma, mail } = makeService({
-      existingUser: { id: 'user-old', referralCode: 'BUILDERS-OLD123' },
-    });
-
-    await service.approve('aff-1');
-
-    expect(prisma.user.create).not.toHaveBeenCalled();
-    const approval = mail.sendAffiliateApproved.mock.calls[0][2];
-    expect(approval.referralCode).toBe('BUILDERS-OLD123');
-    expect(approval.temporaryPassword).toBeUndefined();
-  });
-
-  it('mints a code for an old account that never had one', async () => {
-    // An affiliate link reading ?ref=null is worse than no link at all.
-    const { service, prisma, mail } = makeService({ existingUser: { id: 'user-old', referralCode: null } });
-
-    await service.approve('aff-1');
-
-    expect(prisma.user.update).toHaveBeenCalled();
-    expect(mail.sendAffiliateApproved.mock.calls[0][2].referralCode).toMatch(/^BUILDERS-/);
-  });
-
-  it('refuses a second approval instead of re-issuing credentials', async () => {
-    const { service } = makeService({ application: { id: 'aff-1', email: 'nina@example.com', status: 'APPROVED' } });
-
-    await expect(service.approve('aff-1')).rejects.toThrow();
-  });
-});
-
 describe('AffiliatesService.list', () => {
-  it('counts the people each affiliate actually sent', async () => {
-    const { service, prisma } = makeService();
-    prisma.affiliateApplication.findMany.mockResolvedValue([
-      { id: 'aff-1', fullName: 'Nina Alvarez', email: 'nina@example.com', status: 'APPROVED', userId: 'user-1', linksJson: null, createdAt: new Date() },
-    ]);
-    prisma.application.groupBy.mockResolvedValue([{ referredByUserId: 'user-1', _count: { _all: 3 } }]);
-    prisma.user.findMany.mockResolvedValue([{ id: 'user-1', referralCode: 'BUILDERS-AB12CD' }]);
+  it('includes someone who signed up through the affiliate page but has sent nobody yet', async () => {
+    const { service } = makeService();
 
     const [nina] = await service.list();
 
-    expect(nina.referredCount).toBe(3);
-    expect(nina.inviteLink).toBe('https://buildersnode.com/?ref=BUILDERS-AB12CD');
+    expect(nina.fromAffiliatePage).toBe(true);
+    expect(nina.referredCount).toBe(0);
+    expect(nina.owedCents).toBe(0);
+    expect(nina.inviteLink).toBe('https://buildersnode.com/?ref=BUILDERS-U1');
   });
 
-  it('offers no link for someone still pending', async () => {
-    const { service, prisma } = makeService();
-    prisma.affiliateApplication.findMany.mockResolvedValue([
-      { id: 'aff-2', fullName: 'Sam Reed', email: 'sam@example.com', status: 'PENDING', userId: null, linksJson: null, createdAt: new Date() },
-    ]);
+  it('includes a member whose link brought people in, however they signed up', async () => {
+    // Someone who never saw the affiliate page but has four applications to
+    // their name is plainly an affiliate, and leaving them off means not paying
+    // them.
+    const { service } = makeService({
+      sourced: [],
+      applied: [{ referredByUserId: 'u2', _count: { _all: 4 } }],
+      joined: [{ referredByUserId: 'u2', _count: { _all: 1 } }],
+      extra: [user('u2', 'sam@example.com', 'Sam Reed', null)],
+    });
 
     const [sam] = await service.list();
 
-    expect(sam.inviteLink).toBeNull();
-    expect(sam.referredCount).toBe(0);
+    expect(sam.fromAffiliatePage).toBe(false);
+    expect(sam.referredCount).toBe(4);
+    expect(sam.joinedCount).toBe(1);
+  });
+
+  it('does not load an affiliate twice when they are on both lists', async () => {
+    const { service, prisma } = makeService({
+      applied: [{ referredByUserId: 'u1', _count: { _all: 3 } }],
+      joined: [{ referredByUserId: 'u1', _count: { _all: 2 } }],
+    });
+
+    const rows = await service.list();
+
+    expect(rows).toHaveLength(1);
+    // The second findMany is for referrers we don't already hold; u1 is one of
+    // them, so there is nothing left to fetch.
+    expect(prisma.user.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('owes money per person who got in, not per application', async () => {
+    const { service } = makeService({
+      applied: [{ referredByUserId: 'u1', _count: { _all: 9 } }],
+      joined: [{ referredByUserId: 'u1', _count: { _all: 2 } }],
+    });
+
+    const [nina] = await service.list();
+
+    // Nine forms, two arrivals — at the $200 default that is $400, not $1,800.
+    expect(nina.owedCents).toBe(40_000);
+  });
+
+  it('puts the most productive affiliate first', async () => {
+    const { service } = makeService({
+      sourced: [
+        user('u1', 'nina@example.com', 'Nina Alvarez', 'affiliate-page'),
+        user('u3', 'lee@example.com', 'Lee Park', 'affiliate-page'),
+      ],
+      applied: [
+        { referredByUserId: 'u1', _count: { _all: 1 } },
+        { referredByUserId: 'u3', _count: { _all: 5 } },
+      ],
+      joined: [{ referredByUserId: 'u3', _count: { _all: 3 } }],
+    });
+
+    const rows = await service.list();
+
+    expect(rows.map((row) => row.id)).toEqual(['u3', 'u1']);
+  });
+});
+
+describe('normalizeSignupSource', () => {
+  it('keeps a source the app knows how to render', () => {
+    expect(normalizeSignupSource('affiliate-page')).toBe('affiliate-page');
+    expect(normalizeSignupSource(' Affiliate-Page ')).toBe('affiliate-page');
+  });
+
+  it('drops anything else', () => {
+    // It arrives from the browser on an unauthenticated endpoint and is read
+    // back into an admin screen.
+    expect(normalizeSignupSource('<script>')).toBeNull();
+    expect(normalizeSignupSource('made-up')).toBeNull();
+    expect(normalizeSignupSource(undefined)).toBeNull();
   });
 });

@@ -142,7 +142,6 @@ export const INBOX_TABS: Array<{ page: PageId; label: string; attentionKey: stri
   { page: 'adminSupport', label: 'Support', attentionKey: 'openTickets' },
   { page: 'adminPayments', label: 'Payments', attentionKey: 'overduePayments' },
   { page: 'adminMaintenance', label: 'Maintenance', attentionKey: 'openMaintenance' },
-  { page: 'adminAffiliates', label: 'Affiliates', attentionKey: 'pendingAffiliates' },
 ];
 
 /** Rarely-touched CRUD, grouped as sub-tabs under a single "Settings" entry. */
@@ -153,6 +152,9 @@ export const SETTINGS_TABS: Array<{ page: PageId; label: string }> = [
   { page: 'adminResources', label: 'Resources' },
   { page: 'adminEvents', label: 'Events' },
   { page: 'adminCampaigns', label: 'Traffic' },
+  // Not an Inbox queue: nothing here waits on a decision, it is a standing
+  // report of who is sending us people and what they are owed.
+  { page: 'adminAffiliates', label: 'Affiliates' },
 ];
 
 export const INBOX_PAGES: PageId[] = INBOX_TABS.map((tab) => tab.page);
@@ -179,7 +181,7 @@ export const PAGE_PATHS: Record<PageId, string> = {
   adminSupport: '/admin/inbox/support',
   adminPayments: '/admin/inbox/payments',
   adminMaintenance: '/admin/inbox/maintenance',
-  adminAffiliates: '/admin/inbox/affiliates',
+
   adminDesignations: '/admin/designations',
   adminNotifications: '/admin/notifications',
   // Rarely-touched CRUD lives under the Settings group.
@@ -189,6 +191,7 @@ export const PAGE_PATHS: Record<PageId, string> = {
   adminResources: '/admin/settings/resources',
   adminEvents: '/admin/settings/events',
   adminCampaigns: '/admin/settings/traffic',
+  adminAffiliates: '/admin/settings/affiliates',
   allUsers: '/users',
   dashboard: '/account',
   profile: '/account',
@@ -222,7 +225,7 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/admin/inbox/support': 'adminSupport',
   '/admin/inbox/payments': 'adminPayments',
   '/admin/inbox/maintenance': 'adminMaintenance',
-  '/admin/inbox/affiliates': 'adminAffiliates',
+
   // Settings group.
   '/admin/settings': 'adminSettings',
   '/admin/settings/vehicles': 'adminVehicles',
@@ -230,6 +233,7 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/admin/settings/resources': 'adminResources',
   '/admin/settings/events': 'adminEvents',
   '/admin/settings/traffic': 'adminCampaigns',
+  '/admin/settings/affiliates': 'adminAffiliates',
   '/users': 'allUsers',
   // Legacy flat paths — kept so old bookmarks/links still resolve. The URL
   // sync effect in App.tsx rewrites them to the canonical path above.
@@ -239,6 +243,8 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/admin/support': 'adminSupport',
   '/admin/payments': 'adminPayments',
   '/admin/vehicles': 'adminVehicles',
+  // Affiliates started life as an Inbox queue before it became a report.
+  '/admin/inbox/affiliates': 'adminAffiliates',
   '/admin/resources': 'adminResources',
   '/units': 'units',
   '/account': 'profile',

@@ -1,11 +1,10 @@
 import { useRef, useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, Minus, Plus, Send, Share2, UserPlus, Wallet } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Minus, Plus, Share2, UserPlus, Wallet } from 'lucide-react';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import Footer from '@/components/Footer';
-import AffiliateForm from '@/components/AffiliateForm';
 import { ApplyNavProvider, AccountNavProvider } from '@/lib/applyNav';
 import { useAffiliateReward } from '@/lib/affiliate';
 import { rememberPostAuthPage } from '@/lib/postAuth';
@@ -25,6 +24,15 @@ const textDark = 'hsl(0 0% 10%)';
 const textMuted = 'hsl(0 0% 45%)';
 const borderLight = 'hsl(0 0% 10% / 0.12)';
 const accent = '#EA5404';
+
+/**
+ * Stamped on any account created from this page.
+ *
+ * Must match the server's allowlist in `auth/signup-source.ts` — anything it
+ * doesn't recognise is dropped, so a typo here silently loses the attribution
+ * rather than failing loudly.
+ */
+const AFFILIATE_SIGNUP_SOURCE = 'affiliate-page';
 
 /** Who this is for — stated plainly, because a bad fit wastes both sides' time. */
 const audiences = [
@@ -51,9 +59,9 @@ const audiences = [
 ];
 
 export function Affiliate({ setActivePage, currentUserId }: AffiliateProps) {
-  const [done, setDone] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
+  const termsRef = useRef<HTMLDivElement>(null);
   const reward = useAffiliateReward();
   const { price: startingPrice } = useStartingPrice();
   // The heading names the payout, which arrives from the API a moment after
@@ -62,6 +70,7 @@ export function Affiliate({ setActivePage, currentUserId }: AffiliateProps) {
   const titleRef = useGsapTitle<HTMLHeadingElement>(reward.isSettled);
 
   const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const scrollToTerms = () => termsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   /**
    * The main way in. Every account carries a referral code from the moment it
@@ -69,7 +78,9 @@ export function Affiliate({ setActivePage, currentUserId }: AffiliateProps) {
    * first. Someone already signed in skips the detour through the auth screen.
    */
   const getMyLink = () => {
-    rememberPostAuthPage('affiliateHub');
+    // The source rides along with the destination: with no form on this page,
+    // it is the only thing that records somebody arrived here to promote us.
+    rememberPostAuthPage('affiliateHub', AFFILIATE_SIGNUP_SOURCE);
     setActivePage(currentUserId ? 'affiliateHub' : 'signup');
   };
 
@@ -88,15 +99,9 @@ export function Affiliate({ setActivePage, currentUserId }: AffiliateProps) {
     },
     {
       num: '/03',
-      icon: Send,
-      title: 'Tell us who you are',
-      body: "Fill in the short form below so we know whose audience this is and where to send the money. Do it whenever — before you share, or after your first referral lands.",
-    },
-    {
-      num: '/04',
       icon: Wallet,
       title: 'Get paid',
-      body: `${reward.amount} for every person who joins through you, paid once they're a member. One-time, per person, no cap on how many.`,
+      body: `${reward.amount} for every person who joins through you, paid once they're a member. One-time, per person, no cap on how many. We reach out to arrange it.`,
     },
   ];
 
@@ -115,7 +120,7 @@ export function Affiliate({ setActivePage, currentUserId }: AffiliateProps) {
     },
     {
       q: 'Do I have to be approved before I can share my link?',
-      a: 'No. The link exists the moment your account does, so you can start straight away. The form is how we learn whose audience it is and where to send the money — fill it in before your first payout is due.',
+      a: 'No, and there is nothing to fill in. The link exists the moment your account does, so you can start the same minute. We reach out about the payout once somebody you sent actually joins.',
     },
     {
       q: 'How is a referral tracked?',
@@ -226,11 +231,11 @@ export function Affiliate({ setActivePage, currentUserId }: AffiliateProps) {
                       </button>
                       <button
                         type="button"
-                        onClick={scrollToForm}
+                        onClick={scrollToTerms}
                         className="inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-xs tracking-[0.25em] uppercase font-semibold border transition-colors hover:bg-black/5"
                         style={{ borderColor: 'hsl(0 0% 10% / 0.25)', color: textDark }}
                       >
-                        How we pay you
+                        How it works
                         <ArrowRight size={14} aria-hidden="true" />
                       </button>
                     </div>
@@ -242,7 +247,7 @@ export function Affiliate({ setActivePage, currentUserId }: AffiliateProps) {
                           Already have an account?{' '}
                           <button
                             type="button"
-                            onClick={() => { rememberPostAuthPage('affiliateHub'); setActivePage('login'); }}
+                            onClick={() => { rememberPostAuthPage('affiliateHub', AFFILIATE_SIGNUP_SOURCE); setActivePage('login'); }}
                             className="underline underline-offset-2"
                             style={{ color: textDark, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
                           >
@@ -278,15 +283,15 @@ export function Affiliate({ setActivePage, currentUserId }: AffiliateProps) {
               </section>
 
               {/* How it works */}
-              <section className="px-8 md:px-12 py-20 md:py-28">
+              <section ref={termsRef} className="px-8 md:px-12 py-20 md:py-28 scroll-mt-4">
                 <p className="text-xs tracking-[0.25em] uppercase mb-4" style={{ color: textMuted }}>
                   How it works
                 </p>
                 <h2 className="text-3xl md:text-5xl font-light tracking-tight mb-14" style={{ color: textDark }}>
-                  Four steps, and only one of them is work
+                  Three steps, and only one of them is work
                 </h2>
 
-                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-px" style={{ backgroundColor: borderLight }}>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px" style={{ backgroundColor: borderLight }}>
                   {steps.map((step) => {
                     const Icon = step.icon;
                     return (
@@ -413,57 +418,34 @@ export function Affiliate({ setActivePage, currentUserId }: AffiliateProps) {
               </section>
 
               {/* The form */}
-              <section ref={formRef} id="affiliate-apply" className="px-8 md:px-12 py-20 md:py-28 scroll-mt-4">
-                <div className="max-w-3xl mx-auto">
-                  {done ? (
-                    <div className="text-center py-10">
-                      <div
-                        className="mx-auto mb-7 flex items-center justify-center rounded-full"
-                        style={{ width: 64, height: 64, background: '#FBE3D3', color: accent }}
-                      >
-                        <CheckCircle2 className="w-8 h-8" />
-                      </div>
-                      <h2 className="text-3xl md:text-5xl font-light tracking-tight" style={{ color: textDark }}>
-                        Got it — thanks
-                      </h2>
-                      <p className="mt-5 text-base md:text-lg max-w-lg mx-auto leading-relaxed" style={{ color: textMuted }}>
-                        We&apos;ve emailed you a confirmation and someone here will read it by hand. Nothing is blocked on
-                        that: {currentUserId ? 'your link is on your affiliate page right now.' : 'create your account and your link is ready immediately.'}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={getMyLink}
-                        className="mt-9 h-12 px-8 text-xs tracking-[0.25em] uppercase font-semibold rounded-full inline-flex items-center gap-2"
-                        style={{ backgroundColor: accent, color: '#fff' }}
-                      >
-                        <UserPlus size={14} aria-hidden="true" />
-                        {currentUserId ? 'Open my affiliate page' : 'Sign up & get my link'}
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <p className="text-xs tracking-[0.25em] uppercase mb-4" style={{ color: textMuted }}>
-                        How we pay you
-                      </p>
-                      <h2 className="text-3xl md:text-5xl font-light tracking-tight" style={{ color: textDark }}>
-                        Tell us who you reach
-                      </h2>
-                      <p className="mt-4 text-base md:text-lg font-light leading-relaxed max-w-xl" style={{ color: textMuted }}>
-                        Your link works without this. This is how we learn whose audience it is and where to send the money,
-                        so fill it in before your first referral is due a payout. Two minutes.
-                      </p>
-                      <div className="mt-10">
-                        <AffiliateForm onSuccess={() => setDone(true)} />
-                      </div>
-                      <p className="mt-8 text-sm" style={{ color: textMuted }}>
-                        Rather ask a person first?{' '}
-                        <a href={TELEGRAM_COMMUNITY_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2" style={{ color: textDark }}>
-                          Talk to us on Telegram
-                        </a>
-                        .
-                      </p>
-                    </>
-                  )}
+              {/* The close. One button, the same one as the hero: there is
+                  nothing to apply for, so a second path here would only invent
+                  a decision the visitor doesn't have to make. */}
+              <section ref={formRef} id="affiliate-join" className="px-8 md:px-12 py-20 md:py-28 scroll-mt-4">
+                <div className="max-w-3xl mx-auto text-center">
+                  <h2 className="text-3xl md:text-5xl font-light tracking-tight" style={{ color: textDark }}>
+                    Your link is one signup away
+                  </h2>
+                  <p className="mt-5 text-base md:text-lg font-light leading-relaxed max-w-xl mx-auto" style={{ color: textMuted }}>
+                    Create an account and your affiliate page is right there — link, code, and a running count of
+                    everyone who joined through you. No application, no waiting.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={getMyLink}
+                    className="mt-9 inline-flex items-center gap-2 rounded-full px-8 py-4 text-xs tracking-[0.25em] uppercase font-semibold transition-transform hover:scale-105"
+                    style={{ backgroundColor: accent, color: '#fff', boxShadow: '0 10px 28px rgba(234, 84, 4, 0.45)' }}
+                  >
+                    <UserPlus size={14} aria-hidden="true" />
+                    {currentUserId ? 'Open my affiliate page' : 'Sign up & get my link'}
+                  </button>
+                  <p className="mt-6 text-sm" style={{ color: textMuted }}>
+                    Questions first?{' '}
+                    <a href={TELEGRAM_COMMUNITY_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2" style={{ color: textDark }}>
+                      Talk to us on Telegram
+                    </a>
+                    .
+                  </p>
                 </div>
               </section>
 

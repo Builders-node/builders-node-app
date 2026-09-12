@@ -202,27 +202,24 @@ type CampaignLink = {
   conversionRate: number;
 };
 
-/** One row of the affiliate queue, as /admin/affiliates returns it. */
+/** One affiliate, as /admin/affiliates derives them. */
 type AffiliateRow = {
   id: string;
-  fullName: string;
   email: string;
-  telegram: string | null;
-  country: string | null;
-  audience: string | null;
-  audienceSize: string | null;
-  links: string[];
-  about: string | null;
-  status: string;
-  adminNote: string | null;
-  campaignCode: string | null;
-  /** Null until they're approved — the code only exists from then. */
+  fullName: string | null;
+  phone: string | null;
+  role: string;
+  /** They signed up through the affiliate page, rather than just having referrals. */
+  fromAffiliatePage: boolean;
   referralCode: string | null;
   inviteLink: string | null;
-  /** People who applied with their code. The only number payouts come from. */
+  /** People who applied with their link. */
   referredCount: number;
-  reviewedAt: string | null;
-  createdAt: string;
+  /** The subset who got in — the only number money is owed on. */
+  joinedCount: number;
+  owedCents: number;
+  currency: string;
+  joinedAt: string;
 };
 
 type MealOption = {
@@ -293,36 +290,21 @@ function toneForStatus(status: string): StatusTone {
   return 'neutral';
 }
 
-/** The affiliate queue's status filter. Pending is the working view. */
+/** How to slice the affiliate list. "Owed" is the one you open this for. */
 const AFFILIATE_FILTERS = [
-  { value: 'PENDING', label: 'Pending' },
-  { value: 'APPROVED', label: 'Approved' },
-  { value: 'DECLINED', label: 'Declined' },
   { value: 'ALL', label: 'All' },
+  { value: 'SOURCED', label: 'From the page' },
+  { value: 'PRODUCTIVE', label: 'Has referrals' },
+  { value: 'OWED', label: 'Owed money' },
 ];
 
-function affiliateStatusLabel(status: string): string {
-  if (status === 'PENDING') return 'Pending';
-  if (status === 'APPROVED') return 'Affiliate';
-  if (status === 'DECLINED') return 'Declined';
-  return status;
-}
-
-function affiliateTone(status: string): StatusTone {
-  if (status === 'APPROVED') return 'good';
-  if (status === 'PENDING') return 'attention';
-  if (status === 'DECLINED') return 'danger';
-  return 'neutral';
-}
-
-/**
- * "https://youtube.com/@nina" → "youtube.com/@nina".
- *
- * An affiliate lists several channels and the scheme is the same on all of
- * them, so it is three characters of noise repeated down the row.
- */
-function prettyLink(url: string): string {
-  return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+function matchesAffiliateFilter(filter: string) {
+  return (row: { fromAffiliatePage: boolean; referredCount: number; owedCents: number }) => {
+    if (filter === 'SOURCED') return row.fromAffiliatePage;
+    if (filter === 'PRODUCTIVE') return row.referredCount > 0;
+    if (filter === 'OWED') return row.owedCents > 0;
+    return true;
+  };
 }
 
 function nextStepFor(status: string, _apartmentAvailable?: boolean | null, paymentStatus?: string) {
@@ -737,8 +719,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   /** Which channel's links are showing; 'all' groups them under headings. */
   const [campaignChannel, setCampaignChannel] = useState('all');
   const [affiliates, setAffiliates] = useState<AffiliateRow[]>([]);
-  const [affiliateFilter, setAffiliateFilter] = useState('PENDING');
-  const [affiliateBusyId, setAffiliateBusyId] = useState<string | null>(null);
+  const [affiliateFilter, setAffiliateFilter] = useState('ALL');
   const [copiedAffiliateId, setCopiedAffiliateId] = useState<string | null>(null);
   const [isBulkRunning, setIsBulkRunning] = useState(false);
   /** Which applicant has an action in flight — see updateApplication. */
@@ -1317,53 +1298,7 @@ async function loadAffiliates() {
     try {
       setAffiliates(await apiRequest<AffiliateRow[]>('/admin/affiliates'));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not load affiliate applications.');
-    }
-  }
-
-  /**
-   * Approve, and say plainly what that does — it creates the applicant an
-   * account (that is where their referral code lives) and emails it to them.
-   * Neither is undoable from here, so it is worth a sentence before the click.
-   */
-  async function approveAffiliate(row: AffiliateRow) {
-    if (!window.confirm(`Approve ${row.fullName}? This creates their account, generates their referral link, and emails both to ${row.email}.`)) return;
-    setError(null);
-    setAffiliateBusyId(row.id);
-    try {
-      setAffiliates(await apiRequest<AffiliateRow[]>(`/admin/affiliates/${row.id}/approve`, { method: 'POST', body: JSON.stringify({}) }));
-      setNotice(`${row.fullName} is an affiliate — their link is on its way.`);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not approve that application.');
-    } finally {
-      setAffiliateBusyId(null);
-    }
-  }
-
-  async function declineAffiliate(row: AffiliateRow) {
-    const note = window.prompt(`Decline ${row.fullName}? Leave a note for us (they never see it).`, row.adminNote ?? '');
-    // Cancel returns null; an empty string is a deliberate "no note".
-    if (note === null) return;
-    setError(null);
-    setAffiliateBusyId(row.id);
-    try {
-      setAffiliates(await apiRequest<AffiliateRow[]>(`/admin/affiliates/${row.id}/decline`, { method: 'POST', body: JSON.stringify({ adminNote: note }) }));
-      setNotice(`${row.fullName} was declined.`);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not decline that application.');
-    } finally {
-      setAffiliateBusyId(null);
-    }
-  }
-
-  async function deleteAffiliate(row: AffiliateRow) {
-    if (!window.confirm(`Delete ${row.fullName}'s application? Their account and referrals, if any, are untouched.`)) return;
-    setError(null);
-    try {
-      setAffiliates(await apiRequest<AffiliateRow[]>(`/admin/affiliates/${row.id}`, { method: 'DELETE' }));
-      setNotice('Application deleted.');
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not delete that application.');
+      setError(caught instanceof Error ? caught.message : 'Could not load affiliates.');
     }
   }
 
@@ -1378,7 +1313,7 @@ async function loadAffiliates() {
     }
   }
 
-async function loadCampaigns() {
+  async function loadCampaigns() {
     try {
       setCampaigns(await apiRequest<CampaignLink[]>('/admin/campaigns'));
     } catch (caught) {
@@ -1947,8 +1882,7 @@ async function loadCampaigns() {
     }
   }
 
-  const visibleAffiliates =
-    affiliateFilter === 'ALL' ? affiliates : affiliates.filter((row) => row.status === affiliateFilter);
+  const visibleAffiliates = affiliates.filter(matchesAffiliateFilter(affiliateFilter));
 
   const currentPage = adminPage ?? 'adminDashboard';
   const inInbox = INBOX_PAGES.includes(currentPage);
@@ -2895,15 +2829,16 @@ async function loadCampaigns() {
           <div className="admin-panel__head">
             <div>
               <h2>Affiliates</h2>
-              <p>People asking to promote Builders Node for a fee. Approving one creates their account, mints their referral link, and emails both.</p>
+              <p>
+                People sending us members. There is nothing to approve — this is derived from who signed up through the
+                affiliate page and whose link has actually brought someone in.
+              </p>
             </div>
           </div>
 
-          {/* Pending first, and selected by default: this is a queue, and the
-              decided rows are history you go looking for. */}
-          <div className="designation-filter-bar" role="group" aria-label="Affiliate status">
+          <div className="designation-filter-bar" role="group" aria-label="Affiliate filter">
             {AFFILIATE_FILTERS.map((option) => {
-              const count = option.value === 'ALL' ? affiliates.length : affiliates.filter((row) => row.status === option.value).length;
+              const count = affiliates.filter(matchesAffiliateFilter(option.value)).length;
               return (
                 <button
                   key={option.value}
@@ -2920,8 +2855,8 @@ async function loadCampaigns() {
           {visibleAffiliates.length === 0 ? (
             <div className="empty-state">
               {affiliates.length === 0
-                ? 'No affiliate applications yet. The programme lives at /affiliate.'
-                : 'Nothing here with that status.'}
+                ? 'Nobody yet. The programme lives at /affiliate — anyone who signs up from there shows up here.'
+                : 'Nobody matches that filter.'}
             </div>
           ) : null}
 
@@ -2929,32 +2864,20 @@ async function loadCampaigns() {
             <article className="campaign-row affiliate-row" key={row.id}>
               <div className="campaign-row__main affiliate-row__main">
                 <div className="campaign-row__id">
-                  <strong>{row.fullName}</strong>
-                  <StatusBadge tone={affiliateTone(row.status)}>{affiliateStatusLabel(row.status)}</StatusBadge>
+                  <strong>{row.fullName || row.email}</strong>
+                  {row.fromAffiliatePage ? (
+                    <StatusBadge tone="good">From affiliate page</StatusBadge>
+                  ) : (
+                    <StatusBadge tone="neutral">Member referral</StatusBadge>
+                  )}
                 </div>
                 <a className="affiliate-row__email" href={`mailto:${row.email}`}>{row.email}</a>
 
                 <div className="affiliate-row__facts">
-                  {row.audience ? <span><em>Promotes on</em> {row.audience}</span> : null}
-                  {row.audienceSize ? <span><em>Reach</em> {row.audienceSize}</span> : null}
-                  {row.telegram ? <span><em>Telegram</em> {row.telegram}</span> : null}
-                  {row.country ? <span><em>Based in</em> {row.country}</span> : null}
-                  {row.campaignCode ? <span><em>Arrived via</em> {row.campaignCode}</span> : null}
+                  {row.phone ? <span><em>Phone</em> {row.phone}</span> : null}
+                  <span><em>Joined</em> {new Date(row.joinedAt).toLocaleDateString()}</span>
                 </div>
 
-                {row.links.length > 0 ? (
-                  <div className="affiliate-row__links">
-                    {row.links.map((link) => (
-                      <a key={link} href={link} target="_blank" rel="noopener noreferrer">{prettyLink(link)}</a>
-                    ))}
-                  </div>
-                ) : null}
-
-                {row.about ? <p className="affiliate-row__about">{row.about}</p> : null}
-                {row.adminNote ? <p className="affiliate-row__note">Note: {row.adminNote}</p> : null}
-
-                {/* Only an approved affiliate has a link, because the code does
-                    not exist before then. */}
                 {row.inviteLink ? (
                   <button className="campaign-row__url" onClick={() => void copyAffiliateLink(row)} title="Copy their referral link">
                     {row.inviteLink}
@@ -2965,39 +2888,18 @@ async function loadCampaigns() {
 
               <div className="campaign-row__stats">
                 <div>
-                  {/* What they are owed is counted from this, and nowhere else. */}
-                  <span>Referred</span>
+                  <span>Applied</span>
                   <strong>{row.referredCount}</strong>
                 </div>
                 <div>
-                  <span>Applied</span>
-                  <strong className="affiliate-row__date">{new Date(row.createdAt).toLocaleDateString()}</strong>
+                  {/* The two are not the same, and only this one is owed money. */}
+                  <span>Joined</span>
+                  <strong>{row.joinedCount}</strong>
                 </div>
-              </div>
-
-              <div className="campaign-row__actions">
-                {row.status === 'PENDING' ? (
-                  <>
-                    <button
-                      className="primary-button compact-button"
-                      disabled={affiliateBusyId === row.id}
-                      onClick={() => void approveAffiliate(row)}
-                    >
-                      {affiliateBusyId === row.id ? 'Working…' : 'Approve'}
-                    </button>
-                    <button
-                      className="ghost-button compact-button"
-                      disabled={affiliateBusyId === row.id}
-                      onClick={() => void declineAffiliate(row)}
-                    >
-                      Decline
-                    </button>
-                  </>
-                ) : (
-                  <button className="compact-button applicant-action--danger" onClick={() => void deleteAffiliate(row)}>
-                    Delete
-                  </button>
-                )}
+                <div>
+                  <span>Owed</span>
+                  <strong>{formatMoney(row.owedCents, row.currency)}</strong>
+                </div>
               </div>
             </article>
           ))}

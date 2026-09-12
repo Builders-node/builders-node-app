@@ -7,6 +7,7 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../database/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { createReferralCode } from '../users/referral-code';
+import { normalizeSignupSource } from './signup-source';
 import { ChangePasswordDto, GoogleLoginDto, LoginDto, PasswordResetDto, PasswordResetRequestDto, SignUpDto } from './dto';
 
 @Injectable()
@@ -27,6 +28,7 @@ export class AuthService {
         email: dto.email.toLowerCase(),
         passwordHash,
         referralCode: createReferralCode(),
+        signupSource: normalizeSignupSource(dto.source),
         profile: { create: { fullName: dto.fullName } },
         membership: { create: { status: 'APPLICANT' } },
       },
@@ -97,6 +99,10 @@ export class AuthService {
         email,
         passwordHash: await bcrypt.hash(randomUUID(), 12),
         referralCode: createReferralCode(),
+        // Only on the branch that creates the account: someone signing in with
+        // Google to an account they already have did not just sign up, and
+        // stamping them here would rewrite how they originally arrived.
+        signupSource: normalizeSignupSource(dto.source),
         emailVerifiedAt: new Date(),
         profile: { create: { fullName } },
         membership: { create: { status: 'APPLICANT' } },
