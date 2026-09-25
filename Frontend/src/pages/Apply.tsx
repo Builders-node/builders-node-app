@@ -9,6 +9,7 @@ import featSpeakers from '@/assets/balaji-srinivasan.webp';
 import featCommunity from '@/assets/gallery-9.webp';
 import featCoworking from '@/assets/adv-coworking.jpg';
 import { apiRequest } from '../lib/api';
+import { goToApplyThanks } from '../lib/applyThanks';
 import type { PageId } from '../data/dashboard';
 
 type ApplyProps = {
@@ -31,7 +32,6 @@ const features = [
 
 export function Apply({ currentUserId, setActivePage, setCurrentUserId, setCurrentUserRole }: ApplyProps) {
   const [prefill, setPrefill] = useState<{ email?: string; fullName?: string }>({});
-  const [done, setDone] = useState(false);
 
   // Called when the applicant sets a password and their account is created —
   // sign them in so the success screen (and the app) treat them as logged in.
@@ -53,8 +53,6 @@ export function Apply({ currentUserId, setActivePage, setCurrentUserId, setCurre
         /* no prefill on failure */
       });
   }, [currentUserId]);
-
-  const goHome = () => setActivePage(currentUserId ? 'profile' : 'landing');
 
   return (
     <>
@@ -102,47 +100,29 @@ export function Apply({ currentUserId, setActivePage, setCurrentUserId, setCurre
 
         <main className="px-6 sm:px-10 md:px-12 pb-28 pt-10 sm:pt-14">
           <div className="max-w-5xl mx-auto">
-            {done ? (
-              <div className="py-10 max-w-3xl mx-auto">
-                <h1 className="text-4xl sm:text-5xl font-light tracking-tight leading-[1.05]">Application received</h1>
-                <p className="mt-5 text-base md:text-lg max-w-xl" style={{ color: 'hsl(0 0% 40%)' }}>
-                  Thanks — we&apos;ll review your application and get back to you soon.
-                </p>
-                <button
-                  type="button"
-                  onClick={goHome}
-                  className="mt-8 h-12 px-7 text-sm tracking-[0.15em] uppercase font-medium rounded-lg"
-                  style={{ backgroundColor: 'hsl(0 0% 10%)', color: 'hsl(30 30% 96%)' }}
-                >
-                  {currentUserId ? 'Back to dashboard' : 'Back to home'}
-                </button>
-              </div>
-            ) : (
-              <>
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-light tracking-tight leading-[1.05]">Apply to Builders Node</h1>
-                <p className="mt-4 max-w-2xl text-base md:text-lg leading-relaxed" style={{ color: 'hsl(0 0% 40%)' }}>
-                  Builders Node is a startup society for builders, founders, and content creators. Located in Próspera, we provide all this for just $1,950/mo:
-                </p>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-light tracking-tight leading-[1.05]">Apply to Builders Node</h1>
+            <p className="mt-4 max-w-2xl text-base md:text-lg leading-relaxed" style={{ color: 'hsl(0 0% 40%)' }}>
+              Builders Node is a startup society for builders, founders, and content creators. Located in Próspera, we provide all this for just $1,950/mo:
+            </p>
 
-                {/* Feature gallery — auto-scrolling marquee */}
-                <div className="apply-marquee mt-8 -mx-6 sm:-mx-10 md:-mx-12">
-                  <div className="apply-marquee-track">
-                    {[...features, ...features].map((feature, index) => (
-                      <div key={`${feature.label}-${index}`} className="relative flex-shrink-0 w-60 sm:w-64 h-56 sm:h-64 rounded-2xl overflow-hidden">
-                        <img src={feature.img} alt={feature.label} className="absolute inset-0 w-full h-full object-cover" />
-                        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.5), rgba(0,0,0,0.05) 45%)' }} />
-                        <span className="absolute top-5 left-0 right-0 text-center text-white text-lg sm:text-xl font-medium px-3">{feature.label}</span>
-                      </div>
-                    ))}
+            {/* Feature gallery — auto-scrolling marquee */}
+            <div className="apply-marquee mt-8 -mx-6 sm:-mx-10 md:-mx-12">
+              <div className="apply-marquee-track">
+                {[...features, ...features].map((feature, index) => (
+                  <div key={`${feature.label}-${index}`} className="relative flex-shrink-0 w-60 sm:w-64 h-56 sm:h-64 rounded-2xl overflow-hidden">
+                    <img src={feature.img} alt={feature.label} className="absolute inset-0 w-full h-full object-cover" />
+                    <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.5), rgba(0,0,0,0.05) 45%)' }} />
+                    <span className="absolute top-5 left-0 right-0 text-center text-white text-lg sm:text-xl font-medium px-3">{feature.label}</span>
                   </div>
-                </div>
+                ))}
+              </div>
+            </div>
 
-                {/* Form */}
-                <div className="mt-12 max-w-3xl mx-auto">
-                  <ApplyForm initialEmail={prefill.email} initialFullName={prefill.fullName} onSuccess={() => setDone(true)} onAuthenticated={onAuthenticated} />
-                </div>
-              </>
-            )}
+            {/* Form. A finished application leaves by a full page load to
+                /apply-thanks — see lib/applyThanks.ts for why. */}
+            <div className="mt-12 max-w-3xl mx-auto">
+              <ApplyForm initialEmail={prefill.email} initialFullName={prefill.fullName} onSuccess={goToApplyThanks} onAuthenticated={onAuthenticated} />
+            </div>
           </div>
         </main>
       </div>

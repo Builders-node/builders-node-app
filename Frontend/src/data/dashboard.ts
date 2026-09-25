@@ -46,6 +46,7 @@ export type NavSection = {
 export type PageId =
   | 'landing'
   | 'apply'
+  | 'applyThanks'
   | 'affiliate'
   | 'login'
   | 'signup'
@@ -166,6 +167,7 @@ export const ADMIN_ROLES = ['SUPER_ADMIN', 'MODERATOR', 'COMMUNITY_LEADER'];
 export const PAGE_PATHS: Record<PageId, string> = {
   landing: '/',
   apply: '/apply',
+  applyThanks: '/apply-thanks',
   affiliate: '/affiliate',
   login: '/login',
   signup: '/signup',
@@ -207,6 +209,7 @@ export const PAGE_PATHS: Record<PageId, string> = {
 const PATH_TO_PAGE: Record<string, PageId> = {
   '/': 'landing',
   '/apply': 'apply',
+  '/apply-thanks': 'applyThanks',
   '/affiliate': 'affiliate',
   '/login': 'login',
   '/signup': 'signup',

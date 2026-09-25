@@ -15,4 +15,8 @@ Disallow: /reset-password
 Disallow: /verify-email
 Disallow: /setup-password
 
+# The application thank-you page. Kept out of the index so organic arrivals
+# can't land on a conversion URL that ad platforms count as a completed apply.
+Disallow: /apply-thanks
+
 Sitemap: https://buildersnode.com/sitemap.xml

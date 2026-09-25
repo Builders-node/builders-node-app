@@ -15,7 +15,11 @@ import { clearStoredCampaign, storedCampaignCode } from "@/lib/campaign";
 
 interface ApplyFormProps {
   onClose?: () => void;
-  onSuccess?: () => void;
+  /**
+   * The application is in. Carries who it was, because the page this hands off
+   * to is reached by a full reload and cannot read this component's state.
+   */
+  onSuccess?: (applicant: { fullName: string; email: string }) => void;
   onAuthenticated?: (session: { accessToken: string; user: { id: string; role: string } }) => void;
   initialEmail?: string;
   initialFullName?: string;
@@ -285,8 +289,10 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
 
       if (result.accountExists) {
         // Already has a login — nothing to set up, go straight to success.
+        // Captured before resetForm, which is about to blank both fields.
+        const applicant = { fullName, email };
         resetForm();
-        onSuccess?.();
+        onSuccess?.(applicant);
       } else {
         // No account yet — have them set a password to finish.
         setStep("password");
@@ -319,8 +325,12 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
         { method: "POST", body: JSON.stringify({ email, password, setupToken }) },
       );
       onAuthenticated?.(session);
+      // Same as the branch above: read before resetForm blanks them. The
+      // session token is already in localStorage by now, so it survives the
+      // full page load onSuccess triggers.
+      const applicant = { fullName, email };
       resetForm();
-      onSuccess?.();
+      onSuccess?.(applicant);
     } catch (error) {
       toast({
         title: "Could not create your account",
