@@ -284,6 +284,26 @@ export class AdminController {
     return this.admin.createUser(body, request.adminAccess);
   }
 
+  @Post('applications/bulk-delete')
+  deleteApplications(
+    @Body() body: { applicationIds?: string[] },
+    @Req() request: Request & { adminAccess?: { userId?: string; role: string; via: 'key' | 'session' } },
+  ) {
+    return this.admin.deleteApplications(body.applicationIds ?? [], request.adminAccess);
+  }
+
+  /**
+   * Delete the application itself, leaving any account alone. The two are
+   * separate rows — see AdminService.deleteApplication.
+   */
+  @Delete('applications/:applicationId')
+  deleteApplication(
+    @Param('applicationId') applicationId: string,
+    @Req() request: Request & { adminAccess?: { userId?: string; role: string; via: 'key' | 'session' } },
+  ) {
+    return this.admin.deleteApplication(applicationId, request.adminAccess);
+  }
+
   @Post('users/bulk-delete')
   deleteUsers(
     @Body() body: { userIds?: string[] },

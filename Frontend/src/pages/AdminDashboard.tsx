@@ -1,4 +1,4 @@
-import { CalendarCheck, Check, FileText, Link as LinkIcon, MessageCircle, Pencil, Search, Send, ShieldCheck, X } from 'lucide-react';
+import { CalendarCheck, Check, FileText, Link as LinkIcon, MessageCircle, Pencil, Search, Send, ShieldCheck, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
@@ -1515,6 +1515,64 @@ async function loadAffiliates() {
     await refreshOverview();
   }
 
+  /**
+   * Delete the application row itself, leaving any account alone.
+   *
+   * Rejecting is the normal "not a fit" move and keeps the record. This is for
+   * the rows that should never have existed — spam, tests, a duplicate — and
+   * for freeing an address, because an Application is keyed by email and a
+   * leftover one refuses that address forever.
+   */
+  async function deleteApplication(app: Applicant) {
+    if (
+      !window.confirm(
+        `Delete ${app.fullName}'s application (${app.email})?\n\n` +
+          'This removes the application only — their account, if they have one, is untouched. ' +
+          'It frees the address so they can apply again. There is no undo.',
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    setNotice(null);
+    try {
+      await apiRequest(`/admin/applications/${app.id}`, { method: 'DELETE' });
+      setNotice(`Application deleted — ${app.email} can apply again.`);
+      await refreshOverview();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not delete that application.');
+    }
+  }
+
+  async function bulkDeleteApplications() {
+    const count = selectedApplicantIds.size;
+    if (count === 0) return;
+    if (
+      !window.confirm(
+        `Delete ${count} application${count === 1 ? '' : 's'}?\n\n` +
+          'Applications only — no accounts are touched. There is no undo.',
+      )
+    ) {
+      return;
+    }
+    setIsBulkRunning(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await apiRequest<{ deleted: number; skipped: number }>('/admin/applications/bulk-delete', {
+        method: 'POST',
+        body: JSON.stringify({ applicationIds: Array.from(selectedApplicantIds) }),
+      });
+      setNotice(`Deleted ${result.deleted}${result.skipped > 0 ? `, ${result.skipped} already gone` : ''}.`);
+      setSelectedApplicantIds(new Set());
+      await refreshOverview();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not delete those applications.');
+    } finally {
+      setIsBulkRunning(false);
+    }
+  }
+
   // The single relevant next action for an applicant's current stage, plus any
   // contextual secondary actions (reject / resend). Avoids showing all 6 buttons.
   function applicantActions(app: Applicant): { primary: ApplicantAction | null; secondary: ApplicantAction[] } {
@@ -2161,28 +2219,38 @@ async function loadAffiliates() {
                                 option above the one that moves the pipeline
                                 along. The list view has its own markup and is
                                 unaffected. */}
-                            {actions.primary || actions.secondary.length > 0 ? (
-                              <div className="pipeline-card__actions">
-                                {actions.primary ? (
-                                  <button className="primary-button compact-button" disabled={isApplicantBusy} onClick={actions.primary.run}>
-                                    {actions.primary.icon}
-                                    {actions.primary.label}
-                                  </button>
-                                ) : null}
-                                {actions.secondary.map((action) => (
-                                  <button
-                                    key={action.key}
-                                    className={action.tone === 'danger' ? 'compact-button applicant-action--danger' : 'ghost-button compact-button'}
-                                    title={action.hint}
-                                    disabled={isApplicantBusy}
-                                    onClick={action.run}
-                                  >
-                                    {action.icon}
-                                    {action.label}
-                                  </button>
-                                ))}
-                              </div>
-                            ) : null}
+                            {/* Always rendered now: Delete is here whatever the
+                                stage, including the onboarded cards that have
+                                no pipeline actions left at all. */}
+                            <div className="pipeline-card__actions">
+                              {actions.primary ? (
+                                <button className="primary-button compact-button" disabled={isApplicantBusy} onClick={actions.primary.run}>
+                                  {actions.primary.icon}
+                                  {actions.primary.label}
+                                </button>
+                              ) : null}
+                              {actions.secondary.map((action) => (
+                                <button
+                                  key={action.key}
+                                  className={action.tone === 'danger' ? 'compact-button applicant-action--danger' : 'ghost-button compact-button'}
+                                  title={action.hint}
+                                  disabled={isApplicantBusy}
+                                  onClick={action.run}
+                                >
+                                  {action.icon}
+                                  {action.label}
+                                </button>
+                              ))}
+                              <button
+                                className="compact-button applicant-action--danger"
+                                title="Delete this application. The account, if any, is untouched."
+                                disabled={isApplicantBusy}
+                                onClick={() => void deleteApplication(app)}
+                              >
+                                <Trash2 size={15} />
+                                Delete
+                              </button>
+                            </div>
                           </article>
                         );
                       })}
@@ -2204,6 +2272,9 @@ async function loadAffiliates() {
               </button>
               <button className="ghost-button compact-button" disabled={isBulkRunning} onClick={() => void runBulkAction('online-meeting-check', { approved: true }, 'Approve meeting')}>
                 Approve meeting
+              </button>
+              <button className="compact-button applicant-action--danger" disabled={isBulkRunning} onClick={() => void bulkDeleteApplications()}>
+                Delete
               </button>
               <button className="text-button" onClick={() => setSelectedApplicantIds(new Set())} style={{ marginLeft: 'auto' }}>
                 Clear
@@ -2283,6 +2354,18 @@ async function loadAffiliates() {
                         : `Next step: ${nextStepFor(application.status, application.apartmentAvailable, application.paymentStatus)}`}
                     </span>
                     <div className="applicant-card__actions">
+                      {/* Outside the stage actions on purpose: those change
+                          with the pipeline, this has to be reachable at any
+                          stage — including the ones with no actions at all. */}
+                      <button
+                        className="compact-button applicant-action applicant-action--danger"
+                        title="Delete this application. The account, if any, is untouched."
+                        disabled={pendingApplicationId !== null}
+                        onClick={() => void deleteApplication(application)}
+                      >
+                        <Trash2 size={15} />
+                        Delete
+                      </button>
                       {actions.secondary.map((action) => (
                         <button
                           className={action.tone === 'danger' ? 'compact-button applicant-action applicant-action--danger' : 'ghost-button compact-button'}

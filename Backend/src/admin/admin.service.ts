@@ -1979,6 +1979,74 @@ export class AdminService {
    * Super Admin, and an admin cannot delete their own account. Related rows are
    * removed explicitly so the delete is safe regardless of DB-level cascades.
    */
+  /**
+   * Delete one application.
+   *
+   * Separate from deleting the account on purpose, because the two are separate
+   * rows: an Application is keyed by email and has no link to a User at all, so
+   * purging an account leaves its application behind — and the leftover row
+   * keeps refusing that address with "an application with this email already
+   * exists". This is the only way to clear it.
+   *
+   * Super Admin only, matching account deletion. It is a real person's name,
+   * address, phone and answers, there is no undo, and rejecting is the
+   * reversible move for anyone who simply isn't a fit.
+   */
+  async deleteApplication(applicationId: string, actor?: { userId?: string; role: string; via: 'key' | 'session' }) {
+    if (actor?.via !== 'key' && actor?.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Only Super Admin can delete applications.');
+    }
+
+    const application = await this.prisma.application.findUnique({ where: { id: applicationId } });
+    if (!application) {
+      throw new NotFoundException('Application not found.');
+    }
+
+    await this.purgeApplication(application.id, application.email);
+    return { deleted: true, id: application.id, email: application.email };
+  }
+
+  /**
+   * Delete several at once. Ids that no longer exist are skipped rather than
+   * failing the batch — two admins clearing the same spam is not an error.
+   */
+  async deleteApplications(applicationIds: string[], actor?: { userId?: string; role: string; via: 'key' | 'session' }) {
+    if (actor?.via !== 'key' && actor?.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Only Super Admin can delete applications.');
+    }
+
+    const uniqueIds = Array.from(new Set(applicationIds ?? [])).filter((id) => typeof id === 'string' && id.length > 0);
+    if (uniqueIds.length === 0) {
+      throw new BadRequestException('Select at least one application to delete.');
+    }
+
+    const existing = await this.prisma.application.findMany({
+      where: { id: { in: uniqueIds } },
+      select: { id: true, email: true },
+    });
+
+    for (const application of existing) {
+      await this.purgeApplication(application.id, application.email);
+    }
+
+    return { deleted: existing.length, skipped: uniqueIds.length - existing.length };
+  }
+
+  /**
+   * The row, plus any half-finished attempt on the same address.
+   *
+   * An ApplicationVerification is a submitted-but-unconfirmed application
+   * holding the emailed code. Leaving one behind would mean the applicant was
+   * "deleted" while still able to confirm themselves back into the pipeline
+   * with a code from before the decision.
+   */
+  private async purgeApplication(applicationId: string, email: string) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.applicationVerification.deleteMany({ where: { email } });
+      await tx.application.delete({ where: { id: applicationId } });
+    });
+  }
+
   async deleteUser(userId: string, actor?: { userId?: string; role: string; via: 'key' | 'session' }) {
     if (actor?.via !== 'key' && actor?.role !== 'SUPER_ADMIN') {
       throw new ForbiddenException('Only Super Admin can delete accounts.');
