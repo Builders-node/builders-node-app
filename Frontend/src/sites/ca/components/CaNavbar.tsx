@@ -104,9 +104,9 @@ const CaNavbar = ({ onRequestGuide }: CaNavbarProps) => {
               <span className="font-medium">{item.label}</span>
             </a>
           ))}
-          {/* The guide is what this landing asks for; applying is the step
-              after it, and signing in is for people who are already members.
-              Ranked accordingly: filled, outlined, quiet. */}
+          {/* The guide is what this landing asks for, so it takes the filled
+              button. The other two keep the header's usual outlined pill —
+              ranked by order, not by stripping one of them of its border. */}
           <div className="ml-2 flex items-center gap-2">
             <button
               onClick={onRequestGuide}
@@ -132,8 +132,12 @@ const CaNavbar = ({ onRequestGuide }: CaNavbarProps) => {
             </button>
             <button
               onClick={openLogin}
-              className="text-sm font-medium tracking-wide transition-opacity hover:opacity-70"
-              style={{ color: mutedColor, background: "none", border: "none", padding: "8px 4px", cursor: "pointer" }}
+              className="px-5 py-2 text-sm font-medium tracking-wide rounded-full transition-all duration-300 hover:scale-105 border"
+              style={{
+                borderColor: scrolled ? "hsl(0 0% 10% / 0.25)" : "hsl(0 0% 100% / 0.55)",
+                color: textColor,
+                backgroundColor: "transparent",
+              }}
             >
               Log in
             </button>
@@ -193,8 +197,8 @@ const CaNavbar = ({ onRequestGuide }: CaNavbarProps) => {
               </button>
               <button
                 onClick={() => { openLogin(); setMobileOpen(false); }}
-                className="w-full py-2 text-sm font-medium tracking-wide"
-                style={{ color: "hsl(0 0% 45%)", background: "none", border: "none" }}
+                className="w-full px-5 py-4 text-sm font-medium tracking-wide rounded-full border"
+                style={{ borderColor: "hsl(0 0% 10% / 0.2)", color: "hsl(0 0% 10%)", backgroundColor: "transparent" }}
               >
                 Log in
               </button>
