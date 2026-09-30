@@ -423,6 +423,29 @@ export class MailService {
     });
   }
 
+  /**
+   * The guide somebody asked for on the CA landing.
+   *
+   * Says plainly that this is not an application — the address was given to
+   * read something, and an email that reads like a reply to an application
+   * would be a small bait-and-switch. The apply link is offered, not assumed.
+   */
+  async sendGuide(to: string, fullName: string | null, guideUrl: string): Promise<void> {
+    const name = fullName ? firstNameOf(fullName) : 'there';
+    await this.send({
+      to,
+      subject: 'Your Builders Node guide',
+      text: `Hi ${name},\n\nHere's the guide you asked for:\n${guideUrl}\n\nNo application has been started — this is just the read. If it makes you want to come and build in Próspera, you can apply at ${this.frontendBaseUrl()}/apply.\n\nBuilders Node`,
+      html: layout(
+        'Your guide',
+        `<p>Hi ${escapeHtml(name)},</p>
+         <p>Here's the guide you asked for.</p>
+         ${button('Read the guide', guideUrl)}
+         <p style="color:#6b7280;font-size:13px">No application has been started — this is just the read. If it makes you want to come and build in Próspera, you can <a href="${this.frontendBaseUrl()}/apply">apply here</a>.</p>`,
+      ),
+    });
+  }
+
   async sendInvitation(invitation: InvitationEmail): Promise<void> {
     await this.send({
       to: invitation.to,

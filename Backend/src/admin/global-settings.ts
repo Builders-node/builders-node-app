@@ -8,6 +8,25 @@ export const GLOBAL_MEAL_PLAN_KEY = 'global_meal_plan';
 export const GLOBAL_CLEANING_PLAN_KEY = 'global_cleaning_plan';
 export const BATCH_KEY = 'batch_start';
 export const AFFILIATE_KEY = 'affiliate_reward';
+export const GUIDE_KEY = 'guide_url';
+
+/**
+ * Where the guide actually lives — a PDF, a Notion page, whatever it ends up
+ * being. Stored rather than deployed because the link will change (a new
+ * edition, a moved file) long before anything else on that landing does, and
+ * changing it should not need a release.
+ */
+export function parseGuideUrl(value: string | null | undefined): string | null {
+  const url = (value ?? '').trim();
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    // http(s) only: this ends up as a link in an email we send to strangers.
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * What an affiliate is paid for one person who joins through them.

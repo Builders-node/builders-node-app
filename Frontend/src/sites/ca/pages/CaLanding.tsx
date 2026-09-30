@@ -1,9 +1,8 @@
+import { useRef } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
-import Navbar from '@/components/Navbar';
-import HeroSection from '@/components/HeroSection';
 import MissionSection from '@/components/MissionSection';
 import PartnersSection from '@/components/PartnersSection';
 import AboutSection from '@/components/AboutSection';
@@ -14,8 +13,10 @@ import SpeakersSection from '@/components/SpeakersSection';
 import EventsSection from '@/components/EventsSection';
 import FAQSection from '@/components/FAQSection';
 import Footer from '@/components/Footer';
-import TelegramCommunityButton from '@/components/TelegramCommunityButton';
 import { ApplyNavProvider, AccountNavProvider } from '@/lib/applyNav';
+import CaNavbar from '../components/CaNavbar';
+import CaHeroSection from '../components/CaHeroSection';
+import { GuideSection } from '../components/GuideSection';
 import { applyUrl, mainSiteUrl } from '../site';
 
 /**
@@ -26,12 +27,19 @@ import { applyUrl, mainSiteUrl } from '../site';
  * under `src/sites/ca/` when the shared ones stop fitting. Nothing here is
  * imported by the main site, so it cannot break it.
  *
- * The one thing to keep: every call to action leaves for the apex domain. The
- * sections don't know that — they call `useApplyNav()` / `useAccountNav()` and
- * the providers below decide what that means, which is why they can be reused
- * unchanged.
+ * Two things to keep. Every call to action that isn't the guide leaves for the
+ * apex domain — the shared sections don't know that, they call `useApplyNav()`
+ * / `useAccountNav()` and the providers below decide what it means, which is
+ * why they can be reused unchanged. And the guide form is the one thing that
+ * stays here: it takes an address, not an application.
+ *
+ * No Telegram anywhere on this page, deliberately — neither the hero button nor
+ * the floating one. This landing asks for exactly one thing.
  */
 export function CaLanding() {
+  const guideRef = useRef<HTMLElement>(null);
+  const scrollToGuide = () => guideRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
   const leaveFor = (url: string) => () => {
     window.location.href = url;
   };
@@ -55,8 +63,8 @@ export function CaLanding() {
               className="landing-root min-h-screen"
               style={{ backgroundColor: 'hsl(30 30% 93%)', color: 'hsl(0 0% 10%)' }}
             >
-              <Navbar />
-              <HeroSection />
+              <CaNavbar onRequestGuide={scrollToGuide} />
+              <CaHeroSection onRequestGuide={scrollToGuide} />
               <AboutSection />
               <GallerySection />
               <AdvantagesSection />
@@ -66,8 +74,10 @@ export function CaLanding() {
               <SpeakersSection />
               <EventsSection />
               <FAQSection />
+              {/* Last thing before the footer: by here they've read the page
+                  and the ask has been in the header the whole way down. */}
+              <GuideSection ref={guideRef} />
               <Footer />
-              <TelegramCommunityButton />
             </div>
           </AccountNavProvider>
         </ApplyNavProvider>

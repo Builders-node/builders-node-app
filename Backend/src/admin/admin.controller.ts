@@ -236,6 +236,12 @@ export class AdminController {
     return this.admin.setBatch(body);
   }
 
+  /** Where the guide the CA landing emails out actually lives. */
+  @Put('settings/global/guide-url')
+  setGuideUrl(@Body() body: { url?: string }) {
+    return this.admin.setGuideUrl(body);
+  }
+
   /** What an affiliate earns per person who joins through them. */
   @Put('settings/global/affiliate-reward')
   setAffiliateReward(@Body() body: { rewardCents?: number; currency?: string }) {

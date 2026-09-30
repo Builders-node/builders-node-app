@@ -57,6 +57,13 @@ export function applyUrl(): string {
   return mainSiteUrl('/apply?src=ca');
 }
 
+/**
+ * Which landing asked for the guide. Must match the server's allowlist in
+ * `guide/guide.service.ts` — anything it doesn't recognise is stored as null,
+ * so a typo here silently loses the attribution rather than failing loudly.
+ */
+export const GUIDE_SOURCE = 'ca';
+
 export type CaPageId = 'landing';
 
 /**

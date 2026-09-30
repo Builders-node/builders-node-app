@@ -84,7 +84,7 @@ type DesignationUser = AdminOverview['users'][number];
 type DesignationFilterId = 'all' | 'incomplete' | 'new' | 'members';
 type Applicant = AdminOverview['applications'][number];
 type ApplicantAction = { key: string; label: string; icon: ReactNode; tone?: 'ghost' | 'danger'; hint?: string; run: () => void };
-type AdminTab = 'overview' | 'applicants' | 'residency' | 'designations' | 'maintenance' | 'support' | 'payments' | 'notifications' | 'resources' | 'events' | 'campaigns' | 'affiliates' | 'vehicles' | 'units' | 'settings';
+type AdminTab = 'overview' | 'applicants' | 'residency' | 'designations' | 'maintenance' | 'support' | 'payments' | 'notifications' | 'resources' | 'events' | 'campaigns' | 'affiliates' | 'guide' | 'vehicles' | 'units' | 'settings';
 
 type AdminVehicle = {
   id: string;
@@ -202,6 +202,18 @@ type CampaignLink = {
   conversionRate: number;
 };
 
+/** Somebody who asked for the guide on ca.buildersnode.com. */
+type GuideLead = {
+  id: string;
+  email: string;
+  name: string | null;
+  source: string | null;
+  campaignCode: string | null;
+  /** Null means the send failed — a lead we still owe the guide to. */
+  sentAt: string | null;
+  createdAt: string;
+};
+
 /** One affiliate, as /admin/affiliates derives them. */
 type AffiliateRow = {
   id: string;
@@ -262,6 +274,8 @@ type GlobalSettings = {
   batch: { startDate: string | null; label: string | null };
   /** What one referral pays an affiliate, quoted by the /affiliate page. */
   affiliate: { rewardCents: number; currency: string };
+  /** Where the CA landing's guide email points. Null when nothing is set. */
+  guideUrl: string | null;
 };
 
 type AdminDashboardProps = {
@@ -718,6 +732,7 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   const [copiedCampaignId, setCopiedCampaignId] = useState<string | null>(null);
   /** Which channel's links are showing; 'all' groups them under headings. */
   const [campaignChannel, setCampaignChannel] = useState('all');
+  const [guideLeads, setGuideLeads] = useState<GuideLead[]>([]);
   const [affiliates, setAffiliates] = useState<AffiliateRow[]>([]);
   const [affiliateFilter, setAffiliateFilter] = useState('ALL');
   const [copiedAffiliateId, setCopiedAffiliateId] = useState<string | null>(null);
@@ -802,6 +817,8 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   // and "20000" in a money field is how you accidentally promise $20,000.
   const [affiliateReward, setAffiliateReward] = useState('');
   const [isSavingAffiliate, setIsSavingAffiliate] = useState(false);
+  const [guideUrl, setGuideUrl] = useState('');
+  const [isSavingGuide, setIsSavingGuide] = useState(false);
   const [isSavingBatch, setIsSavingBatch] = useState(false);
   const [globalMessage, setGlobalMessage] = useState<string | null>(null);
   const [isSavingGlobal, setIsSavingGlobal] = useState(false);
@@ -1291,10 +1308,31 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
     if (adminTab === 'settings') void loadMembershipPlans();
     if (adminTab === 'campaigns') void loadCampaigns();
     if (adminTab === 'affiliates') void loadAffiliates();
+    if (adminTab === 'guide') void loadGuideLeads();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adminTab, supportFilter, paymentsFilter, notifPage]);
 
-async function loadAffiliates() {
+async function loadGuideLeads() {
+    try {
+      setGuideLeads(await apiRequest<GuideLead[]>('/admin/guide-requests'));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not load guide leads.');
+    }
+  }
+
+  async function deleteGuideLead(lead: GuideLead) {
+    if (!window.confirm(`Delete ${lead.email} from the guide list? There is no undo.`)) return;
+    setError(null);
+    try {
+      await apiRequest(`/admin/guide-requests/${lead.id}`, { method: 'DELETE' });
+      setNotice('Lead deleted.');
+      await loadGuideLeads();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not delete that lead.');
+    }
+  }
+
+  async function loadAffiliates() {
     try {
       setAffiliates(await apiRequest<AffiliateRow[]>('/admin/affiliates'));
     } catch (caught) {
@@ -1803,6 +1841,7 @@ async function loadAffiliates() {
     setBatchStartDate(data.batch?.startDate ?? '');
     setBatchLabel(data.batch?.label ?? '');
     setAffiliateReward(data.affiliate ? String(data.affiliate.rewardCents / 100) : '');
+    setGuideUrl(data.guideUrl ?? '');
     if (data.mealPlan?.id === 'custom') {
       setCustomMealName(data.mealPlan.name);
       setCustomMealPrice(data.mealPlan.weeklyPriceCents != null ? String(data.mealPlan.weeklyPriceCents / 100) : '');
@@ -1827,6 +1866,25 @@ async function loadAffiliates() {
       setError(caught instanceof Error ? caught.message : 'Could not save batch start.');
     } finally {
       setIsSavingBatch(false);
+    }
+  }
+
+  async function saveGuideUrl() {
+    setError(null);
+    setGlobalMessage(null);
+    setIsSavingGuide(true);
+    try {
+      const data = await apiRequest<GlobalSettings>('/admin/settings/global/guide-url', {
+        method: 'PUT',
+        // An empty value is a deliberate "take the offer down", not a mistake.
+        body: JSON.stringify({ url: guideUrl.trim() }),
+      });
+      applyGlobalSettings(data);
+      setNotice(data.guideUrl ? 'Guide link saved.' : 'Guide link cleared — the form will refuse until one is set.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not save the guide link.');
+    } finally {
+      setIsSavingGuide(false);
     }
   }
 
@@ -2904,6 +2962,75 @@ async function loadAffiliates() {
                 ))}
               </section>
             ))}
+        </section>
+        ) : null}
+
+        {adminTab === 'guide' ? (
+        <section className="panel admin-panel" id="admin-guide">
+          <div className="admin-panel__head">
+            <div>
+              <h2>Guide leads</h2>
+              <p>
+                People who asked for the guide on ca.buildersnode.com. They gave an address to read something — none of
+                them has applied, and none of them is in the applicant pipeline.
+              </p>
+            </div>
+          </div>
+
+          {/* The link the guide email sends people to. Stored rather than
+              deployed: it will change long before the page does. */}
+          <div className="global-settings global-settings--batch">
+            <label className="global-settings__field">
+              Guide link (sent in the email)
+              <input
+                type="url"
+                value={guideUrl}
+                onChange={(event) => setGuideUrl(event.target.value)}
+                placeholder="https://…"
+              />
+            </label>
+            <button className="primary-button" disabled={isSavingGuide} onClick={() => void saveGuideUrl()}>
+              {isSavingGuide ? 'Saving…' : 'Save link'}
+            </button>
+          </div>
+          <p className="global-settings__current">
+            {globalSettings?.guideUrl
+              ? `The form emails this link: ${globalSettings.guideUrl}`
+              : 'No guide link set — the form refuses rather than taking an address for an email it cannot send.'}
+          </p>
+
+          {guideLeads.length === 0 ? (
+            <div className="empty-state">No requests yet.</div>
+          ) : null}
+
+          {guideLeads.map((lead) => (
+            <article className="campaign-row affiliate-row" key={lead.id}>
+              <div className="campaign-row__main affiliate-row__main">
+                <div className="campaign-row__id">
+                  <strong>{lead.name || lead.email}</strong>
+                  {lead.sentAt ? (
+                    <StatusBadge tone="good">Sent</StatusBadge>
+                  ) : (
+                    // MailService never throws, so a lead is stored even when
+                    // the send fails. This is the only thing that says so.
+                    <StatusBadge tone="danger">Not sent</StatusBadge>
+                  )}
+                </div>
+                <a className="affiliate-row__email" href={`mailto:${lead.email}`}>{lead.email}</a>
+                <div className="affiliate-row__facts">
+                  <span><em>Asked</em> {new Date(lead.createdAt).toLocaleDateString()}</span>
+                  {lead.source ? <span><em>From</em> {lead.source}</span> : null}
+                  {lead.campaignCode ? <span><em>Via</em> {lead.campaignCode}</span> : null}
+                </div>
+              </div>
+
+              <div className="campaign-row__actions">
+                <button className="compact-button applicant-action--danger" onClick={() => void deleteGuideLead(lead)}>
+                  Delete
+                </button>
+              </div>
+            </article>
+          ))}
         </section>
         ) : null}
 

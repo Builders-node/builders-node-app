@@ -68,6 +68,7 @@ export type PageId =
   | 'adminEvents'
   | 'adminCampaigns'
   | 'adminAffiliates'
+  | 'adminGuide'
   | 'adminSettings'
   | 'allUsers'
   | 'units'
@@ -95,6 +96,7 @@ export const ADMIN_SUB_PAGES: PageId[] = [
   'adminEvents',
   'adminCampaigns',
   'adminAffiliates',
+  'adminGuide',
   'adminSettings',
   'units',
 ];
@@ -128,6 +130,7 @@ export const ADMIN_PAGE_TO_TAB: Record<string, string> = {
   adminEvents: 'events',
   adminCampaigns: 'campaigns',
   adminAffiliates: 'affiliates',
+  adminGuide: 'guide',
   adminSettings: 'settings',
   units: 'units',
 };
@@ -156,6 +159,8 @@ export const SETTINGS_TABS: Array<{ page: PageId; label: string }> = [
   // Not an Inbox queue: nothing here waits on a decision, it is a standing
   // report of who is sending us people and what they are owed.
   { page: 'adminAffiliates', label: 'Affiliates' },
+  // Leads from the guide form on ca.buildersnode.com.
+  { page: 'adminGuide', label: 'Guide leads' },
 ];
 
 export const INBOX_PAGES: PageId[] = INBOX_TABS.map((tab) => tab.page);
@@ -194,6 +199,7 @@ export const PAGE_PATHS: Record<PageId, string> = {
   adminEvents: '/admin/settings/events',
   adminCampaigns: '/admin/settings/traffic',
   adminAffiliates: '/admin/settings/affiliates',
+  adminGuide: '/admin/settings/guide',
   allUsers: '/users',
   dashboard: '/account',
   profile: '/account',
@@ -237,6 +243,7 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/admin/settings/events': 'adminEvents',
   '/admin/settings/traffic': 'adminCampaigns',
   '/admin/settings/affiliates': 'adminAffiliates',
+  '/admin/settings/guide': 'adminGuide',
   '/users': 'allUsers',
   // Legacy flat paths — kept so old bookmarks/links still resolve. The URL
   // sync effect in App.tsx rewrites them to the canonical path above.

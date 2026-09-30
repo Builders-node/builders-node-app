@@ -25,6 +25,7 @@ import { HomeModule } from './home/home.module';
 import { AdminModule } from './admin/admin.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
 import { AffiliatesModule } from './affiliates/affiliates.module';
+import { GuideModule } from './guide/guide.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { AffiliatesModule } from './affiliates/affiliates.module';
     AdminModule,
     CampaignsModule,
     AffiliatesModule,
+    GuideModule,
     ApplicationsModule,
     AuthModule,
     UsersModule,

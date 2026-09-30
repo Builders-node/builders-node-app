@@ -73,6 +73,7 @@ const PAGE_TITLES: Partial<Record<PageId, string>> = {
   adminEvents: 'Events — Builders Node',
   adminCampaigns: 'Traffic — Builders Node',
   adminAffiliates: 'Affiliates — Builders Node',
+  adminGuide: 'Guide leads — Builders Node',
   adminSettings: 'Admin settings — Builders Node',
   pass: 'Member pass — Builders Node',
 };

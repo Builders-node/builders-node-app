@@ -633,3 +633,32 @@ model CampaignVisit {
   @@index([linkId, createdAt])
   @@index([linkId, visitorKey])
 }
+
+/**
+ * Somebody who asked for the guide on ca.buildersnode.com.
+ *
+ * A lead, not an application: they gave an address to read something, which is
+ * a much smaller promise than asking to live here. Kept apart from Application
+ * for exactly that reason — mixing the two would put people in the applicant
+ * pipeline who never asked to be reviewed.
+ *
+ * `email` is unique and the row is upserted: asking twice is a person who lost
+ * the email, not a second lead. The guide is simply sent again.
+ */
+model GuideRequest {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String?
+  /// Which landing asked for it — "ca" for the subdomain. Room for the next one.
+  source       String?
+  /// The `?src=` marketing link they arrived through, if any.
+  campaignCode String?
+  /// When the guide was last emailed. Null means the send failed or mail is
+  /// not configured, which is the difference between a lead we owe something
+  /// to and one we have already served.
+  sentAt       DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([createdAt])
+}
