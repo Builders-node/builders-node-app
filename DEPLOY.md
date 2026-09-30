@@ -130,6 +130,50 @@ Run it from CI or locally against `DIRECT_URL` (the direct 5432 connection, not 
 pooler). `migrate deploy` only applies migrations not yet recorded in
 `_prisma_migrations`, so it is safe to run repeatedly.
 
+## ca.buildersnode.com — the second marketing site
+
+A separate landing site served from the **same build and the same Vercel
+project**. `src/main.tsx` picks it by hostname and renders `src/sites/ca/`
+instead of the member app; nothing in `App.tsx` knows it exists, so pages and
+sections added there cannot affect the product.
+
+It hosts marketing pages only. Apply, log in and the member area stay on the
+apex domain, because `localStorage` is per-origin — a session started on the
+subdomain would be invisible on `buildersnode.com`, and one person would end up
+with two accounts and two half-finished funnels. Every call to action leaves for
+the apex domain, and Apply carries `?src=ca`.
+
+To put it live:
+
+1. Vercel → the frontend project → **Settings → Domains** → add
+   `ca.buildersnode.com`. Same project, no second deployment.
+2. DNS: a `CNAME` for `ca` pointing at `cname.vercel-dns.com` (Vercel shows the
+   exact target when you add the domain).
+3. Nothing to do for the API. CORS already allows any `*.buildersnode.com`
+   host — see `makeCorsOrigin` in `Backend/src/app-setup.ts`.
+4. Optional: Admin → Settings → Traffic, create a link with the code `ca`, and
+   applications that started on the subdomain show up in the traffic report. An
+   unrecognised `?src=` is dropped rather than inventing a row, so until that
+   link exists the code is simply ignored.
+
+**Indexing.** The subdomain is kept out of Google by an `X-Robots-Tag:
+noindex, nofollow` header scoped to that hostname in `Frontend/vercel.json`, and
+by a `robots` meta the site sets on boot. A header is used rather than
+`robots.txt` for two reasons: both hosts serve the same `public/robots.txt` and
+cannot be told apart by it, and `robots.txt` only stops crawling where the
+header actually deindexes. To let the subdomain be indexed later, drop the
+`headers` block and the meta rewrite in `src/sites/ca/CaSite.tsx`, and give it a
+canonical of its own.
+
+**Working on it locally.** `http://localhost:5173/?site=ca` renders the CA site
+(the query is ignored on the apex domain, so a stray link cannot replace the
+real homepage). Set `VITE_MAIN_SITE_URL` in `Frontend/.env` to keep its buttons
+on your dev server instead of production.
+
+**Adding a page.** Two lines in `src/sites/ca/site.ts` (`CA_PATHS`,
+`CA_PATH_TO_PAGE`, `CA_TITLES`) plus the component under
+`src/sites/ca/pages/`. Tailwind already scans the whole `src/sites/**` subtree.
+
 ## Error tracking (optional)
 
 The API ships a global exception filter that logs every 5xx with a stack trace —

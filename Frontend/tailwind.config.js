@@ -11,6 +11,10 @@ export default {
     './src/pages/ApplyThanks.tsx',
     './src/pages/Affiliate.tsx',
     './src/pages/legal/**/*.{ts,tsx}',
+    // The ca.buildersnode.com site. A whole subtree rather than named files:
+    // it is a marketing site that will grow pages, and a missing entry here
+    // renders with half its utilities and no error anywhere.
+    './src/sites/**/*.{ts,tsx}',
   ],
   prefix: '',
   // Preflight is OFF so Tailwind's global reset does not affect the existing
