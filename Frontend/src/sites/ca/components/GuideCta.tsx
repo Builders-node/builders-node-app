@@ -89,7 +89,7 @@ export function GuideCta() {
               className="text-3xl sm:text-4xl md:text-[2.75rem] font-light tracking-tight leading-[1.15]"
               style={{ color: panelText }}
             >
-              Get the winter batch dates and the Roatán founder guide
+              Get the complete Buildersnode founder guide
             </h2>
             <p className="mt-5 text-base leading-relaxed max-w-md" style={{ color: panelMuted }}>
               Real monthly costs, flights from Toronto, Montreal and Vancouver, internet speeds, and what a week here
