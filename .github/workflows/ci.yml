@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Lets the migration job be run without a code push — for the first run after
+  # the DIRECT_URL secret is added, and any time a deploy got ahead of the
+  # schema. GitHub → Actions → CI → Run workflow.
+  workflow_dispatch:
 
 jobs:
   backend:
@@ -37,7 +41,7 @@ jobs:
   migrate:
     name: Database — apply migrations
     needs: backend
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     defaults:
       run:
