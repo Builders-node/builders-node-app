@@ -38,6 +38,18 @@ const PUBLIC_DIR = path.join(here, '..', 'public', 'g', 'winter-2026-k7m2qx');
 /** The long edge, in pixels. Above this nothing on the page gets sharper. */
 const MAX_EDGE = 1800;
 
+/**
+ * Where the guide's Apply buttons go.
+ *
+ * Absolute, because the guide is served from the CA subdomain and applying
+ * lives on the apex one. The UTM tags are what let GA4 separate people who
+ * applied after reading the guide from everyone else; `src` is the site's own
+ * marketing-link code, which starts counting in Admin → Settings → Traffic once
+ * a link with that code exists there (an unknown one is ignored, not invented).
+ */
+const APPLY_URL =
+  'https://buildersnode.com/apply?utm_source=ca-guide&utm_medium=content&utm_campaign=winter-2026&src=ca-guide';
+
 const zip = process.argv[2];
 if (!zip) {
   console.error('Usage: node scripts/import-guide.mjs <export.zip>');
@@ -119,6 +131,37 @@ if (!pdfLink.test(html)) {
   console.warn('  ! no "Download as PDF" link found — check whether the export changed');
 }
 html = html.replace(pdfLink, '');
+
+/**
+ * The guide is a whole page, not a card on someone else's background.
+ *
+ * The export styles its own content wrapper and leaves the document alone, so
+ * the browser's default 8px body margin showed as an unpainted frame around it.
+ */
+html = html.replace('</head>', '<style>html,body{margin:0;padding:0;background:#fff;}</style>\n</head>');
+
+html = html.replace('Winter Guide 2026', 'Buildersnode founder guide');
+
+/**
+ * The Apply buttons are `<button>` elements with no handler — the canvas wires
+ * them up in the editor, the export doesn't, so all four did nothing. Turned
+ * into real links, keeping each one's own styling and adding only what a
+ * button doesn't carry.
+ */
+let applyLinks = 0;
+html = html.replace(
+  /<button([^>]*)>\s*Apply \(takes 5 minutes\)\s*<\/button>/g,
+  (_whole, attrs) => {
+    applyLinks += 1;
+    const style = (attrs.match(/style="([^"]*)"/) || [, ''])[1];
+    return `<a href="${APPLY_URL}" target="_blank" rel="noopener" style="${style}text-decoration:none;display:inline-block;">Apply (takes 5 minutes)</a>`;
+  },
+);
+if (applyLinks === 0) {
+  console.warn('  ! no Apply buttons found — check whether the export changed');
+} else {
+  console.log(`Apply buttons linked: ${applyLinks}`);
+}
 
 /**
  * "Prepared for {{ name }}" — dropped rather than filled in.

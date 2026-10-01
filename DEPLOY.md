@@ -206,6 +206,15 @@ That drops the duplicate `uploads/` folder, re-encodes the photos (one was
 5921px wide and 10MB) keeping each result only when it is actually smaller, and
 writes the page to `Frontend/public/g/winter-2026-k7m2qx/`. Last run: 44MB → 19MB.
 
+It also repairs what the export leaves behind, so none of it has to be redone
+by hand after an edit: the document gets `margin: 0` and a white background
+(the export styles its own wrapper and leaves an unpainted frame around it), the
+dead "Download as PDF" link and the "Prepared for" line are removed, and the
+four Apply buttons — `<button>` elements the canvas only wires up in its editor
+— become real links to the apply form, carrying UTM tags so GA4 can separate
+people who applied after reading the guide. Each of those steps warns rather
+than failing silently if a future export stops matching.
+
 Static hosting can't check a key, so **that path is the gate**: it isn't
 guessable, isn't linked from anywhere, and the unlock endpoint is the only thing
 that hands it out. Change it in the script and in `GUIDE_PATH`
