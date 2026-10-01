@@ -46,5 +46,10 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // `ca.localhost` resolves to 127.0.0.1 on its own, so the CA subdomain can
+    // be browsed locally on the host it actually uses in production rather than
+    // through a `?site=ca` query that every internal link would drop. Vite 6
+    // rejects unknown Host headers unless they're listed here.
+    allowedHosts: ['.localhost'],
   },
 });

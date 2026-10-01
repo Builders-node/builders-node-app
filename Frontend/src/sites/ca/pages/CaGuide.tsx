@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { apiRequest } from '@/lib/api';
 import { storedCampaignCode } from '@/lib/campaign';
 import logo from '@/assets/logo.svg';
-import { CA_PATHS, GUIDE_SOURCE, applyUrl } from '../site';
+import { CA_PATHS, GUIDE_SOURCE, applyUrl, caHref } from '../site';
 
 const textDark = 'hsl(0 0% 10%)';
 const textMuted = 'hsl(0 0% 45%)';
@@ -146,7 +146,7 @@ export function CaGuide() {
     >
       <header className="border-b" style={{ borderColor: 'hsl(0 0% 88%)' }}>
         <div className="flex items-center justify-between px-6 sm:px-10 md:px-12" style={{ height: 68 }}>
-          <a href={CA_PATHS.landing} className="flex items-center" aria-label="Builders Node">
+          <a href={caHref(CA_PATHS.landing)} className="flex items-center" aria-label="Builders Node">
             <img src={logo} alt="Builders Node" className="h-6 w-auto" />
           </a>
           <a

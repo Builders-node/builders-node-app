@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/api';
 import { storedCampaignCode } from '@/lib/campaign';
-import { CA_PATHS, GUIDE_SOURCE } from '../site';
+import { CA_PATHS, GUIDE_SOURCE, caHref } from '../site';
 
 const textDark = 'hsl(0 0% 10%)';
 const textMuted = 'hsl(0 0% 45%)';
@@ -96,7 +96,7 @@ export const GuideSection = forwardRef<HTMLElement>(function GuideSection(_props
             <p className="mt-5 text-base md:text-lg leading-relaxed" style={{ color: textMuted }}>
               We&apos;ve sent it to <strong style={{ color: textDark }}>{sentTo}</strong>. The email opens the guide in
               one tap — or paste the key on{' '}
-              <a href={CA_PATHS.guide} className="underline underline-offset-2" style={{ color: textDark }}>
+              <a href={caHref(CA_PATHS.guide)} className="underline underline-offset-2" style={{ color: textDark }}>
                 the guide page
               </a>
               . Check spam if it isn&apos;t there in a minute.

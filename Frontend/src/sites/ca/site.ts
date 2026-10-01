@@ -17,6 +17,14 @@
 const CA_HOST = 'ca.buildersnode.com';
 
 /**
+ * The same site, locally. `*.localhost` resolves to 127.0.0.1 without any
+ * /etc/hosts entry, so `http://ca.localhost:5173` browses the subdomain on the
+ * host shape it really uses — links and all — rather than through a query
+ * string that every internal link would have to carry.
+ */
+const CA_DEV_HOST = 'ca.localhost';
+
+/**
  * Where the real product lives. Every call to action here points at it.
  *
  * Overridable so the site can be worked on locally against a dev server —
@@ -33,7 +41,7 @@ const MAIN_SITE_URL = (import.meta.env.VITE_MAIN_SITE_URL ?? 'https://buildersno
  */
 export function isCaSite(): boolean {
   const { hostname, search } = window.location;
-  if (hostname === CA_HOST) return true;
+  if (hostname === CA_HOST || hostname === CA_DEV_HOST) return true;
   // Never on the apex domain, whatever the query string says: a `?site=ca` link
   // posted somewhere must not be able to replace the real homepage.
   if (hostname === 'buildersnode.com' || hostname === 'www.buildersnode.com') return false;
@@ -63,6 +71,19 @@ export function applyUrl(): string {
  * so a typo here silently loses the attribution rather than failing loudly.
  */
 export const GUIDE_SOURCE = 'ca';
+
+/**
+ * An internal link on this site.
+ *
+ * Carries `?site=ca` onward when that is how the site was selected — which is
+ * the only way to reach it on a Vercel preview URL, where no hostname can say
+ * it. On the real subdomain, and on `ca.localhost`, the host already decides
+ * and the parameter never appears.
+ */
+export function caHref(path: string): string {
+  const selectedByQuery = new URLSearchParams(window.location.search).get('site') === 'ca';
+  return selectedByQuery ? `${path}${path.includes('?') ? '&' : '?'}site=ca` : path;
+}
 
 export type CaPageId = 'landing' | 'guide';
 
