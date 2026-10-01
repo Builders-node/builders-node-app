@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
-import { useApplyNav, useAccountNav } from "@/lib/applyNav";
+import { useApplyNav } from "@/lib/applyNav";
 import logo from "@/assets/logo.svg";
 
 const useScrollProgress = () => {
@@ -32,9 +32,6 @@ const navItems: NavItem[] = [
 const CaNavbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const openApply = useApplyNav();
-  // No `currentUserId` here on purpose: this origin holds no session, so the
-  // nav never shows a signed-in state — see CaLanding's AccountNavProvider.
-  const { openLogin } = useAccountNav();
   const [scrolled, setScrolled] = useState(false);
   const progress = useScrollProgress();
   const textColor = scrolled ? "hsl(0 0% 10%)" : "hsl(0 0% 100%)";
@@ -99,9 +96,9 @@ const CaNavbar = () => {
               <span className="font-medium">{item.label}</span>
             </a>
           ))}
-          {/* Two buttons, as everywhere else on the site. The guide is asked
-              for in the hero and again at the foot of the page — putting a
-              third control up here only made the header busier. */}
+          {/* One button. Signing in belongs on the apex domain, where the
+              session actually lives — offering it here sent people off a
+              landing whose whole job is the guide. */}
           <div className="ml-2 flex items-center gap-2">
             <button
               onClick={openApply}
@@ -113,17 +110,6 @@ const CaNavbar = () => {
               }}
             >
               Apply now
-            </button>
-            <button
-              onClick={openLogin}
-              className="px-5 py-2 text-sm font-medium tracking-wide rounded-full transition-all duration-300 hover:scale-105 border"
-              style={{
-                borderColor: scrolled ? "hsl(0 0% 10% / 0.25)" : "hsl(0 0% 100% / 0.55)",
-                color: textColor,
-                backgroundColor: "transparent",
-              }}
-            >
-              Log in
             </button>
           </div>
         </div>
@@ -171,13 +157,6 @@ const CaNavbar = () => {
                 style={{ backgroundColor: "#EA5404", color: "hsl(0 0% 100%)" }}
               >
                 Apply now
-              </button>
-              <button
-                onClick={() => { openLogin(); setMobileOpen(false); }}
-                className="w-full px-5 py-4 text-sm font-medium tracking-wide rounded-full border"
-                style={{ borderColor: "hsl(0 0% 10% / 0.2)", color: "hsl(0 0% 10%)", backgroundColor: "transparent" }}
-              >
-                Log in
               </button>
             </div>
           </div>
