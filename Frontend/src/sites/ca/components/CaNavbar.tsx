@@ -3,11 +3,6 @@ import { Menu, X } from "lucide-react";
 import { useApplyNav, useAccountNav } from "@/lib/applyNav";
 import logo from "@/assets/logo.svg";
 
-type CaNavbarProps = {
-  /** Scrolls to the guide form. The page owns the ref, so it passes this down. */
-  onRequestGuide: () => void;
-};
-
 const useScrollProgress = () => {
   const [progress, setProgress] = useState(0);
   useEffect(() => {
@@ -34,7 +29,7 @@ const navItems: NavItem[] = [
   { num: "/04", label: "Contact", href: "#contact" },
 ];
 
-const CaNavbar = ({ onRequestGuide }: CaNavbarProps) => {
+const CaNavbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const openApply = useApplyNav();
   // No `currentUserId` here on purpose: this origin holds no session, so the
@@ -104,28 +99,17 @@ const CaNavbar = ({ onRequestGuide }: CaNavbarProps) => {
               <span className="font-medium">{item.label}</span>
             </a>
           ))}
-          {/* The guide is what this landing asks for, so it takes the filled
-              button. The other two keep the header's usual outlined pill —
-              ranked by order, not by stripping one of them of its border. */}
+          {/* Two buttons, as everywhere else on the site. The guide is asked
+              for in the hero and again at the foot of the page — putting a
+              third control up here only made the header busier. */}
           <div className="ml-2 flex items-center gap-2">
             <button
-              onClick={onRequestGuide}
+              onClick={openApply}
               className="px-5 py-2 text-sm font-semibold tracking-wide rounded-full transition-all duration-300 hover:scale-105"
               style={{
                 backgroundColor: "#EA5404",
                 color: "hsl(0 0% 100%)",
                 boxShadow: "0 6px 20px rgba(234, 84, 4, 0.45)",
-              }}
-            >
-              Send me guide
-            </button>
-            <button
-              onClick={openApply}
-              className="px-5 py-2 text-sm font-medium tracking-wide rounded-full transition-all duration-300 hover:scale-105 border"
-              style={{
-                borderColor: scrolled ? "hsl(0 0% 10% / 0.25)" : "hsl(0 0% 100% / 0.55)",
-                color: textColor,
-                backgroundColor: "transparent",
               }}
             >
               Apply now
@@ -182,16 +166,9 @@ const CaNavbar = ({ onRequestGuide }: CaNavbarProps) => {
             </div>
             <div className="mt-auto flex flex-col gap-3">
               <button
-                onClick={() => { onRequestGuide(); setMobileOpen(false); }}
+                onClick={() => { openApply(); setMobileOpen(false); }}
                 className="w-full px-5 py-4 text-sm font-semibold tracking-wide rounded-full"
                 style={{ backgroundColor: "#EA5404", color: "hsl(0 0% 100%)" }}
-              >
-                Send me guide
-              </button>
-              <button
-                onClick={() => { openApply(); setMobileOpen(false); }}
-                className="w-full px-5 py-4 text-sm font-medium tracking-wide rounded-full border"
-                style={{ borderColor: "hsl(0 0% 10% / 0.2)", color: "hsl(0 0% 10%)", backgroundColor: "transparent" }}
               >
                 Apply now
               </button>
