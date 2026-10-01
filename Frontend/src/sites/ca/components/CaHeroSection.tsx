@@ -49,11 +49,12 @@ const CaHeroSection = ({ onRequestGuide }: CaHeroSectionProps) => {
       <div className="relative z-10 w-full px-6 md:px-12 flex flex-col items-center text-center gap-6">
         {/* The offer up top, what the month is actually like underneath — and
             no price: the guide block right below is what this landing asks for. */}
-        <h1 ref={titleRef} className="text-4xl sm:text-5xl md:text-[3.25rem] lg:text-[3.75rem] font-light leading-[1.08] text-white max-w-5xl tracking-tight">
-          Spend the winter at Builders Node — a community of founders on a Caribbean island
+        <h1 ref={titleRef} className="text-4xl sm:text-5xl md:text-6xl lg:text-[4.75rem] font-light leading-[1.05] text-white max-w-4xl tracking-tight">
+          Spend the winter at Builders Node.
         </h1>
         <p className="text-base md:text-lg text-white/70 max-w-2xl leading-relaxed">
-          Work on your project, learn, and meet like-minded people while we handle the day-to-day.
+          A community of founders on a Caribbean island. Work on your project, learn, and meet like-minded people while
+          we handle the day-to-day.
         </p>
         {/* Two ways in, ranked. The guide is the cheap first step and the ask
             this landing is built around; applying is the commitment, so it sits
