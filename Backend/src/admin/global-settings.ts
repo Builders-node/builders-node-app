@@ -8,43 +8,6 @@ export const GLOBAL_MEAL_PLAN_KEY = 'global_meal_plan';
 export const GLOBAL_CLEANING_PLAN_KEY = 'global_cleaning_plan';
 export const BATCH_KEY = 'batch_start';
 export const AFFILIATE_KEY = 'affiliate_reward';
-export const GUIDE_KEY = 'guide_url';
-export const GUIDE_ACCESS_KEY = 'guide_access_key';
-
-/**
- * The key that unlocks the guide page.
- *
- * One key for everyone, by design. That is worth being honest about: the first
- * person to paste it into a group chat has published it, so this is friction
- * and attribution rather than security — it buys the email address, which is
- * the point of the whole page. Anything that actually had to stay private
- * would need a key per person.
- */
-export function parseGuideAccessKey(value: string | null | undefined): string | null {
-  const key = (value ?? '').trim();
-  // Long enough not to be guessed in the handful of tries the rate limit
-  // allows, short enough to read off a phone screen.
-  return key.length >= 6 && key.length <= 64 ? key : null;
-}
-
-/**
- * Where the guide actually lives — a PDF, a Notion page, whatever it ends up
- * being. Stored rather than deployed because the link will change (a new
- * edition, a moved file) long before anything else on that landing does, and
- * changing it should not need a release.
- */
-export function parseGuideUrl(value: string | null | undefined): string | null {
-  const url = (value ?? '').trim();
-  if (!url) return null;
-  try {
-    const parsed = new URL(url);
-    // http(s) only: this ends up as a link in an email we send to strangers.
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.toString() : null;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * What an affiliate is paid for one person who joins through them.
  *

@@ -643,12 +643,22 @@ model CampaignVisit {
  * pipeline who never asked to be reviewed.
  *
  * `email` is unique and the row is upserted: asking twice is a person who lost
- * the email, not a second lead. The guide is simply sent again.
+ * the email, not a second lead. The same key is sent again rather than a new
+ * one, because the first is already in their inbox.
  */
 model GuideRequest {
   id           String    @id @default(uuid())
   email        String    @unique
   name         String?
+  /// The key emailed to this reader, and theirs alone.
+  ///
+  /// Unique, which is the whole difference from a shared one: a key identifies
+  /// exactly who is reading, so access can be seen per person and taken away
+  /// from one without breaking it for everybody else.
+  accessKey    String    @unique
+  /// First time this key actually opened the guide. Null for a lead who asked
+  /// and never looked — the gap between the two is the number worth knowing.
+  openedAt     DateTime?
   /// Which landing asked for it — "ca" for the subdomain. Room for the next one.
   source       String?
   /// The `?src=` marketing link they arrived through, if any.

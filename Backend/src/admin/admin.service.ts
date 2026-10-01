@@ -14,14 +14,10 @@ import { ProsperaSubClient } from '../subscriptions/prospera-sub.client';
 import {
   AFFILIATE_KEY,
   BATCH_KEY,
-  GUIDE_ACCESS_KEY,
-  GUIDE_KEY,
   GLOBAL_CLEANING_PLAN_KEY,
   GLOBAL_MEAL_PLAN_KEY,
   parseAffiliateReward,
   parseBatch,
-  parseGuideAccessKey,
-  parseGuideUrl,
   parseGlobalCleaningPlan,
   parseGlobalMealPlan,
   type GlobalCleaningPlan,
@@ -1543,13 +1539,11 @@ export class AdminService {
   }
 
   async getGlobalSettings() {
-    const [mealRow, cleaningRow, batchRow, affiliateRow, guideRow, guideKeyRow, mealOptions, cleaningOptions, apartments] = await Promise.all([
+    const [mealRow, cleaningRow, batchRow, affiliateRow, mealOptions, cleaningOptions, apartments] = await Promise.all([
       this.prisma.globalSetting.findUnique({ where: { key: GLOBAL_MEAL_PLAN_KEY } }),
       this.prisma.globalSetting.findUnique({ where: { key: GLOBAL_CLEANING_PLAN_KEY } }),
       this.prisma.globalSetting.findUnique({ where: { key: BATCH_KEY } }),
       this.prisma.globalSetting.findUnique({ where: { key: AFFILIATE_KEY } }),
-      this.prisma.globalSetting.findUnique({ where: { key: GUIDE_KEY } }),
-      this.prisma.globalSetting.findUnique({ where: { key: GUIDE_ACCESS_KEY } }),
       this.prosperaSub.getMealsMenu('admin').catch(() => []),
       this.prosperaSub.getCleaningSchedule('admin').catch(() => []),
       this.prisma.apartment.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
@@ -1563,8 +1557,6 @@ export class AdminService {
       apartmentOptions: apartments,
       batch: parseBatch(batchRow?.value),
       affiliate: parseAffiliateReward(affiliateRow?.value),
-      guideUrl: parseGuideUrl(guideRow?.value),
-      guideAccessKey: parseGuideAccessKey(guideKeyRow?.value),
     };
   }
 
@@ -1580,51 +1572,6 @@ export class AdminService {
       create: { key: BATCH_KEY, value },
       update: { value },
     });
-    return this.getGlobalSettings();
-  }
-
-  /**
-   * Where the guide the CA landing hands out actually lives.
-   *
-   * Stored rather than deployed: the link will change — a new edition, a moved
-   * file — long before anything else on that page does, and an empty value is
-   * allowed because taking the offer down should not need a release either.
-   */
-  async setGuideUrl(body: { url?: string }) {
-    const raw = body.url?.trim() ?? '';
-    if (raw) {
-      const parsed = parseGuideUrl(raw);
-      if (!parsed) throw new BadRequestException('Enter a full http(s) link to the guide.');
-      await this.prisma.globalSetting.upsert({
-        where: { key: GUIDE_KEY },
-        create: { key: GUIDE_KEY, value: parsed },
-        update: { value: parsed },
-      });
-    } else {
-      await this.prisma.globalSetting.deleteMany({ where: { key: GUIDE_KEY } });
-    }
-    return this.getGlobalSettings();
-  }
-
-  /**
-   * The one key that unlocks the guide page.
-   *
-   * Empty takes the guide down: with no key nothing unlocks and no key can be
-   * emailed, which is the honest way to pause the offer.
-   */
-  async setGuideAccessKey(body: { key?: string }) {
-    const raw = body.key?.trim() ?? '';
-    if (raw) {
-      const parsed = parseGuideAccessKey(raw);
-      if (!parsed) throw new BadRequestException('A key needs to be 6 to 64 characters.');
-      await this.prisma.globalSetting.upsert({
-        where: { key: GUIDE_ACCESS_KEY },
-        create: { key: GUIDE_ACCESS_KEY, value: parsed },
-        update: { value: parsed },
-      });
-    } else {
-      await this.prisma.globalSetting.deleteMany({ where: { key: GUIDE_ACCESS_KEY } });
-    }
     return this.getGlobalSettings();
   }
 

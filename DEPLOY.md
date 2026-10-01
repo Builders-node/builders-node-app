@@ -174,21 +174,22 @@ on your dev server instead of production.
 address in exchange for a key, which is a much smaller promise than applying, so
 the leads are kept in their own table and never enter the applicant pipeline.
 
-The guide itself lives behind `/guide` on the subdomain. One key opens it for
-everyone — worth being honest that this is friction and attribution rather than
-secrecy, since the first reader to paste it into a group chat has published it.
-The key is checked server-side and the guide's location is returned only when it
-holds, so the gate is not something a visitor can read out of the JavaScript.
+**Nothing about it is configured.** Each reader is emailed a key of their own
+the moment they ask — minted on the spot, stored against their address, and
+reused if they ask again, because the first one is already in their inbox. The
+key is checked server-side and the guide's location is returned only when it
+resolves to somebody, so the gate is not something a visitor can read out of the
+JavaScript.
 
-Both values are set in **Admin → Settings → Guide leads**: the link the guide
-lives at, and the access key (there is a Generate button). With either missing
-the page refuses rather than taking an address for an email it cannot send.
-Changing the key stops every key already emailed. `CA_SITE_URL` on the API tells
-the email where to point its one-tap link; it defaults to
-`https://ca.buildersnode.com`.
+The guide file ships with the frontend at
+`Frontend/public/guide-file/builders-node-private-guide.pdf`. `GUIDE_URL` on the
+API overrides that if it ever needs to live somewhere else, and `CA_SITE_URL`
+tells the email where to point its one-tap link (it defaults to
+`https://ca.buildersnode.com`).
 
-The same admin page lists the leads and shows whether each was actually emailed
-— the mailer never throws, so a stored lead is not proof of a delivered key.
+**Admin → Settings → Guide leads** is a list, not a form: who asked, their key,
+whether the email went out, and whether they ever opened it. Deleting a lead
+takes their key with them, which is the one thing a shared key could never do.
 
 **Adding a page.** Two lines in `src/sites/ca/site.ts` (`CA_PATHS`,
 `CA_PATH_TO_PAGE`, `CA_TITLES`) plus the component under

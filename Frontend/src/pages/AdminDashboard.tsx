@@ -209,6 +209,10 @@ type GuideLead = {
   name: string | null;
   source: string | null;
   campaignCode: string | null;
+  /** Their own key. Deleting the lead is what takes it away. */
+  accessKey: string;
+  /** Null means they asked and never looked. */
+  openedAt: string | null;
   /** Null means the send failed — a lead we still owe the guide to. */
   sentAt: string | null;
   createdAt: string;
@@ -274,10 +278,6 @@ type GlobalSettings = {
   batch: { startDate: string | null; label: string | null };
   /** What one referral pays an affiliate, quoted by the /affiliate page. */
   affiliate: { rewardCents: number; currency: string };
-  /** Where the CA landing's guide email points. Null when nothing is set. */
-  guideUrl: string | null;
-  /** The one key that unlocks /guide. Null takes the guide down. */
-  guideAccessKey: string | null;
 };
 
 type AdminDashboardProps = {
@@ -304,17 +304,6 @@ function toneForStatus(status: string): StatusTone {
   if (status === 'SUBMITTED' || status === 'IN_PROGRESS' || status === 'PAYMENT_LINK_SENT' || status === 'PENDING') return 'attention';
   if (status.includes('REJECTED') || status === 'NO_APARTMENT_AVAILABLE') return 'danger';
   return 'neutral';
-}
-
-/**
- * A readable key: no vowels, so it can't spell anything, and no 0/O or 1/I,
- * which is the pair people get wrong reading one off a phone.
- */
-function makeGuideKey(): string {
-  const alphabet = 'BCDFGHJKLMNPQRSTVWXZ23456789';
-  const block = () =>
-    Array.from({ length: 4 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('');
-  return `BN-${block()}-${block()}`;
 }
 
 /** How to slice the affiliate list. "Owed" is the one you open this for. */
@@ -830,10 +819,6 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   // and "20000" in a money field is how you accidentally promise $20,000.
   const [affiliateReward, setAffiliateReward] = useState('');
   const [isSavingAffiliate, setIsSavingAffiliate] = useState(false);
-  const [guideUrl, setGuideUrl] = useState('');
-  const [isSavingGuide, setIsSavingGuide] = useState(false);
-  const [guideAccessKey, setGuideAccessKey] = useState('');
-  const [isSavingGuideKey, setIsSavingGuideKey] = useState(false);
   const [isSavingBatch, setIsSavingBatch] = useState(false);
   const [globalMessage, setGlobalMessage] = useState<string | null>(null);
   const [isSavingGlobal, setIsSavingGlobal] = useState(false);
@@ -1856,8 +1841,6 @@ async function loadGuideLeads() {
     setBatchStartDate(data.batch?.startDate ?? '');
     setBatchLabel(data.batch?.label ?? '');
     setAffiliateReward(data.affiliate ? String(data.affiliate.rewardCents / 100) : '');
-    setGuideUrl(data.guideUrl ?? '');
-    setGuideAccessKey(data.guideAccessKey ?? '');
     if (data.mealPlan?.id === 'custom') {
       setCustomMealName(data.mealPlan.name);
       setCustomMealPrice(data.mealPlan.weeklyPriceCents != null ? String(data.mealPlan.weeklyPriceCents / 100) : '');
@@ -1882,48 +1865,6 @@ async function loadGuideLeads() {
       setError(caught instanceof Error ? caught.message : 'Could not save batch start.');
     } finally {
       setIsSavingBatch(false);
-    }
-  }
-
-  async function saveGuideUrl() {
-    setError(null);
-    setGlobalMessage(null);
-    setIsSavingGuide(true);
-    try {
-      const data = await apiRequest<GlobalSettings>('/admin/settings/global/guide-url', {
-        method: 'PUT',
-        // An empty value is a deliberate "take the offer down", not a mistake.
-        body: JSON.stringify({ url: guideUrl.trim() }),
-      });
-      applyGlobalSettings(data);
-      setNotice(data.guideUrl ? 'Guide link saved.' : 'Guide link cleared — the form will refuse until one is set.');
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not save the guide link.');
-    } finally {
-      setIsSavingGuide(false);
-    }
-  }
-
-  async function saveGuideAccessKey() {
-    setError(null);
-    setGlobalMessage(null);
-    setIsSavingGuideKey(true);
-    try {
-      const data = await apiRequest<GlobalSettings>('/admin/settings/global/guide-key', {
-        method: 'PUT',
-        // Empty is a deliberate "take the guide down", not a mistake.
-        body: JSON.stringify({ key: guideAccessKey.trim() }),
-      });
-      applyGlobalSettings(data);
-      setNotice(
-        data.guideAccessKey
-          ? 'Guide key saved. Keys already emailed stop working unless they match.'
-          : 'Guide key cleared — nothing unlocks the guide until a new one is set.',
-      );
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not save the guide key.');
-    } finally {
-      setIsSavingGuideKey(false);
     }
   }
 
@@ -3016,73 +2957,9 @@ async function loadGuideLeads() {
             </div>
           </div>
 
-          {/* Loud on purpose. Both values are required for the page to work at
-              all, and the visitor-facing failure deliberately says nothing
-              about why — so this is the only place the reason shows. */}
-          {!globalSettings?.guideAccessKey || !globalSettings?.guideUrl ? (
-            <div className="guide-setup-warning">
-              <strong>The guide is switched off.</strong>
-              <span>
-                {!globalSettings?.guideAccessKey && !globalSettings?.guideUrl
-                  ? 'Neither the access key nor the guide link is set, so the form refuses every address and nothing opens /guide.'
-                  : !globalSettings?.guideAccessKey
-                    ? 'No access key, so the form refuses every address and nothing opens /guide. Press Generate below, then Save key.'
-                    : 'No guide link, so a correct key unlocks nothing. Set it below.'}
-              </span>
-            </div>
-          ) : null}
-
-          {/* The link the guide email sends people to. Stored rather than
-              deployed: it will change long before the page does. */}
-          <div className="global-settings global-settings--batch">
-            <label className="global-settings__field">
-              Guide link (sent in the email)
-              <input
-                type="url"
-                value={guideUrl}
-                onChange={(event) => setGuideUrl(event.target.value)}
-                placeholder="https://…"
-              />
-            </label>
-            <button className="primary-button" disabled={isSavingGuide} onClick={() => void saveGuideUrl()}>
-              {isSavingGuide ? 'Saving…' : 'Save link'}
-            </button>
-          </div>
           <p className="global-settings__current">
-            {globalSettings?.guideUrl
-              ? `Unlocking /guide opens: ${globalSettings.guideUrl}`
-              : 'No guide link set — unlocking will fail even with the right key.'}
-          </p>
-
-          {/* The universal key. Worth saying plainly: it buys the email address
-              and a moment of friction, not secrecy — the first reader to paste
-              it into a group chat has published it. */}
-          <div className="global-settings global-settings--batch">
-            <label className="global-settings__field">
-              Access key (one for everyone)
-              <input
-                value={guideAccessKey}
-                onChange={(event) => setGuideAccessKey(event.target.value)}
-                placeholder="BN-XXXX-XXXX"
-                spellCheck={false}
-                style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}
-              />
-            </label>
-            <button
-              className="ghost-button"
-              type="button"
-              onClick={() => setGuideAccessKey(makeGuideKey())}
-            >
-              Generate
-            </button>
-            <button className="primary-button" disabled={isSavingGuideKey} onClick={() => void saveGuideAccessKey()}>
-              {isSavingGuideKey ? 'Saving…' : 'Save key'}
-            </button>
-          </div>
-          <p className="global-settings__current">
-            {globalSettings?.guideAccessKey
-              ? 'This key is emailed to anyone who asks, and is the only thing that opens the guide. Changing it stops every key already sent out.'
-              : 'No key set — the form refuses to take addresses and nothing opens the guide.'}
+            Nothing to set up here. Each reader is emailed a key of their own the moment they ask, and the guide ships
+            with the site.
           </p>
 
           {guideLeads.length === 0 ? (
@@ -3094,17 +2971,22 @@ async function loadGuideLeads() {
               <div className="campaign-row__main affiliate-row__main">
                 <div className="campaign-row__id">
                   <strong>{lead.name || lead.email}</strong>
-                  {lead.sentAt ? (
-                    <StatusBadge tone="good">Sent</StatusBadge>
-                  ) : (
+                  {!lead.sentAt ? (
                     // MailService never throws, so a lead is stored even when
                     // the send fails. This is the only thing that says so.
                     <StatusBadge tone="danger">Not sent</StatusBadge>
+                  ) : lead.openedAt ? (
+                    <StatusBadge tone="good">Opened</StatusBadge>
+                  ) : (
+                    // Asked and never looked — the gap between the two is the
+                    // number worth knowing about a lead magnet.
+                    <StatusBadge tone="attention">Not opened</StatusBadge>
                   )}
                 </div>
                 <a className="affiliate-row__email" href={`mailto:${lead.email}`}>{lead.email}</a>
                 <div className="affiliate-row__facts">
                   <span><em>Asked</em> {new Date(lead.createdAt).toLocaleDateString()}</span>
+                  <span><em>Key</em> {lead.accessKey}</span>
                   {lead.source ? <span><em>From</em> {lead.source}</span> : null}
                   {lead.campaignCode ? <span><em>Via</em> {lead.campaignCode}</span> : null}
                 </div>

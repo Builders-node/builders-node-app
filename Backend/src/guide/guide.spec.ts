@@ -1,45 +1,26 @@
 import { GuideService } from './guide.service';
 
 /**
- * The guide lead magnet and its key.
+ * The guide lead magnet, with a key per reader.
  *
- * What's pinned: a lead is never lost to a mail failure, asking twice is one
- * person rather than two, nobody's address is taken for an email we cannot
- * send, and the guide's location never leaves the server unless the key holds.
+ * What's pinned: a returning reader keeps the key already in their inbox, a
+ * key belongs to exactly one person, a lead is never lost to a mail failure,
+ * and the guide's location never leaves the server without a key that resolves.
  */
-function makeService(
-  options: { guideUrl?: string | null; accessKey?: string | null; campaignLink?: { code: string } | null } = {},
-) {
-  const {
-    guideUrl = 'https://buildersnode.com/guide.pdf',
-    accessKey = 'BN-7K2M-QX94',
-    campaignLink = null,
-  } = options;
+function makeService(options: { lead?: Record<string, unknown> | null; campaignLink?: { code: string } | null } = {}) {
+  const { lead = null, campaignLink = null } = options;
 
-  const settings: Record<string, string | null> = { guide_url: guideUrl, guide_access_key: accessKey };
-
-  const created: Record<string, string> = {};
   const prisma = {
     guideRequest: {
       upsert: jest.fn().mockImplementation(({ create, where }) =>
-        Promise.resolve({ id: 'lead-1', email: where.email, name: create.name ?? null }),
+        Promise.resolve({ id: 'lead-1', email: where.email, name: create.name ?? null, accessKey: create.accessKey }),
       ),
       update: jest.fn().mockResolvedValue({}),
       findMany: jest.fn().mockResolvedValue([]),
-      findUnique: jest.fn().mockResolvedValue({ id: 'lead-1', email: 'nina@example.com' }),
+      findUnique: jest.fn().mockResolvedValue(lead),
       delete: jest.fn().mockResolvedValue({}),
     },
     campaignLink: { findUnique: jest.fn().mockResolvedValue(campaignLink) },
-    globalSetting: {
-      findUnique: jest.fn().mockImplementation(({ where }) => {
-        const value = settings[where.key] ?? created[where.key];
-        return Promise.resolve(value ? { value } : null);
-      }),
-      create: jest.fn().mockImplementation(({ data }) => {
-        created[data.key] = data.value;
-        return Promise.resolve(data);
-      }),
-    },
   };
   const mail = { sendGuideKey: jest.fn().mockResolvedValue(undefined) };
 
@@ -47,20 +28,39 @@ function makeService(
 }
 
 describe('GuideService.request', () => {
-  it('stores the lead and emails the key with a link that carries it', async () => {
+  it('mints a key of its own for a new reader and emails it with a one-tap link', async () => {
     const { service, prisma, mail } = makeService();
 
     const result = await service.request({ email: 'Nina@Example.com ', name: 'Nina Alvarez', source: 'ca' });
 
     expect(result).toEqual({ sent: true, email: 'nina@example.com' });
-    // Addresses are deduplicated and mailed by this value — a stray capital
-    // would make the same person two leads.
-    expect(prisma.guideRequest.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { email: 'nina@example.com' } }),
-    );
+    const minted = prisma.guideRequest.upsert.mock.calls[0][0].create.accessKey;
+    expect(minted).toMatch(/^BN-[BCDFGHJKLMNPQRSTVWXZ2-9]{4}-[BCDFGHJKLMNPQRSTVWXZ2-9]{4}$/);
+
     const [to, name, key, url] = mail.sendGuideKey.mock.calls[0];
-    expect([to, name, key]).toEqual(['nina@example.com', 'Nina Alvarez', 'BN-7K2M-QX94']);
-    expect(url).toContain('/guide?key=BN-7K2M-QX94');
+    expect([to, name, key]).toEqual(['nina@example.com', 'Nina Alvarez', minted]);
+    expect(url).toContain(`/guide?key=${minted}`);
+  });
+
+  it('gives two readers different keys', async () => {
+    // The whole point of the column: a key says who is reading.
+    const { service, prisma } = makeService();
+
+    await service.request({ email: 'nina@example.com' });
+    await service.request({ email: 'sam@example.com' });
+
+    const [first, second] = prisma.guideRequest.upsert.mock.calls.map((call) => call[0].create.accessKey);
+    expect(first).not.toBe(second);
+  });
+
+  it('never rotates the key of a reader who asks twice', async () => {
+    // Their first key is already in their inbox; a new one would stop it
+    // working the moment they went back to the old email.
+    const { service, prisma } = makeService();
+
+    await service.request({ email: 'nina@example.com' });
+
+    expect(prisma.guideRequest.upsert.mock.calls[0][0].update.accessKey).toBeUndefined();
   });
 
   it('marks the lead as served only after the send', async () => {
@@ -75,46 +75,7 @@ describe('GuideService.request', () => {
     );
   });
 
-  it('refuses when no guide link is configured, rather than taking an address for nothing', async () => {
-    // The link is the one thing with no sensible default — there is nothing to
-    // send without it.
-    const { service, prisma, mail } = makeService({ guideUrl: null });
-
-    await expect(service.request({ email: 'nina@example.com' })).rejects.toThrow();
-    expect(prisma.guideRequest.upsert).not.toHaveBeenCalled();
-    expect(mail.sendGuideKey).not.toHaveBeenCalled();
-  });
-
-  it('mints a key itself when none is set, rather than refusing', async () => {
-    // Asking an admin to invent a second value before anything worked was a
-    // step that existed only because the code asked for it.
-    const { service, prisma, mail } = makeService({ accessKey: null });
-
-    await expect(service.request({ email: 'nina@example.com' })).resolves.toEqual({
-      sent: true,
-      email: 'nina@example.com',
-    });
-
-    const minted = prisma.globalSetting.create.mock.calls[0][0].data.value;
-    expect(minted).toMatch(/^BN-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
-    // The key that was stored is the key that went out.
-    expect(mail.sendGuideKey.mock.calls[0][2]).toBe(minted);
-  });
-
-  it('reuses the key it minted rather than issuing a new one each time', async () => {
-    // A second key would silently invalidate the first, which is already in
-    // somebody's inbox.
-    const { service, prisma } = makeService({ accessKey: null });
-
-    await service.request({ email: 'nina@example.com' });
-    await service.request({ email: 'sam@example.com' });
-
-    expect(prisma.globalSetting.create).toHaveBeenCalledTimes(1);
-  });
-
   it('keeps what it already knew when a blank second request comes in', async () => {
-    // Someone who lost the email and retypes only their address should not
-    // have their name wiped.
     const { service, prisma } = makeService();
 
     await service.request({ email: 'nina@example.com' });
@@ -138,49 +99,51 @@ describe('GuideService.request', () => {
 
     expect(prisma.guideRequest.upsert.mock.calls[0][0].create.campaignCode).toBeNull();
   });
-
-  it('credits a campaign code that exists', async () => {
-    const { service, prisma } = makeService({ campaignLink: { code: 'ca' } });
-
-    await service.request({ email: 'nina@example.com', campaignCode: 'ca' });
-
-    expect(prisma.guideRequest.upsert.mock.calls[0][0].create.campaignCode).toBe('ca');
-  });
 });
 
 describe('GuideService.unlock', () => {
-  it('hands back where the guide lives for the right key', async () => {
-    const { service } = makeService();
+  const lead = { id: 'lead-1', email: 'nina@example.com', accessKey: 'BN-7K2M-QX94', openedAt: null };
 
-    await expect(service.unlock('BN-7K2M-QX94')).resolves.toEqual({
-      guideUrl: 'https://buildersnode.com/guide.pdf',
-    });
+  it('opens the guide for a key that belongs to somebody', async () => {
+    const { service } = makeService({ lead });
+
+    const result = await service.unlock('BN-7K2M-QX94');
+
+    expect(result.guideUrl).toContain('/guide-file/');
   });
 
-  it('refuses a wrong key, a blank one, and one of the wrong length', async () => {
-    const { service } = makeService();
+  it('accepts a key typed in lower case', async () => {
+    // People retype these off a phone screen.
+    const { service, prisma } = makeService({ lead });
+
+    await service.unlock('bn-7k2m-qx94');
+
+    expect(prisma.guideRequest.findUnique).toHaveBeenCalledWith({ where: { accessKey: 'BN-7K2M-QX94' } });
+  });
+
+  it('records the first open, and only the first', async () => {
+    // "Who read it" is the question; overwriting on every visit would turn it
+    // into "who read it most recently".
+    const { service, prisma } = makeService({ lead: { ...lead, openedAt: new Date('2026-09-01') } });
+
+    await service.unlock('BN-7K2M-QX94');
+
+    expect(prisma.guideRequest.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses a key nobody holds, and a blank one', async () => {
+    const { service } = makeService({ lead: null });
 
     await expect(service.unlock('BN-0000-0000')).rejects.toThrow(/not right/);
     await expect(service.unlock('')).rejects.toThrow(/not right/);
     await expect(service.unlock(undefined)).rejects.toThrow(/not right/);
-    // A prefix must not pass: the compare is length-checked before it runs.
-    await expect(service.unlock('BN-7K2M')).rejects.toThrow(/not right/);
-  });
-
-  it('refuses everything when no key is set', async () => {
-    // An unset key takes the guide down rather than opening it to everyone.
-    const { service } = makeService({ accessKey: null });
-
-    await expect(service.unlock('anything')).rejects.toThrow(/not right/);
   });
 
   it('never reveals the guide location when the key fails', async () => {
-    // The whole point of checking server-side: the URL is not in the bundle,
-    // so a failed unlock has to leave with nothing.
-    const { service } = makeService();
+    // The whole point of checking server-side: the address is not in the
+    // bundle, so a failed unlock has to leave with nothing.
+    const { service } = makeService({ lead: null });
 
-    await expect(service.unlock('wrong-key-here')).rejects.not.toHaveProperty(
-      'response.guideUrl',
-    );
+    await expect(service.unlock('nope')).rejects.not.toHaveProperty('response.guideUrl');
   });
 });

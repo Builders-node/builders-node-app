@@ -1,7 +1,5 @@
 import { useEffect, useRef } from "react";
 import { useGsapTitle } from "@/hooks/useGsapTitle";
-import { useApplyNav } from "@/lib/applyNav";
-import { useGuideAvailable } from "../useGuideAvailable";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import gallery1 from "@/assets/gallery-1.jpg";
@@ -54,9 +52,6 @@ type CaGallerySectionProps = {
 };
 
 const CaGallerySection = ({ onRequestGuide }: CaGallerySectionProps) => {
-  const openApply = useApplyNav();
-  // Same fallback as the hero: no guide, no block to scroll to.
-  const guideAvailable = useGuideAvailable();
   const titleRef = useGsapTitle<HTMLHeadingElement>();
   const sectionRef = useRef<HTMLElement>(null);
   const desktopRef = useRef<HTMLDivElement>(null);
@@ -187,11 +182,11 @@ const CaGallerySection = ({ onRequestGuide }: CaGallerySectionProps) => {
             and adventure come together.
           </p>
           <button
-            onClick={guideAvailable ? onRequestGuide : openApply}
+            onClick={onRequestGuide}
             className="mt-6 px-6 py-2.5 text-sm font-medium tracking-wide rounded-full transition-all duration-300 hover:scale-105 pointer-events-auto"
             style={{ backgroundColor: "hsl(20 100% 55%)", color: "hsl(0 0% 100%)" }}
           >
-            {guideAvailable ? "Send me guide" : "Apply now"}
+            Send me guide
           </button>
         </div>
         <div ref={mobileGridRef} className="hidden">
@@ -270,11 +265,11 @@ const CaGallerySection = ({ onRequestGuide }: CaGallerySectionProps) => {
             and adventure come together.
           </p>
           <button
-            onClick={guideAvailable ? onRequestGuide : openApply}
+            onClick={onRequestGuide}
             className="mt-6 px-6 py-2.5 text-sm font-medium tracking-wide rounded-full transition-all duration-300 hover:scale-105 pointer-events-auto"
             style={{ backgroundColor: "hsl(20 100% 55%)", color: "hsl(0 0% 100%)" }}
           >
-            {guideAvailable ? "Send me guide" : "Apply now"}
+            Send me guide
           </button>
         </div>
       </div>

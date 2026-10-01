@@ -2,7 +2,6 @@ import { ArrowRight } from "lucide-react";
 import { useGsapTitle } from "@/hooks/useGsapTitle";
 import { useStartingPrice } from "@/lib/membership-plans";
 import { useApplyNav } from "@/lib/applyNav";
-import { useGuideAvailable } from "../useGuideAvailable";
 
 type CaHeroSectionProps = {
   /** Scrolls to the guide form. The page owns the ref, so it passes this down. */
@@ -11,9 +10,6 @@ type CaHeroSectionProps = {
 
 const CaHeroSection = ({ onRequestGuide }: CaHeroSectionProps) => {
   const openApply = useApplyNav();
-  // With no guide to hand out there is nothing to scroll to, so the hero asks
-  // for the next best thing rather than for something that would error.
-  const guideAvailable = useGuideAvailable();
   const titleRef = useGsapTitle<HTMLHeadingElement>();
   // Quoted from the plan catalogue, so a price change in the admin reaches
   // the landing too — this sentence used to name its own number.
@@ -66,36 +62,23 @@ const CaHeroSection = ({ onRequestGuide }: CaHeroSectionProps) => {
             alongside as an outline rather than competing as a second filled
             button. */}
         <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
-          {guideAvailable ? (
-            <>
-              <button
-                onClick={onRequestGuide}
-                className="inline-flex items-center gap-2 text-white text-xs tracking-[0.25em] uppercase font-semibold rounded-full px-6 py-3 transition-all duration-300 hover:scale-105 cursor-pointer border-none"
-                style={{ backgroundColor: "#EA5404", boxShadow: "0 10px 28px rgba(234, 84, 4, 0.5)" }}
-              >
-                Send me guide
-                <ArrowRight size={14} aria-hidden="true" />
-              </button>
-              <button
-                onClick={openApply}
-                className="inline-flex items-center gap-2 text-xs tracking-[0.25em] uppercase font-semibold rounded-full px-6 py-3 border border-white/40 bg-white/5 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-white/10 cursor-pointer"
-                /* Inline, not `text-white`: `.landing-root button` inherits the
-                   page's dark text colour, which is invisible on a dark photo. */
-                style={{ color: "#fff" }}
-              >
-                Apply now
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={openApply}
-              className="inline-flex items-center gap-2 text-white text-xs tracking-[0.25em] uppercase font-semibold rounded-full px-6 py-3 transition-all duration-300 hover:scale-105 cursor-pointer border-none"
-              style={{ backgroundColor: "#EA5404", boxShadow: "0 10px 28px rgba(234, 84, 4, 0.5)" }}
-            >
-              Apply now
-              <ArrowRight size={14} aria-hidden="true" />
-            </button>
-          )}
+          <button
+            onClick={onRequestGuide}
+            className="inline-flex items-center gap-2 text-white text-xs tracking-[0.25em] uppercase font-semibold rounded-full px-6 py-3 transition-all duration-300 hover:scale-105 cursor-pointer border-none"
+            style={{ backgroundColor: "#EA5404", boxShadow: "0 10px 28px rgba(234, 84, 4, 0.5)" }}
+          >
+            Send me guide
+            <ArrowRight size={14} aria-hidden="true" />
+          </button>
+          <button
+            onClick={openApply}
+            className="inline-flex items-center gap-2 text-xs tracking-[0.25em] uppercase font-semibold rounded-full px-6 py-3 border border-white/40 bg-white/5 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-white/10 cursor-pointer"
+            /* Inline, not `text-white`: `.landing-root button` inherits the
+               page's dark text colour, which is invisible on a dark photo. */
+            style={{ color: "#fff" }}
+          >
+            Apply now
+          </button>
         </div>
       </div>
     </section>
