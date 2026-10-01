@@ -66,9 +66,8 @@ const CaHeroSection = ({ onRequestGuide }: CaHeroSectionProps) => {
         <h1 ref={titleRef} className="text-4xl sm:text-5xl md:text-6xl lg:text-[4.25rem] font-light leading-[1.05] text-white max-w-5xl tracking-tight">
           Canadian winter is <br />{HERO_WEEKS} weeks away
         </h1>
-        <p className="text-base md:text-lg text-white/70 max-w-2xl leading-relaxed">
-          Spend it building your startup on a Caribbean island instead, with founders who train, ship, and push each
-          other every day.
+        <p className="text-base md:text-lg text-white/70 max-w-xl leading-relaxed">
+          Spend the winter in a community of founders on a Caribbean island.
         </p>
         {/* Two ways in, ranked. The guide is the cheap first step and the ask
             this landing is built around; applying is the commitment, so it sits
