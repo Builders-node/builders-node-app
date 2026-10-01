@@ -56,18 +56,17 @@ const CaHeroSection = ({ onRequestGuide }: CaHeroSectionProps) => {
 
       {/* Main content — centered */}
       <div className="relative z-10 w-full px-6 md:px-12 flex flex-col items-center text-center gap-6">
-        {/* The hook, not the offer: this landing is aimed at people about to
-            spend a Canadian winter indoors, so the headline names that and the
-            price waits until further down the page.
+        {/* The promise up top, the urgency under it — and no price: the guide
+            block right below is what this landing is asking for.
 
             HERO_WEEKS is a campaign line with a shelf life — it stops being
-            true some weeks from now. It lives here, alone, so changing it is
-            one edit. */}
-        <h1 ref={titleRef} className="text-4xl sm:text-5xl md:text-6xl lg:text-[4.25rem] font-light leading-[1.05] text-white max-w-5xl tracking-tight">
-          Canadian winter is <br />{HERO_WEEKS} weeks away
+            true some weeks from now. It lives in one constant so changing it
+            is one edit. */}
+        <h1 ref={titleRef} className="text-4xl sm:text-5xl md:text-[3.5rem] lg:text-[4rem] font-light leading-[1.08] text-white max-w-4xl tracking-tight">
+          Spend the winter in a community of founders on a Caribbean island
         </h1>
         <p className="text-base md:text-lg text-white/70 max-w-xl leading-relaxed">
-          Spend the winter in a community of founders on a Caribbean island.
+          Canadian winter is {HERO_WEEKS} weeks away.
         </p>
         {/* Two ways in, ranked. The guide is the cheap first step and the ask
             this landing is built around; applying is the commitment, so it sits
