@@ -29,8 +29,6 @@ const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz3W2M-aHf3pN
 
 const stayDurations = ["1 month", "3 months", "6 months", "12 months"];
 
-const tshirtSizes = ["XS", "S", "M", "L", "XL", "XXL"];
-
 const referralSources = [
   "Twitter / X",
   "Instagram",
@@ -57,7 +55,6 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
   const [gender, setGender] = useState("male");
   // Holds a plan id once the catalogue loads; empty until then.
   const [plan, setPlan] = useState("");
-  const [tshirtSize, setTshirtSize] = useState("");
   const [social1, setSocial1] = useState("");
   const [social2, setSocial2] = useState("");
   const [aboutText, setAboutText] = useState("");
@@ -133,7 +130,6 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
       `Stay: ${stayDuration}`,
       `Plan: ${planLabel}`,
       gender ? `Gender: ${gender}` : "",
-      tshirtSize ? `T-shirt: ${tshirtSize}` : "",
       social1 ? `Social 1: ${social1}` : "",
       social2 ? `Social 2: ${social2}` : "",
       referralSource ? `Heard via: ${referralSource}` : "",
@@ -174,7 +170,6 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
     setStayDuration("");
     setGender("male");
     setPlan("");
-    setTshirtSize("");
     setSocial1("");
     setSocial2("");
     setAboutText("");
@@ -263,7 +258,6 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
           stayDuration,
           gender,
           plan: planLabel,
-          tshirtSize,
           social1,
           social2,
           about: aboutText,
@@ -589,9 +583,6 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs" style={{ color: "hsl(0 0% 45%)" }}>
-              First arrivals start {batch.longDate}. Memberships begin on the first of each month.
-            </p>
           </div>
 
           {/* How long */}
@@ -626,23 +617,6 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
                 <Label htmlFor="female" className="cursor-pointer" style={{ color: "hsl(0 0% 10%)" }}>Female</Label>
               </div>
             </RadioGroup>
-          </div>
-
-          {/* T-shirt size */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium" style={{ color: "hsl(0 0% 10%)" }}>
-              T-shirt size
-            </Label>
-            <Select value={tshirtSize} onValueChange={setTshirtSize}>
-              <SelectTrigger className="border-0 bg-white shadow-sm" style={{ borderColor: "hsl(0 0% 80%)", color: "hsl(0 0% 10%)" }}>
-                <SelectValue placeholder="Select..." />
-              </SelectTrigger>
-              <SelectContent>
-                {tshirtSizes.map((size) => (
-                  <SelectItem key={size} value={size}>{size}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           {/* Room info */}

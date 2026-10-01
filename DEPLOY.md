@@ -181,10 +181,30 @@ key is checked server-side and the guide's location is returned only when it
 resolves to somebody, so the gate is not something a visitor can read out of the
 JavaScript.
 
-The guide file ships with the frontend at
-`Frontend/public/guide-file/builders-node-private-guide.pdf`. `GUIDE_URL` on the
-API overrides that if it ever needs to live somewhere else, and `CA_SITE_URL`
-tells the email where to point its one-tap link (it defaults to
+The guide is a page, not a file: a Claude Design canvas export, served as it
+was authored because it ships its own runtime for the contents list, the flight
+widget and the mobile layout. Rewriting it into components would mean
+reimplementing that — and redoing it on every edit of the guide.
+
+Import a new export with:
+
+```bash
+cd Frontend && node scripts/import-guide.mjs ~/Downloads/"Builders Node Private Guide.zip"
+```
+
+That drops the duplicate `uploads/` folder, re-encodes the photos (one was
+5921px wide and 10MB) keeping each result only when it is actually smaller, and
+writes the page to `Frontend/public/g/winter-2026-k7m2qx/`. Last run: 44MB → 19MB.
+
+Static hosting can't check a key, so **that path is the gate**: it isn't
+guessable, isn't linked from anywhere, and the unlock endpoint is the only thing
+that hands it out. Change it in the script and in `GUIDE_PATH`
+(`Backend/src/guide/guide.service.ts`) together. `index.html` is spelled out in
+that path on purpose — the SPA catch-all answers a bare directory with the app
+shell, which serves the landing page where the guide should be.
+
+`GUIDE_URL` on the API overrides the location if the guide ever moves, and
+`CA_SITE_URL` tells the email where to point its one-tap link (it defaults to
 `https://ca.buildersnode.com`).
 
 **Admin → Settings → Guide leads** is a list, not a form: who asked, their key,

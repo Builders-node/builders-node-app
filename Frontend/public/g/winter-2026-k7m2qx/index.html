@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div ref="{{ rootRef }}" style="font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; color: #1a1a1a; background: #fff; font-size: 16px; line-height: 1.65;">
+<div style="max-width: 680px; margin: 0 auto; padding: 48px 20px 80px;">
+
+  <div style="display: flex; flex-direction: column; gap: 6px; padding-bottom: 32px; border-bottom: 1px solid #1a1a1a;">
+    <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;">Builders Node</div>
+    <h1 style="margin: 24px 0 8px; font-size: 34px; line-height: 1.15; font-weight: 700; text-wrap: balance;">Winter Guide 2026</h1>
+    <div style="font-size: 17px;">Prepared for {{ name }}</div>
+    <div style="font-size: 14px; color: #666;">Not public - sent only to people who asked</div>
+    <div style="font-size: 14px; color: #666;">Last updated 30 September 2026</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 16px; padding: 40px 0;">
+    <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #666;">A note before you start</div>
+    <p style="margin: 0; text-wrap: pretty;">Thanks for your interest in Buildersnode. I wrote it the way I'd explain Builders Node to a friend over coffee - what a month here actually looks like, who you'd be living with, and how to get here from Canada without surprises.</p>
+    <p style="margin: 0; text-wrap: pretty;">Read it in whatever order you like. If something's missing, reply to the email - it comes straight to me.</p>
+    <div>- Taras</div>
+  </div>
+
+  <details open="{{ tocOpen }}" style="border: 1px solid #ccc; padding: 16px 20px; margin-bottom: 8px;">
+    <summary style="cursor: pointer; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;">Contents</summary>
+    <ol style="list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px;">
+      <li><a onClick="{{ go01 }}" style="color: #1a1a1a; cursor: pointer; display: flex; gap: 12px; padding: 4px 0;"><span style="color: #888; width: 24px;">01</span>Why come here</a></li>
+      <li><a onClick="{{ go11 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">1.1</span>Temperature, time zone, flight time</a></li>
+      <li><a onClick="{{ go12 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">1.2</span>What's included in the price</a></li>
+      <li><a onClick="{{ go13 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 72px; font-size: 14px;"><span style="color: #888; width: 44px;">1.2.1</span>Apartment</a></li>
+      <li><a onClick="{{ go122 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 72px; font-size: 14px;"><span style="color: #888; width: 44px;">1.2.2</span>Meals</a></li>
+      <li><a onClick="{{ go123 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 72px; font-size: 14px;"><span style="color: #888; width: 44px;">1.2.3</span>Coworking</a></li>
+      <li><a onClick="{{ go127 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 72px; font-size: 14px;"><span style="color: #888; width: 44px;">1.2.4</span>Education</a></li>
+      <li><a onClick="{{ go124 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 72px; font-size: 14px;"><span style="color: #888; width: 44px;">1.2.5</span>Gym</a></li>
+      <li><a onClick="{{ go125 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 72px; font-size: 14px;"><span style="color: #888; width: 44px;">1.2.6</span>Pool</a></li>
+      <li><a onClick="{{ goBc }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 72px; font-size: 14px;"><span style="color: #888; width: 44px;">1.2.7</span>Beach club</a></li>
+      <li><a onClick="{{ go126 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 72px; font-size: 14px;"><span style="color: #888; width: 44px;">1.2.8</span>Sauna &amp; cold plunge</a></li>
+      <li><a onClick="{{ go128 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 72px; font-size: 14px;"><span style="color: #888; width: 44px;">1.2.9</span>Tennis &amp; pickleball</a></li>
+      <li><a onClick="{{ go129 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 72px; font-size: 14px;"><span style="color: #888; width: 44px;">1.2.10</span>Próspera e-residency</a></li>
+      <li><a onClick="{{ goPr }}" style="color: #1a1a1a; cursor: pointer; display: flex; gap: 12px; padding: 4px 0;"><span style="color: #888; width: 24px;">02</span>What is Próspera</a></li>
+      <li><a onClick="{{ go211 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">2.1</span>Definition and how much money startups raised</a></li>
+      <li><a onClick="{{ go212 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">2.2</span>Watch videos about Próspera from Bryan Johnson and Shin Fujiyama</a></li>
+      <li><a onClick="{{ go213 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">2.3</span>Learn more about Próspera</a></li>
+      <li><a onClick="{{ go03 }}" style="color: #1a1a1a; cursor: pointer; display: flex; gap: 12px; padding: 4px 0;"><span style="color: #888; width: 24px;">03</span>The vibes</a></li>
+      <li><a onClick="{{ go311 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">3.1</span>The power of being surrounded by like-minded people</a></li>
+      <li><a onClick="{{ go322 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">3.2</span>What activities are available besides the program</a></li>
+      <li><a onClick="{{ go3221 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 72px; font-size: 14px;"><span style="color: #888; width: 44px;">3.2.1</span>Diving</a></li>
+      <li><a onClick="{{ go3222 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 72px; font-size: 14px;"><span style="color: #888; width: 44px;">3.2.2</span>Community trips</a></li>
+      <li><a onClick="{{ go3223 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 72px; font-size: 14px;"><span style="color: #888; width: 44px;">3.2.3</span>Golf</a></li>
+      <li><a onClick="{{ go3224 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 72px; font-size: 14px;"><span style="color: #888; width: 44px;">3.2.4</span>Running club</a></li>
+      <li><a onClick="{{ go3225 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 72px; font-size: 14px;"><span style="color: #888; width: 44px;">3.2.5</span>Pilates and other fitness classes</a></li>
+      <li><a onClick="{{ go3226 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 72px; font-size: 14px;"><span style="color: #888; width: 44px;">3.2.6</span>Weekends together</a></li>
+      <li><a onClick="{{ go43 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">3.3</span>What a day at Builders Node can look like</a></li>
+      <li><a onClick="{{ goAp }}" style="color: #1a1a1a; cursor: pointer; display: flex; gap: 12px; padding: 4px 0;"><span style="color: #888; width: 24px;">04</span>Applying to Builders Node</a></li>
+      <li><a onClick="{{ goAp11 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">4.1</span>Who we're looking for</a></li>
+      <li><a onClick="{{ goAp12 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">4.2</span>Application process</a></li>
+      <li><a onClick="{{ goAp13 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">4.3</span>Pricing</a></li>
+      <li><a onClick="{{ goAp14 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">4.4</span>How payment works</a></li>
+      <li><a onClick="{{ go04 }}" style="color: #1a1a1a; cursor: pointer; display: flex; gap: 12px; padding: 4px 0;"><span style="color: #888; width: 24px;">05</span>Getting here from Canada</a></li>
+      <li><a onClick="{{ go51 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">5.1</span>Tickets</a></li>
+      <li><a onClick="{{ go52 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">5.2</span>Border entry checklist</a></li>
+      <li><a onClick="{{ goRt }}" style="color: #1a1a1a; cursor: pointer; display: flex; gap: 12px; padding: 4px 0;"><span style="color: #888; width: 24px;">06</span>Roatán</a></li>
+      <li><a onClick="{{ go61 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">6.1</span>Location</a></li>
+      <li><a onClick="{{ go62 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">6.2</span>Safety</a></li>
+      <li><a onClick="{{ go63 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">6.3</span>Weather</a></li>
+      <li><a onClick="{{ go64 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">6.4</span>Getting around</a></li>
+      <li><a onClick="{{ go65 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">6.5</span>Health</a></li>
+      <li><a onClick="{{ go66 }}" style="color: #444; cursor: pointer; display: flex; gap: 12px; padding: 2px 0 4px 36px; font-size: 15px;"><span style="color: #888; width: 24px;">6.6</span>Language and culture</a></li>
+      <li><a onClick="{{ goCt }}" style="color: #1a1a1a; cursor: pointer; display: flex; gap: 12px; padding: 4px 0;"><span style="color: #888; width: 24px;">07</span>Apply and contacts</a></li>
+    </ol>
+  </details>
+
+  <section data-sec="01" style="display: flex; flex-direction: column; gap: 20px; padding-top: 56px;">
+    <div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; color: #888;">01</span><h2 style="margin: 0; font-size: 24px; line-height: 1.25;">Why come here</h2></div>
+    <div data-sec="11" aria-label="Interactive flight from Toronto to Roatán" style="margin-top: 16px; border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 8px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">1.1</span>Temperature, time zone, flight time</h3>
+      <div ref="{{ f.hint }}" style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: #666; opacity: 0; transition: opacity .4s;"><span aria-hidden="true">↘</span><span>Drag the plane to fly south</span></div>
+      <div ref="{{ f.stage }}" style="position: relative; width: 100%;">
+        <svg ref="{{ f.svg }}" viewBox="0 0 680 300" role="img" style="width: 100%; aspect-ratio: 680 / 300; display: block; overflow: visible;">
+          <path ref="{{ f.route }}" d="M 120 70 Q 420 60 540 240" style="fill: none; stroke: #bbb; stroke-width: 1.5; stroke-dasharray: 4 6;"></path>
+          <path ref="{{ f.trail }}" d="M 120 70 Q 420 60 540 240" style="fill: none; stroke: #1a1a1a; stroke-width: 2;"></path>
+          <circle cx="120" cy="70" r="7" style="fill: #fff; stroke: #1a1a1a; stroke-width: 2;"></circle>
+          <text x="120" y="20" style="font-size: 28px; font-weight: 600; fill: #1a1a1a; text-anchor: middle;">Toronto</text>
+          <circle cx="540" cy="240" r="7" style="fill: #1a1a1a;"></circle>
+          <text x="540" y="284" style="font-size: 28px; font-weight: 600; fill: #1a1a1a; text-anchor: middle;">Roatán</text>
+        </svg>
+        <div ref="{{ f.ring }}" style="position: absolute; left: 0; top: 0; width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid #1a1a1a; pointer-events: none; opacity: 0; box-sizing: border-box;"></div>
+        <div ref="{{ f.plane }}" role="slider" tabindex="0" aria-label="Plane position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="position: absolute; left: 0; top: 0; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #1a1a1a; background: transparent; border-radius: 50%; transform: translate(-50%, -50%); cursor: grab; touch-action: none; user-select: none;"><span ref="{{ f.icon }}" aria-hidden="true" style="display: inline-block; line-height: 1; font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;">✈️</span></div>
+      </div>
+      <input ref="{{ f.slider }}" type="range" min="0" max="1000" step="1" aria-label="Flight progress" style="width: 100%; margin: 4px 0 0; accent-color: #1a1a1a;"></input>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid #1a1a1a; border-bottom: 1px solid #1a1a1a; margin-top: 8px;">
+        <div style="padding: 12px 12px 12px 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; color: #666;">Temperature</span><span ref="{{ f.temp }}" style="font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums;">−5°C</span></div>
+        <div style="padding: 12px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; color: #666;">Flight time</span><span ref="{{ f.time }}" style="font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums;">0h 00m</span></div>
+        <div style="padding: 12px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; color: #666;">Time zone</span><span ref="{{ f.tz }}" style="font-size: 22px; font-weight: 600;">GMT−5</span><span ref="{{ f.tzSub }}" style="font-size: 13px; color: #888;">Toronto time</span></div>
+      </div>
+      <p ref="{{ f.landed }}" style="margin: 8px 0 0; opacity: 0; transition: opacity .5s;">Landed. Same workday, 33 degrees warmer.</p>
+    </div>
+    <div data-sec="12" style="margin-top: 16px; border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">1.2</span>What's included in the Builders Node price</h3>
+      <div style="display: flex; align-items: baseline; gap: 8px;"><span style="font-size: 28px; font-weight: 700;">$1,950</span><span style="color: #666;">/ month, all in</span></div>
+    </div>
+    <div data-sec="13" style="margin-top: 8px; padding-left: 16px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 12px;">
+      <h4 style="margin: 0; font-size: 16px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">1.2.1</span>Apartment</h4>
+      <p style="margin: 0; text-wrap: pretty;">Studio, from 31 m², ocean view, TV, sofa, private bathroom, washing machine, electric clothes dryer, stove, AC, desk + chair, cleaning.</p>
+      <img src="images/apartment.webp" alt="Private studio with bed, sofa and balcony overlooking the trees" style="display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover;"></img>
+      <div style="margin-top: 8px; border: 1px solid #ccc; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+        <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #666;">Optional upgrade</div>
+        <div style="font-weight: 600;">1-bedroom apartment, from 45 m²</div>
+        <img src="images/one-bedroom-plan.webp" alt="Floor plan of the 1-bedroom apartment" style="display: block; width: 100%; height: auto;"></img>
+        <p style="margin: 0; font-size: 15px; text-wrap: pretty;">To upgrade, email us at <a href="mailto:taras@buildersnode.com" style="color: #1a1a1a; text-decoration: underline;">taras@buildersnode.com</a>, or just tell our manager on a call.</p>
+      </div>
+    </div>
+    <div data-sec="122" style="margin-top: 8px; padding-left: 16px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 12px;">
+      <h4 style="margin: 0; font-size: 16px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">1.2.2</span>Meals</h4>
+      <p style="margin: 0; text-wrap: pretty;">A private chef cooks for everyone three times a day, Monday to Saturday. The food is healthy and built to keep you sharp through long work days - but it's cooked to be enjoyed, not endured. Vegan meals are always available; just tell us before you arrive. Sundays you're on your own, which is a good excuse to explore the island.</p>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+        <img src="images/meal-1.jpg" alt="Nori roll with spicy sauce and sesame" style="display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover;"></img>
+        <img src="images/meal-2.jpg" alt="Borscht with sour cream and dill" style="display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover;"></img>
+        <img src="images/meal-3.jpg" alt="Chicken with baby potatoes, pickled onion and cabbage" style="display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover;"></img>
+      </div>
+      <div style="display: flex; flex-direction: column; border-top: 1px solid #1a1a1a; font-size: 15px;">
+        <div style="display: flex; gap: 16px; padding: 8px 0; border-bottom: 1px solid #e3e3e3;"><span style="width: 48px; color: #666; font-variant-numeric: tabular-nums;">09:30</span><span style="display: flex; flex-direction: column;"><span style="font-weight: 600;">Breakfast</span></span></div>
+        <div style="display: flex; gap: 16px; padding: 8px 0; border-bottom: 1px solid #e3e3e3;"><span style="width: 48px; color: #666; font-variant-numeric: tabular-nums;">13:30</span><span style="display: flex; flex-direction: column;"><span style="font-weight: 600;">Lunch</span></span></div>
+        <div style="display: flex; gap: 16px; padding: 8px 0; border-bottom: 1px solid #e3e3e3;"><span style="width: 48px; color: #666; font-variant-numeric: tabular-nums;">18:30</span><span style="display: flex; flex-direction: column;"><span style="font-weight: 600;">Dinner</span></span></div>
+      </div>
+    </div>
+    <div data-sec="123" style="margin-top: 8px; padding-left: 16px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 12px;">
+      <h4 style="margin: 0; font-size: 16px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">1.2.3</span>Coworking</h4>
+      <p style="margin: 0; text-wrap: pretty;">A dedicated coworking space with an ocean view, so your office is a two-minute walk from bed.</p>
+      <img src="images/coworking.jpg" alt="Members working in the Builders Node coworking space" style="display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover;"></img>
+      <ul style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px;"><li>Fast, symmetric fiber-level internet - around 260 Mbps down, 250 up and a 10 ms ping</li><li>Open 24/7</li><li>Quiet room</li><li>Desks, chairs, monitors</li><li>Power backup</li></ul>
+    </div>
+    <div data-sec="127" style="margin-top: 8px; padding-left: 16px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 12px;">
+      <h4 style="margin: 0; font-size: 16px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">1.2.4</span>Education</h4>
+      <p style="margin: 0; text-wrap: pretty;">Education is one of the things that matters most to us, so we run a few recurring formats to help members sharpen their thinking and build their businesses faster.</p>
+      <img src="images/education.jpg" alt="Workshop at the whiteboard in the Builders Node coworking" style="display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover;"></img>
+      <ul style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px;"><li><b style="font-weight: 600;">Workshops</b> (once a week). The best way to pick up a new hard skill. Topics change - economics, planning, AI agents, coding and more.</li><li><b style="font-weight: 600;">Founder sessions</b> (twice a month). Small, informal sessions with experienced CEOs. Ask them anything: scaling, sales, raising money.</li><li><b style="font-weight: 600;">Member lectures</b> (on demand). Everyone here knows something the others don't. Share your expertise with the group - it's one of the best ways to learn, and to get known.</li></ul>
+      <p style="margin: 0; text-wrap: pretty;">On top of that, we run bigger one-off events - hackathons, pitch days and more - planned in advance.</p>
+    </div>
+    <div data-sec="124" style="margin-top: 8px; padding-left: 16px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 12px;">
+      <h4 style="margin: 0; font-size: 16px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">1.2.5</span>Gym</h4>
+      <p style="margin: 0; text-wrap: pretty;">You'll have access to two gyms - one right in Duna Tower, where we live, and a second in St. John's Bay. Both have everything you need: treadmills and other cardio machines, dumbbells, machines for every muscle group, pull-up bars, mats, jump ropes and exercise balls. Open 24/7.</p>
+      <img src="images/gym.avif" alt="Gym with cardio machines and a view of the jungle" style="display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover;"></img>
+    </div>
+    <div data-sec="125" style="margin-top: 8px; padding-left: 16px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 12px;">
+      <h4 style="margin: 0; font-size: 16px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">1.2.6</span>Pool</h4>
+      <p style="margin: 0; text-wrap: pretty;">The pool is up on the 8th floor, looking out over the jungle and the ocean - the best place to end a long day, or to start one.</p>
+      <img src="images/pool.avif" alt="Rooftop infinity pool at sunset overlooking the jungle and ocean" style="display: block; width: 100%; max-width: 420px; margin: 0 auto; aspect-ratio: 2 / 3; object-fit: cover;"></img>
+    </div>
+    <div data-sec="bc" style="margin-top: 8px; padding-left: 16px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 12px;">
+      <h4 style="margin: 0; font-size: 16px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">1.2.7</span>Beach club</h4>
+      <p style="margin: 0; text-wrap: pretty;">Spend your afternoons at the beach club - a private stretch of beach, a pool, a beach volleyball court and a restaurant for lunch by the water.</p>
+      <img src="images/beach-club.avif" alt="Aerial view of the beach club pools, gardens and beach" style="display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover;"></img>
+    </div>
+    <div data-sec="126" style="margin-top: 8px; padding-left: 16px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 12px;">
+      <h4 style="margin: 0; font-size: 16px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">1.2.8</span>Sauna &amp; cold plunge</h4>
+      <p style="margin: 0; text-wrap: pretty;">Both up on the 8th floor next to the pool - sauna, cold plunge, repeat, with the ocean in front of you. Hard to find a better way to reset.</p>
+      <img src="images/sauna-cold-plunge.avif" alt="Two members in ice-filled cold plunge tubs in the garden" style="display: block; width: 100%; max-width: 480px; margin: 0 auto; aspect-ratio: 9 / 10; object-fit: cover;"></img>
+    </div>
+    <div data-sec="128" style="margin-top: 8px; padding-left: 16px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 12px;">
+      <h4 style="margin: 0; font-size: 16px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">1.2.9</span>Tennis &amp; pickleball</h4>
+      <p style="margin: 0; text-wrap: pretty;">Grab a racket after work and get a game in before dinner. Beginners welcome - plenty of people pick up pickleball for the first time here.</p>
+      <img src="images/tennis.jpg" alt="Aerial view of the tennis and pickleball courts above the ocean" style="display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; object-position: center 70%;"></img>
+    </div>
+    <div data-sec="129" style="margin-top: 8px; padding-left: 16px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 12px;">
+      <h4 style="margin: 0; font-size: 16px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">1.2.10</span>Próspera e-residency</h4>
+      <p style="margin: 0; text-wrap: pretty;">With residency, you can register a company in Próspera during your stay. It takes minutes, and you'll have the option to run your business under Próspera's simple rules and four transparent taxes.</p>
+    </div>
+  </section>
+
+  <div style="margin-top: 48px; border: 1px solid #ccc; padding: 20px; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between;">
+    <div style="display: flex; flex-direction: column;"><span style="font-weight: 600;">Well I kinda like what's included</span></div>
+    <button style="font: inherit; font-size: 15px; background: #1a1a1a; color: #fff; border: 0; padding: 10px 16px; cursor: pointer;">Apply (takes 5 minutes)</button>
+  </div>
+
+  <section data-sec="pr" style="display: flex; flex-direction: column; gap: 20px; padding-top: 56px;">
+    <div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; color: #888;">02</span><h2 style="margin: 0; font-size: 24px; line-height: 1.25;">What is Próspera</h2></div>
+    <div data-sec="211" style="margin-top: 16px; border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">2.1</span>Definition and how much money startups raised in Próspera</h3>
+      <p style="margin: 0; text-wrap: pretty;">Próspera is a startup city on Roatán - a special economic zone with its own rules, built to make it fast and simple to live, work and start a company. You can register a business in minutes, and there are only four transparent taxes. It's one of the most ambitious experiments in private governance anywhere in the world, and it's working: startups here have raised over $50 million.</p>
+    </div>
+    <div data-sec="212" style="margin-top: 16px; border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">2.2</span>Watch videos about Próspera from Bryan Johnson and Shin Fujiyama</h3>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <iframe src="https://www.youtube.com/embed/bax8to_s07Q?si=1CVTVvalYtSQOd9t" title="Próspera video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen="" style="display: block; width: 100%; aspect-ratio: 16 / 9; border: 0;"></iframe>
+        <iframe src="https://www.youtube.com/embed/4DUUkEUmp-o?si=-EQeSYajoUC0dVX6" title="Próspera video 2" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen="" style="display: block; width: 100%; aspect-ratio: 16 / 9; border: 0;"></iframe>
+      </div>
+    <div data-sec="213" style="margin-top: 16px; border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">2.3</span>Learn more about Próspera</h3>
+      <p style="margin: 0; text-wrap: pretty;">You can learn more about Próspera on the official website: <a href="https://www.prospera.co/en" target="_blank" rel="noopener" style="color: #1a1a1a; text-decoration: underline;">prospera.co</a></p>
+    </div>
+    </div>
+  </section>
+
+  <section data-sec="03" style="display: flex; flex-direction: column; gap: 20px; padding-top: 56px;">
+    <div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; color: #888;">03</span><h2 style="margin: 0; font-size: 24px; line-height: 1.25;">The vibes</h2></div>
+    <div data-sec="311" style="margin-top: 16px; border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">3.1</span>The power of being surrounded by like-minded people</h3>
+      <blockquote style="margin: 4px 0; padding: 0 0 0 16px; border-left: 2px solid #1a1a1a; font-size: 19px; line-height: 1.45;">“As iron sharpens iron, so one person sharpens another.”<div style="font-size: 14px; color: #666; margin-top: 6px;">- Proverbs 27:17</div></blockquote>
+      <p style="margin: 0; text-wrap: pretty;">It's about who you become when you live around people who want more from life. Ambition is contagious. When the guy next to you is up at six to run before work, you start running. When someone at dinner is learning to free-dive, or finally shipped the thing they'd been scared to launch, or just seems genuinely happy with how they're living, it quietly raises your own bar. You don't get lectured into it. You just see what's possible, up close, every day - in work, in sport, in how people take care of themselves and each other. Most people leave here not only with more done, but living a little bigger than when they arrived.</p>
+    </div>
+    <div data-sec="322" style="margin-top: 16px; border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">3.2</span>What activities are available besides the program</h3>
+      <div data-sec="3221" style="margin-top: 4px; padding-left: 16px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 12px;">
+        <h4 style="margin: 0; font-size: 16px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">3.2.1</span>Diving</h4>
+        <p style="margin: 0; text-wrap: pretty;">Roatán sits on the second-largest barrier reef in the world, so some of the best diving in the Caribbean starts a short boat ride from where you work.</p>
+        <img src="images/diving.webp" alt="Diver with a hawksbill turtle on the reef" style="display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover;"></img>
+      </div>
+      <div data-sec="3222" style="margin-top: 4px; padding-left: 16px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 12px;">
+        <h4 style="margin: 0; font-size: 16px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">3.2.2</span>Community trips</h4>
+        <p style="margin: 0; text-wrap: pretty;">We go on community trips off the island at least once a month, because some of the best conversations happen far from a laptop.</p>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: stretch;">
+          <video src="images/community-trip.mp4" controls="" playsinline="" preload="metadata" style="display: block; width: 100%; aspect-ratio: 9 / 16; object-fit: cover; background: #000;"></video>
+          <img src="images/community-trip-canyon.jpg" alt="Member climbing canyon rocks on a community trip" style="display: block; width: 100%; aspect-ratio: 9 / 16; object-fit: cover;"></img>
+        </div>
+      <div data-sec="3223" style="margin-top: 4px; padding-left: 16px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 12px;">
+        <h4 style="margin: 0; font-size: 16px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">3.2.3</span>Golf</h4>
+        <p style="margin: 0; text-wrap: pretty;">Golfers can play Black Pearl at Pristine Bay - an 18-hole championship course designed by Pete Dye, with views over the Caribbean from most holes.</p>
+        <img src="images/golf.webp" alt="Golf course with an island green and the ocean behind" style="display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover;"></img>
+      </div>
+      <div data-sec="3224" style="margin-top: 4px; padding-left: 16px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 12px;">
+        <h4 style="margin: 0; font-size: 16px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">3.2.4</span>Running club</h4>
+        <p style="margin: 0; text-wrap: pretty;">We run together - any pace, beginners welcome, and nobody gets left behind.</p>
+        <img src="images/running-club.jpg" alt="Members running along the shoreline at sunset" style="display: block; width: 100%; height: auto;"></img>
+      </div>
+      <div data-sec="3225" style="margin-top: 4px; padding-left: 16px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 12px;">
+        <h4 style="margin: 0; font-size: 16px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">3.2.5</span>Pilates and other fitness classes</h4>
+        <p style="margin: 0; text-wrap: pretty;">Join Pilates, yoga and other group classes - a good way to stay in shape, meet people and switch off from work.</p>
+        <img src="images/fitness-class.jpg" alt="Group fitness class planking on mats on the terrace" style="display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover;"></img>
+      </div>
+      <div data-sec="3226" style="margin-top: 4px; padding-left: 16px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 12px;">
+        <h4 style="margin: 0; font-size: 16px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">3.2.6</span>Weekends together</h4>
+        <p style="margin: 0; text-wrap: pretty;">On weekends, our members explore the island, visit the spa, play football, or head out to bars, restaurants and beach clubs.</p>
+        <img src="images/weekend-football.jpg" alt="Members playing football on a floodlit pitch at night" style="display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; object-position: center 45%;"></img>
+      </div>
+      </div>
+    </div>
+    <div data-sec="43" style="margin-top: 16px; border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">3.3</span>What a day at Builders Node can look like</h3>
+      <p style="margin: 0; color: #444;">All included in your stay.</p>
+      <div style="display: flex; flex-direction: column; border-top: 1px solid #1a1a1a;">
+        <div style="display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid #e3e3e3;"><span style="width: 104px; flex: none; color: #666; font-variant-numeric: tabular-nums;">07:30</span><span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 600;">Morning sport</span><span style="font-size: 14px; color: #666;">Gym, pilates, yoga, running, cold plunge.</span></span></div>
+        <div style="display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid #e3e3e3;"><span style="width: 104px; flex: none; color: #666; font-variant-numeric: tabular-nums;">09:00</span><span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 600;">Breakfast</span></span></div>
+        <div style="display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid #e3e3e3;"><span style="width: 104px; flex: none; color: #666; font-variant-numeric: tabular-nums;">09:00-13:00</span><span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 600;">Working sessions</span><span style="font-size: 14px; color: #666;">In the coworking, open 24/7.</span></span></div>
+        <div style="display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid #e3e3e3;"><span style="width: 104px; flex: none; color: #666; font-variant-numeric: tabular-nums;">13:00</span><span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 600;">Lunch with founders</span></span></div>
+        <div style="display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid #e3e3e3;"><span style="width: 104px; flex: none; color: #666; font-variant-numeric: tabular-nums;">14:00-16:00</span><span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 600;">Founder session</span><span style="font-size: 14px; color: #666;">With a reputable CEO.</span></span></div>
+        <div style="display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid #e3e3e3;"><span style="width: 104px; flex: none; color: #666; font-variant-numeric: tabular-nums;">18:00-19:00</span><span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 600;">Pool or tennis court</span></span></div>
+        <div style="display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid #1a1a1a;"><span style="width: 104px; flex: none; color: #666; font-variant-numeric: tabular-nums;">20:00</span><span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 600;">Dinner</span><span style="font-size: 14px; color: #666;">With a Caribbean sea view.</span></span></div>
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <div style="margin-top: 48px; border: 1px solid #ccc; padding: 20px; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between;">
+    <div style="display: flex; flex-direction: column;"><span style="font-weight: 600;">Sound like your kind of people?</span></div>
+    <button style="font: inherit; font-size: 15px; background: #1a1a1a; color: #fff; border: 0; padding: 10px 16px; cursor: pointer;">Apply (takes 5 minutes)</button>
+  </div>
+
+  <section data-sec="ap" style="display: flex; flex-direction: column; gap: 20px; padding-top: 56px;">
+    <div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; color: #888;">04</span><h2 style="margin: 0; font-size: 24px; line-height: 1.25;">Applying to Builders Node</h2></div>
+    <div data-sec="ap11" style="margin-top: 16px; border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">4.1</span>Who we're looking for</h3>
+      <p style="margin: 0; text-wrap: pretty;">Builders Node is for people who make things - a startup, a product, content, research, anything of your own. We don't care what field you're in. What matters is that you're curious, happy to share what you know, and trying to get a little better every day.</p>
+      <p style="margin: 0; text-wrap: pretty;">For a sense of who's here, our members most often work in:</p>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+        <span style="border: 1px solid #bbb; padding: 4px 10px; font-size: 14px;">Startups</span>
+        <span style="border: 1px solid #bbb; padding: 4px 10px; font-size: 14px;">AI research</span>
+        <span style="border: 1px solid #bbb; padding: 4px 10px; font-size: 14px;">Coding</span>
+        <span style="border: 1px solid #bbb; padding: 4px 10px; font-size: 14px;">Content creation</span>
+        <span style="border: 1px solid #bbb; padding: 4px 10px; font-size: 14px;">SaaS</span>
+        <span style="border: 1px solid #bbb; padding: 4px 10px; font-size: 14px;">Crypto</span>
+        <span style="border: 1px solid #bbb; padding: 4px 10px; font-size: 14px;">Real Estate</span>
+        <span style="border: 1px solid #bbb; padding: 4px 10px; font-size: 14px;">Energy</span>
+        <span style="border: 1px solid #bbb; padding: 4px 10px; font-size: 14px;">Biotech</span>
+      </div>
+    </div>
+    <div data-sec="ap12" style="margin-top: 16px; border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">4.2</span>Application process</h3>
+      <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 16px;">
+        <li style="display: flex; gap: 14px; align-items: flex-start;"><span style="flex: none; width: 24px; height: 24px; border: 1px solid #1a1a1a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; margin-top: 1px;">1</span><div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;"><span><b style="font-weight: 600;">Apply.</b> Fill in a short form - who you are and what you're building. Takes about five minutes.</span><button style="font: inherit; font-size: 15px; background: #1a1a1a; color: #fff; border: 0; padding: 10px 16px; min-height: 44px; cursor: pointer;">Apply</button></div></li>
+        <li style="display: flex; gap: 14px; align-items: flex-start;"><span style="flex: none; width: 24px; height: 24px; border: 1px solid #1a1a1a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; margin-top: 1px;">2</span><div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;"><span><b style="font-weight: 600;">We review it.</b> We read every application ourselves and reply within [2-3 days].</span></div></li>
+        <li style="display: flex; gap: 14px; align-items: flex-start;"><span style="flex: none; width: 24px; height: 24px; border: 1px solid #1a1a1a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; margin-top: 1px;">3</span><div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;"><span><b style="font-weight: 600;">Onboarding call.</b> A 15-20 minute call to get to know each other, answer your questions and pick your dates.</span></div></li>
+        <li style="display: flex; gap: 14px; align-items: flex-start;"><span style="flex: none; width: 24px; height: 24px; border: 1px solid #1a1a1a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; margin-top: 1px;">4</span><div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;"><span><b style="font-weight: 600;">Sign the agreement.</b> We send it over by email - you sign online.</span></div></li>
+        <li style="display: flex; gap: 14px; align-items: flex-start;"><span style="flex: none; width: 24px; height: 24px; border: 1px solid #1a1a1a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; margin-top: 1px;">5</span><div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;"><span><b style="font-weight: 600;">Arrive.</b> We send you an arrival guide.</span></div></li>
+      </ol>
+    </div>
+    <div data-sec="ap13" style="margin-top: 16px; border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">4.3</span>Pricing</h3>
+      <div style="display: flex; flex-direction: column; border-top: 1px solid #1a1a1a; font-size: 15px;">
+        <div style="display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1fr); gap: 16px; padding: 8px 0; border-bottom: 1px solid #ccc; color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;"><span>Stay</span><span>Solo</span><span>Couple</span></div>
+        <div style="display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1fr); gap: 16px; padding: 10px 0; border-bottom: 1px solid #e3e3e3;"><span>1 month</span><span style="font-weight: 600;">$2,450</span><span style="font-weight: 600;">$3,450</span></div>
+        <div style="display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1fr); gap: 16px; padding: 10px 0; border-bottom: 1px solid #1a1a1a;"><span>2+ months</span><span style="font-weight: 600;">$1,950/month</span><span style="font-weight: 600;">$2,950/month</span></div>
+      </div>
+      <p style="margin: 0; text-wrap: pretty;">Everything in <a onClick="{{ go12 }}" style="color: #1a1a1a; text-decoration: underline; cursor: pointer;">section 1.2</a> is included.</p>
+    </div>
+    <div data-sec="ap14" style="margin-top: 16px; border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">4.4</span>How payment works</h3>
+      <p style="margin: 0; text-wrap: pretty;">We require a refundable deposit of $1,000 to secure your spot, paid after you sign the agreement. The rest is paid on day 1 of the program, on arrival.</p>
+      <div style="font-size: 14px; font-weight: 600; margin-top: 8px;">If you cancel after the cooling-off period</div>
+      <div style="display: flex; flex-direction: column; border-top: 1px solid #1a1a1a; font-size: 15px;">
+        <div style="display: grid; grid-template-columns: minmax(0,1.4fr) minmax(0,1fr); gap: 16px; padding: 8px 0; border-bottom: 1px solid #ccc; color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;"><span>When you cancel</span><span>Deposit refund</span></div>
+        <div style="display: grid; grid-template-columns: minmax(0,1.4fr) minmax(0,1fr); gap: 16px; padding: 10px 0; border-bottom: 1px solid #e3e3e3;"><span>More than 45 days before start</span><span style="font-weight: 600;">100%</span></div>
+        <div style="display: grid; grid-template-columns: minmax(0,1.4fr) minmax(0,1fr); gap: 16px; padding: 10px 0; border-bottom: 1px solid #e3e3e3;"><span>30-45 days before start</span><span style="font-weight: 600;">50%</span></div>
+        <div style="display: grid; grid-template-columns: minmax(0,1.4fr) minmax(0,1fr); gap: 16px; padding: 10px 0; border-bottom: 1px solid #1a1a1a;"><span>Fewer than 30 days before start</span><span style="font-weight: 600;">0%</span></div>
+      </div>
+      <p style="margin: 0; text-wrap: pretty;">We always try to meet you halfway. If there's an emergency or something else comes up, just tell us - we're happy to talk about moving your dates.</p>
+    </div>
+  </section>
+
+  <div style="margin-top: 48px; border: 1px solid #ccc; padding: 20px; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between;">
+    <div style="display: flex; flex-direction: column;"><span style="font-weight: 600;">Not ready to apply yet?</span></div>
+    <a href="https://wa.me/380934921005" target="_blank" rel="noopener" style="font-size: 15px; background: #25D366; color: #fff; padding: 10px 16px; text-decoration: none; cursor: pointer;">Message us on WhatsApp</a>
+  </div>
+
+  <section data-sec="04" style="display: flex; flex-direction: column; gap: 20px; padding-top: 56px;">
+    <div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; color: #888;">05</span><h2 style="margin: 0; font-size: 24px; line-height: 1.25;">Getting here from Canada</h2></div>
+    <div data-sec="51" style="border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">5.1</span>Tickets</h3>
+      <p style="margin: 0; color: #444;">You fly into Roatán (RTB). We pick you up.</p>
+      <div style="display: flex; flex-direction: column; border-top: 1px solid #1a1a1a; font-size: 14px;">
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; padding: 8px 0; border-bottom: 1px solid #ccc; color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;"><span>Airline</span><span>Stops</span><span>Price</span></div>
+        <div style="padding: 10px 0; border-bottom: 1px solid #e3e3e3; display: flex; flex-direction: column; gap: 4px;"><span style="font-weight: 600; font-size: 15px;">Toronto (YYZ)</span><div style="display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px;"><span>WestJet</span><span>Direct</span><a href="https://www.westjet.com/" target="_blank" rel="noopener" style="color: #1a1a1a; text-decoration: underline;">from $223</a></div></div>
+        <div style="padding: 10px 0; border-bottom: 1px solid #e3e3e3; display: flex; flex-direction: column; gap: 4px;"><span style="font-weight: 600; font-size: 15px;">Montréal / Québec City</span><div style="display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px;"><span>WestJet</span><span>1 stop</span><a href="https://www.westjet.com/" target="_blank" rel="noopener" style="color: #1a1a1a; text-decoration: underline;">from $342</a></div></div>
+        <div style="padding: 10px 0; border-bottom: 1px solid #1a1a1a; display: flex; flex-direction: column; gap: 4px;"><span style="font-weight: 600; font-size: 15px;">Vancouver / Calgary</span><div style="display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px;"><span>WestJet</span><span>1 stop</span><a href="https://www.westjet.com/" target="_blank" rel="noopener" style="color: #1a1a1a; text-decoration: underline;">from $412</a></div></div>
+      </div>
+    </div>
+
+    <div data-sec="52" style="margin-top: 16px; border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">5.2</span>Border entry checklist</h3>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <label style="display: flex; gap: 12px; align-items: flex-start;"><input type="checkbox" style="margin-top: 5px; accent-color: #1a1a1a;"><span><b style="font-weight: 600;">Visa</b> - not required for Canadians for stays up to 90 days</span></label>
+        <label style="display: flex; gap: 12px; align-items: flex-start;"><input type="checkbox" style="margin-top: 5px; accent-color: #1a1a1a;"><span><b style="font-weight: 600;">Passport</b> - valid 6 months past arrival</span></label>
+        <label style="display: flex; gap: 12px; align-items: flex-start;"><input type="checkbox" style="margin-top: 5px; accent-color: #1a1a1a;"><span><b style="font-weight: 600;">Customs QR form</b> - fill online before you fly at <a href="https://prechequeo.inm.gob.hn/" target="_blank" rel="noopener" style="color: #1a1a1a; text-decoration: underline;">prechequeo.inm.gob.hn</a></span></label>
+        <label style="display: flex; gap: 12px; align-items: flex-start;"><input type="checkbox" style="margin-top: 5px; accent-color: #1a1a1a;"><span><b style="font-weight: 600;">Onward ticket</b> - have it on your phone</span></label>
+        <label style="display: flex; gap: 12px; align-items: flex-start;"><input type="checkbox" style="margin-top: 5px; accent-color: #1a1a1a;"><span><b style="font-weight: 600;">Insurance</b> - recommended, travel + medical</span></label>
+      </div>
+    </div>
+
+  </section>
+
+  <section data-sec="rt" style="display: flex; flex-direction: column; gap: 20px; padding-top: 56px;">
+    <div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; color: #888;">06</span><h2 style="margin: 0; font-size: 24px; line-height: 1.25;">Roatán</h2></div>
+    <div data-sec="61" style="margin-top: 16px; border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">6.1</span>Location</h3>
+      <p style="margin: 0; text-wrap: pretty;">Roatán is the largest of Honduras's Bay Islands, set in the western Caribbean on the world's second-largest barrier reef, about a five-hour flight from Toronto.</p>
+      <img src="images/roatan-map.jpg" alt="Map of North America with a pin on Roatán, Honduras" style="display: block; width: 100%; height: auto; border: 1px solid #ccc;"></img>
+      <p style="margin: 0; text-wrap: pretty;">Builders Node is in the heart of the island, in a quiet area surrounded by a restaurant, beach and jungle - and just a 10-minute drive from the mall and supermarket.</p>
+      <img src="images/roatan-island-map.jpg" alt="Map of Roatán with a pin on Próspera, Duna Residences" style="display: block; width: 100%; height: auto; border: 1px solid #ccc;"></img>
+    </div>
+    <div data-sec="62" style="margin-top: 16px; border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">6.2</span>Safety</h3>
+      <p style="margin: 0; text-wrap: pretty;">Roatán isn't mainland Honduras. The Bay Islands are geographically separate and have lower crime rates even compared with other Caribbean islands. Day to day it feels safe: people go out to restaurants, beach bars and parties, walk around public places and enjoy the island like anywhere else. Duna Tower has 24/7 security, gated entry and cameras in common areas.</p>
+    </div>
+    <div data-sec="63" style="margin-top: 16px; border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">6.3</span>Weather</h3>
+      <p style="margin: 0; text-wrap: pretty;">Warm all year:</p>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid #1a1a1a; border-bottom: 1px solid #1a1a1a;">
+        <div style="padding: 10px 8px 10px 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; color: #666;">Jan-Mar</span><span style="font-size: 20px; font-weight: 600;">25°C</span></div>
+        <div style="padding: 10px 8px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; color: #666;">Apr-Jun</span><span style="font-size: 20px; font-weight: 600;">27°C</span></div>
+        <div style="padding: 10px 8px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; color: #666;">Jul-Sep</span><span style="font-size: 20px; font-weight: 600;">28°C</span></div>
+        <div style="padding: 10px 8px; border-left: 1px solid #ccc; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; color: #666;">Oct-Dec</span><span style="font-size: 20px; font-weight: 600;">26°C</span></div>
+      </div>
+      <p style="margin: 0; text-wrap: pretty;">October to mid-December is the wetter season, but rain usually comes in short bursts, often at night.</p>
+    </div>
+    <div data-sec="64" style="margin-top: 16px; border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">6.4</span>Getting around</h3>
+      <p style="margin: 0; text-wrap: pretty;">Próspera runs a shuttle between Duna Tower and Pristine Bay, and there's almost always someone heading somewhere you can tag along with. For everything else, taxis are easy to find, or you can rent a car, scooter or bike for more freedom.</p>
+    </div>
+    <div data-sec="65" style="margin-top: 16px; border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">6.5</span>Health</h3>
+      <p style="margin: 0; text-wrap: pretty;">There's a doctor in the building we live in, a GARMA clinic right in Próspera, plus walk-in clinics and private hospitals around the island. Drink bottled or filtered water, and bring travel insurance with medical evacuation cover.</p>
+    </div>
+    <div data-sec="66" style="margin-top: 16px; border-top: 1px solid #ccc; padding-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h3 style="margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; display: flex; gap: 10px;"><span style="color: #888; font-weight: 400;">6.6</span>Language and culture</h3>
+      <p style="margin: 0; text-wrap: pretty;">English is widely spoken on Roatán, since many islanders grew up speaking it at home. Spanish is common too, especially with people from the mainland, so a few basic phrases go a long way. The island has its own mix of cultures - English-speaking islanders, mainland Hondurans, a Garifuna community and expats from all over.</p>
+    </div>
+  </section>
+
+  <section data-sec="ct" style="display: flex; flex-direction: column; gap: 20px; padding-top: 56px;">
+    <div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; color: #888;">07</span><h2 style="margin: 0; font-size: 24px; line-height: 1.25;">Apply and contacts</h2></div>
+    <div style="border: 1px solid #1a1a1a; padding: 24px 20px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start;">
+      <span style="font-weight: 600; font-size: 18px;">If you've read this far, you're ready.</span>
+      <button style="font: inherit; font-size: 15px; background: #1a1a1a; color: #fff; border: 0; padding: 10px 16px; cursor: pointer;">Apply (takes 5 minutes)</button>
+    </div>
+    <div style="display: flex; flex-direction: column; border-top: 1px solid #1a1a1a; font-size: 15px;">
+      <div style="display: flex; gap: 16px; padding: 10px 0; border-bottom: 1px solid #e3e3e3;"><span style="width: 96px; flex: none; color: #666;">Email</span><span><a href="mailto:taras@buildersnode.com" style="color: #1a1a1a; text-decoration: underline;">taras@buildersnode.com</a></span></div>
+      <div style="display: flex; gap: 16px; padding: 10px 0; border-bottom: 1px solid #e3e3e3;"><span style="width: 96px; flex: none; color: #666;">WhatsApp</span><span><a href="https://wa.me/380934921005" target="_blank" rel="noopener" style="color: #1a1a1a; text-decoration: underline;">+380 93 492 1005</a></span></div>
+      <div style="display: flex; gap: 16px; padding: 10px 0; border-bottom: 1px solid #e3e3e3;"><span style="width: 96px; flex: none; color: #666;">Instagram</span><span><a href="https://www.instagram.com/buildersnode/" target="_blank" rel="noopener" style="color: #1a1a1a; text-decoration: underline;">@buildersnode</a></span></div>
+      <div style="display: flex; gap: 16px; padding: 10px 0; border-bottom: 1px solid #e3e3e3;"><span style="width: 96px; flex: none; color: #666;">Website</span><span><a href="https://www.buildersnode.com/" target="_blank" rel="noopener" style="color: #1a1a1a; text-decoration: underline;">buildersnode.com</a></span></div>
+    </div>
+  </section>
+
+  <div style="margin-top: 16px;"><a style="color: #1a1a1a; font-size: 15px; text-decoration: underline; cursor: pointer;">Download as PDF</a></div>
+
+  <div style="margin-top: 64px; padding-top: 20px; border-top: 1px solid #ccc; font-size: 14px; color: #666; display: flex; flex-direction: column; gap: 4px;">
+    <span>Reply to your email with any question - it comes straight to me.</span>
+    <span>- Taras, Builders Node · Roatán, Honduras</span>
+  </div>
+</div>
+<sc-if value="{{ mobile }}" hint-placeholder-val="{{ false }}">
+  <div style="position: sticky; bottom: 0; background: #fff; border-top: 1px solid #ccc; padding: 10px 16px; display: flex; gap: 12px; align-items: center; justify-content: space-between;">
+    <span style="font-size: 13px; color: #666;">Questions? Talk to Taras.</span>
+    <button style="font: inherit; font-size: 14px; background: #1a1a1a; color: #fff; border: 0; padding: 10px 14px; min-height: 44px; cursor: pointer;">Apply (takes 5 minutes)</button>
+  </div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:390,&quot;height&quot;:844},&quot;mobile&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;name&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;[Name]&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  rootRef = React.createRef();
+  go = (id) => () => {
+    const root = this.rootRef.current; if (!root) return;
+    const el = root.querySelector('[data-sec="' + id + '"]');
+    let s = root.parentElement;
+    while (s && !(s.scrollHeight > s.clientHeight && /auto|scroll/.test(getComputedStyle(s).overflowY))) s = s.parentElement;
+    if (!s || !el) return;
+    const k = s.getBoundingClientRect().height / s.offsetHeight || 1;
+    s.scrollTo({ top: s.scrollTop + (el.getBoundingClientRect().top - s.getBoundingClientRect().top) / k - 16, behavior: 'smooth' });
+  };
+  f = Object.fromEntries(['hint','stage','svg','route','trail','ring','plane','icon','slider','temp','time','tz','tzSub','landed'].map(k => [k, React.createRef()]));
+  componentDidMount() { this.initFlight(); }
+  componentWillUnmount() { this.flightCleanup && this.flightCleanup(); }
+  initFlight() {
+    const g = {}; for (const k in this.f) g[k] = this.f[k].current;
+    if (!g.route || !g.svg) return;
+    const CONFIG = { tempStart: -5, tempEnd: 28, flightMinutes: 300, tzStart: 'GMT−5', tzStartSub: 'Toronto time', tzEnd: 'GMT−6', tzEndSub: 'Toronto −1h' };
+    g.svg.setAttribute('viewBox', '0 0 680 300');
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const L = g.route.getTotalLength();
+    g.trail.style.strokeDasharray = L;
+    const N = 300, pts = [];
+    for (let i = 0; i < N; i++) { const p = g.route.getPointAtLength(i / (N - 1) * L); pts.push([p.x, p.y]); }
+    let prog = 0, touched = false, nudgeRaf = null, ringRaf = null, dragging = false;
+    const fmtTemp = c => (c < 0 ? '−' + Math.abs(c) : c) + '°C';
+    const render = () => {
+      const e = prog, p = g.route.getPointAtLength(e * L);
+      const pA = g.route.getPointAtLength(Math.max(e * L - 1, 0)), pB = g.route.getPointAtLength(Math.min(e * L + 1, L));
+      const s = g.stage.offsetWidth / 680;
+      const ang = Math.atan2(pB.y - pA.y, pB.x - pA.x) * 180 / Math.PI;
+      g.plane.style.left = g.ring.style.left = (p.x * s) + 'px';
+      g.plane.style.top = g.ring.style.top = (p.y * s) + 'px';
+      g.icon.style.transform = 'rotate(' + (ang + 45) + 'deg)';
+      g.trail.style.strokeDashoffset = L * (1 - e);
+      const c = Math.round(CONFIG.tempStart + (CONFIG.tempEnd - CONFIG.tempStart) * e);
+      g.temp.textContent = fmtTemp(c);
+      g.temp.style.color = c < 0 ? 'oklch(0.55 0.14 235)' : c === 0 ? '#1a1a1a' : 'oklch(0.6 0.19 40)';
+      const mins = Math.round(CONFIG.flightMinutes * e);
+      g.time.textContent = Math.floor(mins / 60) + 'h ' + String(mins % 60).padStart(2, '0') + 'm';
+      const done = e >= 0.99;
+      g.tz.textContent = done ? CONFIG.tzEnd : CONFIG.tzStart;
+      g.tzSub.textContent = done ? CONFIG.tzEndSub : CONFIG.tzStartSub;
+      g.landed.style.opacity = done ? '1' : '0';
+      g.slider.value = Math.round(e * 1000);
+      g.plane.setAttribute('aria-valuenow', Math.round(e * 100));
+    };
+    const firstTouch = () => {
+      if (touched) return; touched = true;
+      cancelAnimationFrame(nudgeRaf); cancelAnimationFrame(ringRaf);
+      g.hint.style.opacity = '0'; g.ring.style.display = 'none';
+    };
+    const toSvg = (cx, cy) => { const pt = g.svg.createSVGPoint(); pt.x = cx; pt.y = cy; return pt.matrixTransform(g.svg.getScreenCTM().inverse()); };
+    const nearest = (x, y) => { let best = 0, bd = Infinity; for (let i = 0; i < N; i++) { const dx = pts[i][0] - x, dy = pts[i][1] - y, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = i; } } return best / (N - 1); };
+    const onDown = ev => { firstTouch(); dragging = true; g.plane.setPointerCapture(ev.pointerId); g.plane.style.cursor = 'grabbing'; };
+    const onMove = ev => { if (!dragging) return; const p = toSvg(ev.clientX, ev.clientY); prog = nearest(p.x, p.y); render(); };
+    const endDrag = () => { dragging = false; g.plane.style.cursor = 'grab'; };
+    const onSlide = () => { firstTouch(); prog = g.slider.value / 1000; render(); };
+    const onKey = ev => {
+      if (ev.key === 'ArrowRight' || ev.key === 'ArrowDown') { firstTouch(); prog = Math.min(1, prog + 0.02); render(); ev.preventDefault(); }
+      if (ev.key === 'ArrowLeft' || ev.key === 'ArrowUp') { firstTouch(); prog = Math.max(0, prog - 0.02); render(); ev.preventDefault(); }
+    };
+    const pulse = () => {
+      let st = null;
+      const f = ts => { if (touched) return; if (!st) st = ts; const t = ((ts - st) % 1400) / 1400;
+        g.ring.style.transform = 'translate(-50%,-50%) scale(' + (0.8 + t) + ')'; g.ring.style.opacity = String(0.6 * (1 - t)); ringRaf = requestAnimationFrame(f); };
+      ringRaf = requestAnimationFrame(f);
+    };
+    const nudge = () => {
+      let st = null;
+      const f = ts => { if (touched) return; if (!st) st = ts; const t = ((ts - st) % 1600) / 1600; prog = 0.07 * Math.sin(t * Math.PI); render(); nudgeRaf = requestAnimationFrame(f); };
+      nudgeRaf = requestAnimationFrame(f);
+    };
+    const reveal = () => { g.hint.style.opacity = '1'; if (!reduceMotion) { pulse(); nudge(); } };
+    g.plane.addEventListener('pointerdown', onDown); g.plane.addEventListener('pointermove', onMove);
+    g.plane.addEventListener('pointerup', endDrag); g.plane.addEventListener('pointercancel', endDrag);
+    g.slider.addEventListener('input', onSlide); g.plane.addEventListener('keydown', onKey);
+    window.addEventListener('resize', render);
+    render();
+    let io = null;
+    if ('IntersectionObserver' in window) {
+      io = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting && !touched) { reveal(); io.disconnect(); } }), { threshold: 0.5 });
+      io.observe(g.stage);
+    } else reveal();
+    this.flightCleanup = () => {
+      cancelAnimationFrame(nudgeRaf); cancelAnimationFrame(ringRaf); io && io.disconnect();
+      window.removeEventListener('resize', render);
+      g.plane.removeEventListener('pointerdown', onDown); g.plane.removeEventListener('pointermove', onMove);
+      g.plane.removeEventListener('pointerup', endDrag); g.plane.removeEventListener('pointercancel', endDrag);
+      g.slider.removeEventListener('input', onSlide); g.plane.removeEventListener('keydown', onKey);
+    };
+  }
+  renderVals() {
+    const mobile = !!this.props.mobile;
+    return {
+      rootRef: this.rootRef, f: this.f, mobile, tocOpen: !mobile,
+      name: this.props.name ?? '[Name]',
+      go01: this.go('01'), goRt: this.go('rt'), goCt: this.go('ct'), go51: this.go('51'), go52: this.go('52'), go43: this.go('43'), go61: this.go('61'), go62: this.go('62'), go63: this.go('63'), go64: this.go('64'), go65: this.go('65'), go66: this.go('66'), go311: this.go('311'), go322: this.go('322'), go3221: this.go('3221'), go3222: this.go('3222'), go3223: this.go('3223'), go3224: this.go('3224'), go3225: this.go('3225'), go3226: this.go('3226'), goPr: this.go('pr'), goAp: this.go('ap'), goAp11: this.go('ap11'), goAp12: this.go('ap12'), goAp13: this.go('ap13'), goAp14: this.go('ap14'), go211: this.go('211'), go212: this.go('212'), go213: this.go('213'), go11: this.go('11'), go12: this.go('12'), go13: this.go('13'), go122: this.go('122'), go123: this.go('123'), go124: this.go('124'), go125: this.go('125'), go126: this.go('126'), goBc: this.go('bc'), go127: this.go('127'), go128: this.go('128'), go129: this.go('129'), go02: this.go('02'), go03: this.go('03'), go04: this.go('04'), go05: this.go('05'),
+    };
+  }
+}
+</script>
+<script>
+(function () {
+  var raw = new URLSearchParams(location.search).get('name') || '';
+  var name = raw.trim().slice(0, 60);
+  if (!name) return;
+
+  function fill() {
+    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    var node;
+    while ((node = walker.nextNode())) {
+      if (node.nodeValue.indexOf('[Name]') !== -1) {
+        // textContent, never innerHTML: this value arrived in a query string.
+        node.nodeValue = node.nodeValue.split('[Name]').join(name);
+      }
+    }
+  }
+
+  // The runtime renders asynchronously and re-renders on its own (opening the
+  // contents list, resizing), each time restoring the placeholder from the
+  // props schema. So this watches rather than running once. It cannot loop:
+  // the only write happens where '[Name]' is present, and after it there is
+  // none left to find.
+  fill();
+  new MutationObserver(fill).observe(document.body, { childList: true, subtree: true, characterData: true });
+})();
+</script>
+</body>
+</html>

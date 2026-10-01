@@ -11,13 +11,18 @@ const MAX_NAME = 120;
 const GUIDE_SOURCES = ['ca'] as const;
 
 /**
- * Where the guide is served from, relative to the CA site.
+ * Where the guide page lives on the CA site.
  *
- * Deliberately not an admin setting and not in the page bundle: the app ships
- * the file, so there is nothing for anyone to configure, and the address only
- * ever leaves this service behind a key that checks out.
+ * It is a page, served as it was authored — see Frontend/scripts/import-guide.mjs.
+ * Static hosting can't check a key, so the path itself is the gate: it is not
+ * guessable, not linked from anywhere, and this service is the only thing that
+ * hands it out. Change it here and in that script together.
+ *
+ * `index.html` is spelled out rather than left to directory resolution: the
+ * SPA catch-all answers a bare directory with the app shell, which served the
+ * landing page where the guide should have been.
  */
-const GUIDE_PATH = '/guide-file/builders-node-private-guide.pdf';
+const GUIDE_PATH = '/g/winter-2026-k7m2qx/index.html';
 
 /**
  * The guide lead magnet.
@@ -70,7 +75,7 @@ export class GuideService {
 
     // MailService.send never throws — a provider having a bad minute must not
     // lose a lead we have already stored. `sentAt` is what tells the two apart.
-    await this.mail.sendGuideKey(lead.email, lead.name, lead.accessKey, this.guidePageUrl(lead.accessKey));
+    await this.mail.sendGuideKey(lead.email, lead.name, lead.accessKey, this.unlockUrl(lead.accessKey));
     await this.prisma.guideRequest.update({ where: { id: lead.id }, data: { sentAt: new Date() } });
 
     return { sent: true, email: lead.email };
@@ -97,7 +102,10 @@ export class GuideService {
       await this.prisma.guideRequest.update({ where: { id: lead.id }, data: { openedAt: new Date() } });
     }
 
-    return { guideUrl: this.guideFileUrl() };
+    // The name rides along so the guide can open with it. The page is static,
+    // so there is nowhere else it could come from.
+    const named = lead.name ? `?name=${encodeURIComponent(lead.name)}` : '';
+    return { guideUrl: `${this.guidePageUrl()}${named}` };
   }
 
   /** Every lead, newest first. */
@@ -118,13 +126,13 @@ export class GuideService {
     return { deleted: true, email: lead.email };
   }
 
-  /** The guide file itself. Overridable, so it can be moved without a release. */
-  private guideFileUrl(): string {
+  /** The guide page itself. Overridable, so it can move without a release. */
+  private guidePageUrl(): string {
     return process.env.GUIDE_URL?.trim() || `${this.caSiteUrl()}${GUIDE_PATH}`;
   }
 
-  /** The guide page, with the key already in it — what the email links to. */
-  private guidePageUrl(key: string): string {
+  /** The gate, with the key already in it — what the email links to. */
+  private unlockUrl(key: string): string {
     return `${this.caSiteUrl()}/guide?key=${encodeURIComponent(key)}`;
   }
 

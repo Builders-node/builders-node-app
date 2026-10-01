@@ -22,20 +22,20 @@ const accent = '#EA5404';
 const KEY_STORAGE = 'terminus_guide_key';
 
 /**
- * The gated guide.
+ * The gate in front of the guide.
  *
- * Three states, and which one shows is decided by the key: locked, checking, or
- * open. The guide's location is never in this bundle — it comes back from the
- * server only once the key holds, because a gate whose answer ships to every
- * visitor in the JavaScript is theatre.
+ * The guide itself is a page of its own — authored on a canvas, with its own
+ * runtime — so this screen's job ends at sending the reader to it. A real
+ * navigation rather than an embed: that page needs its scripts to run, and an
+ * iframe would wrap a page in a page for no gain.
  *
- * The key is universal, which is worth being honest about: it buys the email
- * address and a moment of friction, not secrecy. The first reader to paste it
- * into a group chat has published it.
+ * Its address is never in this bundle. It comes back from the server once the
+ * key resolves to a reader, because a gate whose answer ships to every visitor
+ * in the JavaScript is theatre.
  */
 export function CaGuide() {
   const [key, setKey] = useState('');
-  const [guideUrl, setGuideUrl] = useState<string | null>(null);
+  const [isOpening, setIsOpening] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,21 +77,18 @@ export function CaGuide() {
         method: 'POST',
         body: JSON.stringify({ key: candidate.trim() }),
       });
-      setGuideUrl(result.guideUrl);
       try {
         localStorage.setItem(KEY_STORAGE, candidate.trim());
       } catch {
         /* private mode — they'll just enter it again next time */
       }
-      // Take the key back out of the address bar now that it has been used, so
-      // it can't travel in a screenshot or a pasted URL. Only that parameter:
-      // dropping the whole query would also throw away the `?src=` a campaign
-      // link arrived with.
-      const address = new URL(window.location.href);
-      if (address.searchParams.has('key')) {
-        address.searchParams.delete('key');
-        window.history.replaceState(null, '', `${address.pathname}${address.search}`);
-      }
+      // Hold the spinner: the navigation below ends this page, and flipping
+      // back to the form in between would look like the key had failed.
+      setIsOpening(true);
+      // `replace`, not `assign`: this screen has done its job, and leaving it
+      // in history would mean Back from the guide landing on a gate that
+      // immediately pushes the reader forward again.
+      window.location.replace(result.guideUrl);
     } catch (caught) {
       // A remembered key that has since been rotated shouldn't greet a reader
       // with a red error they did nothing to cause — it just falls back to the
@@ -159,8 +156,13 @@ export function CaGuide() {
         </div>
       </header>
 
-      {guideUrl ? (
-        <GuideReader url={guideUrl} />
+      {isOpening ? (
+        <main className="px-6 py-24 text-center" aria-busy="true">
+          <Loader2 className="w-6 h-6 mx-auto animate-spin" style={{ color: accent }} />
+          <p className="mt-4 text-sm" style={{ color: textMuted }}>
+            Opening the guide…
+          </p>
+        </main>
       ) : (
         <main className="px-6 sm:px-10 md:px-12 py-16 sm:py-24">
           <div className="max-w-md mx-auto text-center">
@@ -273,47 +275,5 @@ export function CaGuide() {
         </main>
       )}
     </div>
-  );
-}
-
-/**
- * The guide itself, once unlocked.
- *
- * An iframe rather than a redirect so the reader stays on the page they
- * unlocked — going Back from a redirect would land them on the key screen
- * again. The direct link sits underneath for anything an iframe can't show,
- * which on iOS is most PDFs.
- */
-function GuideReader({ url }: { url: string }) {
-  return (
-    <main className="px-4 sm:px-8 md:px-12 py-8">
-      <div className="max-w-5xl mx-auto">
-        <div className="flex flex-wrap items-baseline justify-between gap-3 mb-5">
-          <h1 className="text-2xl sm:text-3xl font-light tracking-tight">The private guide</h1>
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm underline underline-offset-2"
-            style={{ color: textMuted }}
-          >
-            Open in a new tab
-          </a>
-        </div>
-        <div
-          className="rounded-sm overflow-hidden bg-white"
-          style={{ border: '1px solid hsl(0 0% 88%)', height: 'calc(100vh - 220px)', minHeight: 480 }}
-        >
-          <iframe src={url} title="Builders Node private guide" className="w-full h-full" style={{ border: 0 }} />
-        </div>
-        <p className="mt-4 text-sm text-center" style={{ color: textMuted }}>
-          Can&apos;t see it?{' '}
-          <a href={url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2" style={{ color: textDark }}>
-            Open it directly
-          </a>
-          .
-        </p>
-      </div>
-    </main>
   );
 }

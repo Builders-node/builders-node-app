@@ -109,7 +109,7 @@ describe('GuideService.unlock', () => {
 
     const result = await service.unlock('BN-7K2M-QX94');
 
-    expect(result.guideUrl).toContain('/guide-file/');
+    expect(result.guideUrl).toContain('/g/winter-2026-k7m2qx/');
   });
 
   it('accepts a key typed in lower case', async () => {
@@ -145,5 +145,29 @@ describe('GuideService.unlock', () => {
     const { service } = makeService({ lead: null });
 
     await expect(service.unlock('nope')).rejects.not.toHaveProperty('response.guideUrl');
+  });
+});
+
+describe('GuideService.unlock — what the reader is sent to', () => {
+  it('carries the reader name so the guide can open with it', async () => {
+    // The guide is a static page: the query string is the only way the name
+    // can reach it.
+    const { service } = makeService({
+      lead: { id: 'lead-1', email: 'nina@example.com', name: 'Nina Alvarez', accessKey: 'BN-7K2M-QX94', openedAt: null },
+    });
+
+    const { guideUrl } = await service.unlock('BN-7K2M-QX94');
+
+    expect(guideUrl).toContain('name=Nina%20Alvarez');
+  });
+
+  it('leaves the name off when there isn’t one, rather than sending an empty one', async () => {
+    const { service } = makeService({
+      lead: { id: 'lead-1', email: 'nina@example.com', name: null, accessKey: 'BN-7K2M-QX94', openedAt: null },
+    });
+
+    const { guideUrl } = await service.unlock('BN-7K2M-QX94');
+
+    expect(guideUrl).not.toContain('name=');
   });
 });
