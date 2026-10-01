@@ -3016,6 +3016,22 @@ async function loadGuideLeads() {
             </div>
           </div>
 
+          {/* Loud on purpose. Both values are required for the page to work at
+              all, and the visitor-facing failure deliberately says nothing
+              about why — so this is the only place the reason shows. */}
+          {!globalSettings?.guideAccessKey || !globalSettings?.guideUrl ? (
+            <div className="guide-setup-warning">
+              <strong>The guide is switched off.</strong>
+              <span>
+                {!globalSettings?.guideAccessKey && !globalSettings?.guideUrl
+                  ? 'Neither the access key nor the guide link is set, so the form refuses every address and nothing opens /guide.'
+                  : !globalSettings?.guideAccessKey
+                    ? 'No access key, so the form refuses every address and nothing opens /guide. Press Generate below, then Save key.'
+                    : 'No guide link, so a correct key unlocks nothing. Set it below.'}
+              </span>
+            </div>
+          ) : null}
+
           {/* The link the guide email sends people to. Stored rather than
               deployed: it will change long before the page does. */}
           <div className="global-settings global-settings--batch">

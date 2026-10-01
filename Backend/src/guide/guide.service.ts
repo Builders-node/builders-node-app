@@ -41,7 +41,10 @@ export class GuideService {
       // waiting for an email that is never coming. Better to fail loudly here,
       // where an admin can see it, than in their inbox.
       this.logger.error('A guide key was requested but none is configured (admin settings → Guide leads).');
-      throw new BadRequestException('The guide is not available right now. Please try again shortly.');
+      // Not "try again shortly": waiting fixes nothing, and telling somebody to
+      // wait for something that will never arrive is worse than admitting it is
+      // us. The admin-facing reason is in the log above and on the settings page.
+      throw new BadRequestException("The guide isn't available right now — sorry. Please get in touch and we'll send it over.");
     }
 
     const email = dto.email.trim().toLowerCase();
@@ -100,7 +103,7 @@ export class GuideService {
     const guideUrl = await this.guideUrl();
     if (!guideUrl) {
       this.logger.error('The guide was unlocked but no guide URL is configured (admin settings → Guide leads).');
-      throw new BadRequestException('The guide is not available right now. Please try again shortly.');
+      throw new BadRequestException("Your key is right, but the guide isn't available right now — sorry. Please get in touch.");
     }
     return { guideUrl };
   }

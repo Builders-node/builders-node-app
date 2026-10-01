@@ -6244,3 +6244,18 @@ body:has(.modal-overlay) .onboarding-toast { display: none; }
   width: 32px;
 }
 .affiliate-hub__ask { margin-top: 18px; width: fit-content; }
+
+/* The guide needs two settings before it does anything, and the public page
+   deliberately doesn't say which is missing — so this is the only place the
+   reason appears. Loud enough not to be read as decoration. */
+.guide-setup-warning {
+  background: rgba(229, 84, 31, 0.08);
+  border: 1px solid rgba(229, 84, 31, 0.35);
+  border-radius: 12px;
+  display: grid;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+}
+.guide-setup-warning strong { font-size: 0.95rem; }
+.guide-setup-warning span { color: var(--muted); font-size: 0.85rem; }
