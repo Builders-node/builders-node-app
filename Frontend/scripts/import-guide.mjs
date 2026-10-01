@@ -195,6 +195,19 @@ html = html.replace(
 html = html.replace('Winter Guide 2026', 'Buildersnode founder guide');
 
 /**
+ * The note pointed readers at "the email", but the guide is a page reached
+ * from the site too — not everyone arrives holding an email to reply to.
+ */
+const replyLine = "If something's missing, reply to the email - it comes straight to me.";
+if (!html.includes(replyLine)) {
+  console.warn('  ! "reply to the email" line not found — check whether the export changed');
+}
+html = html.replace(
+  replyLine,
+  'If something\'s missing, email me at <a href="mailto:taras@buildersnode.com" style="color: inherit;">taras@buildersnode.com</a>',
+);
+
+/**
  * The Apply buttons are `<button>` elements with no handler — the canvas wires
  * them up in the editor, the export doesn't, so all four did nothing. Turned
  * into real links, keeping each one's own styling and adding only what a

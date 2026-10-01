@@ -53,8 +53,7 @@ const CaHeroSection = ({ onRequestGuide }: CaHeroSectionProps) => {
           Spend the winter at Buildersnode
         </h1>
         <p className="text-base md:text-lg text-white/70 max-w-2xl leading-relaxed">
-          A community of founders on a Caribbean island. Work on your project, learn, and meet like-minded people while
-          we handle the day-to-day.
+          A community of founders in the world&apos;s first startup city
         </p>
         {/* Two ways in, ranked. The guide is the cheap first step and the ask
             this landing is built around; applying is the commitment, so it sits
