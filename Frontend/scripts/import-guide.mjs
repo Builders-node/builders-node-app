@@ -106,6 +106,20 @@ html = html.replace(/src="images\/([^"]+)"/g, (whole, file) => {
   return `src="images/${found}"`;
 });
 
+/**
+ * "Download as PDF" — an anchor with no href and no handler, so it is a link
+ * that does nothing. The canvas presumably wires it up in the editor; the
+ * export doesn't, and the guide is a page rather than a document anyway.
+ *
+ * Matched by its text rather than its exact markup, so a restyle upstream
+ * doesn't quietly let it back in.
+ */
+const pdfLink = /\s*<div[^>]*>\s*<a[^>]*>\s*Download as PDF\s*<\/a>\s*<\/div>/g;
+if (!pdfLink.test(html)) {
+  console.warn('  ! no "Download as PDF" link found — check whether the export changed');
+}
+html = html.replace(pdfLink, '');
+
 const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 html = html.replace('Last updated [date]', `Last updated ${today}`);
 
