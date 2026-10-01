@@ -207,7 +207,10 @@ That drops the duplicate `uploads/` folder, re-encodes the photos (one was
 writes the page to `Frontend/public/g/winter-2026-k7m2qx/`. Last run: 44MB → 19MB.
 
 It also repairs what the export leaves behind, so none of it has to be redone
-by hand after an edit: the document gets `margin: 0` and a white background
+by hand after an edit: one stray `</div>` that closed the content column
+halfway down (everything from the Roatán section onward rendered full-bleed at
+the left edge while the sections above stayed in the column), the document gets
+`margin: 0` and a white background
 (the export styles its own wrapper and leaves an unpainted frame around it), the
 dead "Download as PDF" link and the "Prepared for" line are removed, and the
 four Apply buttons — `<button>` elements the canvas only wires up in its editor

@@ -133,12 +133,64 @@ if (!pdfLink.test(html)) {
 html = html.replace(pdfLink, '');
 
 /**
+ * The export closes its content column early.
+ *
+ * One stray `</div>` after the daily-timetable section ends the
+ * `max-width: 680px` wrapper partway through, so everything from the Roatán
+ * section onwards — maps, "Applying to Builders Node", the contacts — renders
+ * full-bleed at the left edge while the sections above stay in the column.
+ *
+ * Repaired by counting rather than by matching that one spot: the closing tag
+ * that brings the wrapper to depth zero before the document's last section is
+ * removed, which fixes whatever imbalance a future export happens to have.
+ */
+function repairContentColumn(markup) {
+  const start = markup.indexOf('<div style="max-width: 680px;');
+  if (start === -1) {
+    console.warn('  ! content column not found — check whether the export changed');
+    return markup;
+  }
+
+  /** Index just past the `</div>` that closes the wrapper, or -1. */
+  const findClose = (text) => {
+    let depth = 0;
+    const tags = /<(\/?)div\b[^>]*>/g;
+    tags.lastIndex = start;
+    let match;
+    while ((match = tags.exec(text))) {
+      depth += match[1] ? -1 : 1;
+      if (depth === 0) return tags.lastIndex;
+    }
+    return -1;
+  };
+
+  let repaired = 0;
+  // Bounded: an export broken past a handful of tags is a different problem,
+  // and silently chewing through closing tags would be worse than stopping.
+  while (repaired < 5) {
+    const close = findClose(markup);
+    const lastSection = markup.lastIndexOf('</section>');
+    if (close === -1 || close > lastSection) break;
+    markup = markup.slice(0, close - '</div>'.length) + markup.slice(close);
+    repaired += 1;
+  }
+
+  if (repaired > 0) console.log(`Content column repaired: ${repaired} stray </div> removed`);
+  return markup;
+}
+
+html = repairContentColumn(html);
+
+/**
  * The guide is a whole page, not a card on someone else's background.
  *
  * The export styles its own content wrapper and leaves the document alone, so
  * the browser's default 8px body margin showed as an unpainted frame around it.
  */
-html = html.replace('</head>', '<style>html,body{margin:0;padding:0;background:#fff;}</style>\n</head>');
+html = html.replace(
+  '</head>',
+  '<style>html,body{margin:0;padding:0;background:#fff;}img{box-sizing:border-box;}</style>\n</head>',
+);
 
 html = html.replace('Winter Guide 2026', 'Buildersnode founder guide');
 
