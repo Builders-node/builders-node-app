@@ -163,9 +163,6 @@ export function GuideCta() {
                     )}
                   </button>
                 </div>
-                <p className="mt-4 text-sm" style={{ color: panelMuted }}>
-                  One email with dates and the guide. No spam.
-                </p>
               </form>
             )}
           </div>
