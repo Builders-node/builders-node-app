@@ -105,7 +105,7 @@ export function GuideCta() {
                   style={{ color: panelText }}
                 >
                   <Check size={20} style={{ color: accent }} aria-hidden="true" />
-                  {heldUp ? "We've got your address" : 'Your key is on its way'}
+                  {heldUp ? "We've got your address" : 'Your guide is on the way'}
                 </p>
                 {heldUp ? (
                   <p className="mt-3 text-sm leading-relaxed" style={{ color: panelMuted }}>
