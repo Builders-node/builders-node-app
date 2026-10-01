@@ -16,10 +16,16 @@ export default defineConfig({
       workbox: {
         // Precache the app shell (built assets).
         globPatterns: ['**/*.{js,css,html,ico,svg,woff,woff2}'],
+        // Never the guides. sw.js is public, so precaching them would print
+        // their unguessable paths — the only thing gating them — for anyone to
+        // read, and download them into every visitor's browser besides.
+        globIgnores: ['g/**'],
         // App shell fallback so the app opens offline / on flaky mobile.
         navigateFallback: '/index.html',
         // Static pages served from /public that must NOT hit the SPA shell.
-        navigateFallbackDenylist: [/^\/(privacy|terms)\.html$/, /^\/(robots\.txt|sitemap\.xml|site\.webmanifest)$/],
+        // The guides too: no longer precached, so without this a returning
+        // visitor's service worker would answer them with the app shell.
+        navigateFallbackDenylist: [/^\/(privacy|terms)\.html$/, /^\/(robots\.txt|sitemap\.xml|site\.webmanifest)$/, /^\/g\//],
         // Runtime image cache so photos load fast on repeat visits.
         runtimeCaching: [
           {

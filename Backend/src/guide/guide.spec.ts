@@ -84,6 +84,16 @@ describe('GuideService.request', () => {
     expect(prisma.guideRequest.upsert.mock.calls[0][0].update.name).toBeUndefined();
   });
 
+  it('links the email to the site the reader asked on', async () => {
+    const { service, mail } = makeService();
+
+    await service.request({ email: 'nina@example.com', source: 'ca' });
+    await service.request({ email: 'sam@example.com', source: 'main' });
+
+    expect(mail.sendGuideKey.mock.calls[0][3]).toMatch(/^https:\/\/ca\.buildersnode\.com\/guide\?key=/);
+    expect(mail.sendGuideKey.mock.calls[1][3]).not.toContain('ca.buildersnode.com');
+  });
+
   it('ignores a landing name it does not recognise', async () => {
     // It reaches an admin screen, so it is checked rather than trusted.
     const { service, prisma } = makeService();
@@ -111,6 +121,25 @@ describe('GuideService.unlock', () => {
     const result = await service.unlock('BN-7K2M-QX94');
 
     expect(result.guideUrl).toContain('/g/winter-2026-k7m2qx/');
+  });
+
+  it("opens the site's own guide", async () => {
+    const { service } = makeService({ lead });
+
+    expect((await service.unlock('BN-7K2M-QX94', 'main')).guideUrl).toContain('/g/founders-2026-zcvhs4/');
+    expect((await service.unlock('BN-7K2M-QX94', 'ca')).guideUrl).toContain('/g/winter-2026-k7m2qx/');
+    // Pages from before there were two sites send no site at all.
+    expect((await service.unlock('BN-7K2M-QX94', 'elsewhere')).guideUrl).toContain('/g/winter-2026-k7m2qx/');
+  });
+
+  it('opens for the shared code without looking anybody up', async () => {
+    // The code handed out in links: nobody to record, nothing to look up.
+    const { service, prisma } = makeService({ lead: null });
+
+    const result = await service.unlock('bn-guide-2026', 'main');
+
+    expect(result.guideUrl).toContain('/g/founders-2026-zcvhs4/');
+    expect(prisma.guideRequest.findUnique).not.toHaveBeenCalled();
   });
 
   it('accepts a key typed in lower case', async () => {

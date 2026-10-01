@@ -1,28 +1,50 @@
 import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { randomInt } from 'crypto';
 import { normalizeCode } from '../campaigns/campaigns.service';
+import { resolveFrontendBaseUrl } from '../common/frontend-url';
 import { PrismaService } from '../database/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { GuideRequestDto } from './dto';
 
 const MAX_NAME = 120;
 
-/** Which landings may ask. Checked rather than trusted — it reaches an admin screen. */
-const GUIDE_SOURCES = ['ca'] as const;
+/**
+ * The sites that carry a guide, and which landing asked. Checked rather than
+ * trusted — it reaches an admin screen and decides which guide a link opens.
+ */
+const GUIDE_SITES = ['main', 'ca'] as const;
+type GuideSite = (typeof GUIDE_SITES)[number];
+
+const isGuideSite = (value: unknown): value is GuideSite => GUIDE_SITES.includes(value as GuideSite);
 
 /**
- * Where the guide page lives on the CA site.
+ * Where each site's guide page lives. Two guides that differ only in section
+ * 05: the CA one is "Getting here from Canada", the main one covers the world.
  *
- * It is a page, served as it was authored — see Frontend/scripts/import-guide.mjs.
- * Static hosting can't check a key, so the path itself is the gate: it is not
- * guessable, not linked from anywhere, and this service is the only thing that
- * hands it out. Change it here and in that script together.
+ * They are pages, served as they were authored — see
+ * Frontend/scripts/import-guide.mjs. Static hosting can't check a key, so the
+ * path itself is the gate: it is not guessable, not linked from anywhere, and
+ * this service is the only thing that hands it out. Change it here and in that
+ * script together.
  *
  * `index.html` is spelled out rather than left to directory resolution: the
  * SPA catch-all answers a bare directory with the app shell, which served the
  * landing page where the guide should have been.
  */
-const GUIDE_PATH = '/g/winter-2026-k7m2qx/index.html';
+const GUIDE_PATHS: Record<GuideSite, string> = {
+  main: '/g/founders-2026-zcvhs4/index.html',
+  ca: '/g/winter-2026-k7m2qx/index.html',
+};
+
+/**
+ * One code for everybody, for links handed out by hand —
+ * `buildersnode.com/guide?key=BN-GUIDE-2026` opens the guide with nothing to
+ * type and no email asked for. It sits beside the per-reader keys rather than
+ * replacing them: those still say who asked through the form.
+ *
+ * `GUIDE_SHARED_KEY` replaces it when a link has gone further than it should.
+ */
+const DEFAULT_SHARED_KEY = 'BN-GUIDE-2026';
 
 /**
  * The guide lead magnet.
@@ -31,11 +53,12 @@ const GUIDE_PATH = '/g/winter-2026-k7m2qx/index.html';
  * asked to be reviewed, and putting them in the applicant pipeline would mean
  * an admin working through people who never applied.
  *
- * Every reader gets their own key. That is worth the unique column: a shared
- * key tells you nothing once it is out, where a key per person says who is
- * actually reading and can be taken from one of them without breaking it for
- * the rest. Nothing here needs configuring — the key is minted on request and
- * the guide ships with the app.
+ * Every reader who asks through the form gets their own key. That is worth
+ * the unique column: a key per person says who is actually reading and can be
+ * taken from one of them without breaking it for the rest. The one shared code
+ * is for links handed out by hand, where there is no form to ask through.
+ * Nothing here needs configuring — keys are minted on request and the guides
+ * ship with the app.
  */
 @Injectable()
 export class GuideService {
@@ -56,7 +79,7 @@ export class GuideService {
   async request(dto: GuideRequestDto) {
     const email = dto.email.trim().toLowerCase();
     const name = dto.name?.trim().slice(0, MAX_NAME) || null;
-    const source = GUIDE_SOURCES.includes((dto.source ?? '') as (typeof GUIDE_SOURCES)[number]) ? dto.source! : null;
+    const source = isGuideSite(dto.source) ? dto.source : null;
     // Only recorded when it matches a link an admin actually made, the same
     // rule the apply form uses: `?src=` sits in a URL anyone can edit.
     const campaignCode = await this.resolveCampaignCode(dto.campaignCode);
@@ -82,7 +105,8 @@ export class GuideService {
       lead.email,
       lead.name,
       lead.accessKey,
-      this.unlockUrl(lead.accessKey),
+      // The site they asked on, so the link opens the guide they asked for.
+      this.unlockUrl(lead.accessKey, source ?? (isGuideSite(lead.source) ? lead.source : 'main')),
     );
     if (delivered) {
       await this.prisma.guideRequest.update({ where: { id: lead.id }, data: { sentAt: new Date() } });
@@ -99,9 +123,13 @@ export class GuideService {
    * ships to every visitor in the JavaScript is theatre — this is the one place
    * the location exists, and it is behind the lookup.
    */
-  async unlock(rawKey: string | undefined): Promise<{ guideUrl: string }> {
+  async unlock(rawKey: string | undefined, rawSite?: string): Promise<{ guideUrl: string }> {
+    // Older CA pages don't say which site they are; the CA guide was the only one.
+    const site: GuideSite = isGuideSite(rawSite) ? rawSite : 'ca';
     const key = (rawKey ?? '').trim().toUpperCase();
     if (!key) throw new UnauthorizedException('That key is not right.');
+
+    if (key === this.sharedKey()) return { guideUrl: this.guidePageUrl(site) };
 
     const lead = await this.prisma.guideRequest.findUnique({ where: { accessKey: key } });
     if (!lead) throw new UnauthorizedException('That key is not right.');
@@ -112,7 +140,9 @@ export class GuideService {
       await this.prisma.guideRequest.update({ where: { id: lead.id }, data: { openedAt: new Date() } });
     }
 
-    return { guideUrl: this.guidePageUrl() };
+    // A key opens the guide of the site it is used on: someone who asked on
+    // the CA landing and later follows a main-site link still gets in.
+    return { guideUrl: this.guidePageUrl(site) };
   }
 
   /** Every lead, newest first. */
@@ -133,18 +163,22 @@ export class GuideService {
     return { deleted: true, email: lead.email };
   }
 
-  /** The guide page itself. Overridable, so it can move without a release. */
-  private guidePageUrl(): string {
-    return process.env.GUIDE_URL?.trim() || `${this.caSiteUrl()}${GUIDE_PATH}`;
+  private guidePageUrl(site: GuideSite): string {
+    return `${this.siteUrl(site)}${GUIDE_PATHS[site]}`;
   }
 
   /** The gate, with the key already in it — what the email links to. */
-  private unlockUrl(key: string): string {
-    return `${this.caSiteUrl()}/guide?key=${encodeURIComponent(key)}`;
+  private unlockUrl(key: string, site: GuideSite): string {
+    return `${this.siteUrl(site)}/guide?key=${encodeURIComponent(key)}`;
   }
 
-  private caSiteUrl(): string {
-    return (process.env.CA_SITE_URL ?? 'https://ca.buildersnode.com').replace(/\/+$/, '');
+  private siteUrl(site: GuideSite): string {
+    if (site === 'ca') return (process.env.CA_SITE_URL ?? 'https://ca.buildersnode.com').replace(/\/+$/, '');
+    return resolveFrontendBaseUrl(process.env.FRONTEND_URL);
+  }
+
+  private sharedKey(): string {
+    return (process.env.GUIDE_SHARED_KEY?.trim() || DEFAULT_SHARED_KEY).toUpperCase();
   }
 
   private async resolveCampaignCode(raw?: string): Promise<string | null> {

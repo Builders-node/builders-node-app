@@ -5,7 +5,7 @@ import { GuideService } from './guide.service';
 import { GuideRequestDto } from './dto';
 
 /**
- * The public half: the form on ca.buildersnode.com.
+ * The public half: the guide forms on buildersnode.com and ca.buildersnode.com.
  *
  * Unauthenticated by necessity, and rate-limited at the same rate as the apply
  * form — it sends an email per call, so an unthrottled one is a way to post
@@ -25,12 +25,13 @@ export class PublicGuideController {
    * Check a key and hand back where the guide lives.
    *
    * Throttled harder than the request above: this one takes a guess, and the
-   * limit is what stops the single shared key being found by brute force.
+   * limit is what stops keys being found by brute force. `site` says which
+   * site's guide to open.
    */
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('unlock')
-  unlock(@Body() body: { key?: string }) {
-    return this.guide.unlock(body?.key);
+  unlock(@Body() body: { key?: string; site?: string }) {
+    return this.guide.unlock(body?.key, body?.site);
   }
 }
 

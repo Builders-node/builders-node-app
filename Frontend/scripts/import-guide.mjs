@@ -1,7 +1,8 @@
 /**
  * Turn a Claude Design canvas export into the guide page we serve.
  *
- *   node scripts/import-guide.mjs ~/Downloads/"Builders Node Private Guide.zip"
+ *   node scripts/import-guide.mjs ~/Downloads/"Builders Node Private Guide.zip" ca
+ *   node scripts/import-guide.mjs ~/Downloads/"Builders Node Private Guide.zip" main
  *
  * The export is not a static document — it ships `support.js` and a few dozen
  * template bindings that drive the contents list, the flight widget and the
@@ -29,37 +30,53 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+
 /**
- * Not `/guide`, and not guessable. The page is static, so this path is the only
- * thing standing between a reader's key and the open web — the unlock endpoint
- * is the one place it is written down besides here.
+ * One guide per site. They share everything but section 05: the CA one is
+ * "Getting here from Canada", the main one covers the US, Canada, Europe,
+ * South America and Asia. The canvas keeps both as pages of the same export.
+ *
+ *  - `html`: which page of the export.
+ *  - `dir`: not `/guide`, and not guessable. The page is static, so this path
+ *    is the only thing standing between a reader's key and the open web — the
+ *    unlock endpoint (Backend/src/guide/guide.service.ts) is the one place it is
+ *    written down besides here. Change both together.
+ *  - `applyUrl`: where the guide's Apply buttons go. Absolute, because the CA
+ *    guide is served from the subdomain and applying lives on the apex one. The
+ *    UTM tags let GA4 separate people who applied after reading the guide; `src`
+ *    is the site's own marketing-link code, which starts counting in Admin →
+ *    Settings → Traffic once a link with that code exists there.
  */
-const PUBLIC_DIR = path.join(here, '..', 'public', 'g', 'winter-2026-k7m2qx');
+const SITES = {
+  ca: {
+    html: 'Guide.dc.html',
+    dir: 'winter-2026-k7m2qx',
+    applyUrl:
+      'https://buildersnode.com/apply?utm_source=ca-guide&utm_medium=content&utm_campaign=winter-2026&src=ca-guide',
+  },
+  main: {
+    html: 'Guide v2.dc.html',
+    dir: 'founders-2026-zcvhs4',
+    applyUrl: 'https://buildersnode.com/apply?utm_source=guide&utm_medium=content&utm_campaign=winter-2026&src=guide',
+  },
+};
+
 /** The long edge, in pixels. Above this nothing on the page gets sharper. */
 const MAX_EDGE = 1800;
 
-/**
- * Where the guide's Apply buttons go.
- *
- * Absolute, because the guide is served from the CA subdomain and applying
- * lives on the apex one. The UTM tags are what let GA4 separate people who
- * applied after reading the guide from everyone else; `src` is the site's own
- * marketing-link code, which starts counting in Admin → Settings → Traffic once
- * a link with that code exists there (an unknown one is ignored, not invented).
- */
-const APPLY_URL =
-  'https://buildersnode.com/apply?utm_source=ca-guide&utm_medium=content&utm_campaign=winter-2026&src=ca-guide';
-
-const zip = process.argv[2];
-if (!zip) {
-  console.error('Usage: node scripts/import-guide.mjs <export.zip>');
+const [zip, siteName = 'ca'] = process.argv.slice(2);
+const site = SITES[siteName];
+if (!zip || !site) {
+  console.error('Usage: node scripts/import-guide.mjs <export.zip> [ca|main]');
   process.exit(1);
 }
+const PUBLIC_DIR = path.join(here, '..', 'public', 'g', site.dir);
+const APPLY_URL = site.applyUrl;
 
 const work = mkdtempSync(path.join(tmpdir(), 'guide-'));
 execFileSync('unzip', ['-q', zip, '-d', work]);
 
-const sourceHtml = path.join(work, 'Guide.dc.html');
+const sourceHtml = path.join(work, site.html);
 const sourceImages = path.join(work, 'images');
 
 rmSync(PUBLIC_DIR, { recursive: true, force: true });
@@ -189,7 +206,9 @@ html = repairContentColumn(html);
  */
 html = html.replace(
   '</head>',
-  '<style>html,body{margin:0;padding:0;background:#fff;}img{box-sizing:border-box;}</style>\n</head>',
+  // And a tab title: the export has none, so the tab showed the bare URL.
+  '<title>Buildersnode founder guide</title>\n' +
+    '<style>html,body{margin:0;padding:0;background:#fff;}img{box-sizing:border-box;}</style>\n</head>',
 );
 
 /**
@@ -211,6 +230,18 @@ html = html.replace(
 );
 
 html = html.replace('Winter Guide 2026', 'Buildersnode founder guide');
+
+/**
+ * The intro promises "how to get here from Canada" on both pages of the
+ * export, but the main guide's section 05 covers the whole world.
+ */
+if (siteName === 'main') {
+  const fromCanada = 'how to get here from Canada without surprises';
+  if (!html.includes(fromCanada)) {
+    console.warn('  ! "from Canada" intro line not found — check whether the export changed');
+  }
+  html = html.replace(fromCanada, 'how to get here without surprises');
+}
 
 /**
  * The note pointed readers at "the email", but the guide is a page reached

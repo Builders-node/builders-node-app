@@ -225,9 +225,27 @@ that hands it out. Change it in the script and in `GUIDE_PATH`
 that path on purpose — the SPA catch-all answers a bare directory with the app
 shell, which serves the landing page where the guide should be.
 
-`GUIDE_URL` on the API overrides the location if the guide ever moves, and
-`CA_SITE_URL` tells the email where to point its one-tap link (it defaults to
+There are two guides, one per site, differing only in section 05: the CA
+one (`Guide.dc.html` in the export) is "Getting here from Canada", the main
+one (`Guide v2.dc.html`) covers the US, Canada, Europe, South America and Asia.
+Import each with its site name:
+
+```
+cd Frontend
+node scripts/import-guide.mjs ~/Downloads/"Builders Node Private Guide.zip" ca
+node scripts/import-guide.mjs ~/Downloads/"Builders Node Private Guide.zip" main
+```
+
+The main site's gate is `buildersnode.com/guide` (linked as "Guide" in the
+header); the CA one is `ca.buildersnode.com/guide`. A key opens whichever site's
+guide it is entered on. The email's one-tap link goes to the site the reader
+asked on — `FRONTEND_URL` for the main site, `CA_SITE_URL` for CA (defaults to
 `https://ca.buildersnode.com`).
+
+**Shared code.** `BN-GUIDE-2026` opens the guide for anybody, with no email
+asked for — for links handed out by hand:
+`https://buildersnode.com/guide?key=BN-GUIDE-2026`. Setting `GUIDE_SHARED_KEY`
+on the API replaces it if a link travels further than it should.
 
 **Admin → Settings → Guide leads** is a list, not a form: who asked, their key,
 whether the email went out, and whether they ever opened it. Deleting a lead

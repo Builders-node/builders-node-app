@@ -15,7 +15,7 @@ export class GuideRequestDto {
   @IsString()
   name?: string;
 
-  /** Which landing asked — "ca" for the subdomain. */
+  /** Which site asked — "main" or "ca". Also picks the guide the email opens. */
   @IsOptional()
   @IsString()
   source?: string;

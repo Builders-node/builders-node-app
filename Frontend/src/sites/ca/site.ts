@@ -66,7 +66,7 @@ export function applyUrl(): string {
 }
 
 /**
- * Which landing asked for the guide. Must match the server's allowlist in
+ * Which site asked for the guide. Must match the server's allowlist in
  * `guide/guide.service.ts` — anything it doesn't recognise is stored as null,
  * so a typo here silently loses the attribution rather than failing loudly.
  */

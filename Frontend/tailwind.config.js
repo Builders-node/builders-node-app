@@ -10,6 +10,7 @@ export default {
     './src/pages/Apply.tsx',
     './src/pages/ApplyThanks.tsx',
     './src/pages/Affiliate.tsx',
+    './src/pages/Guide.tsx',
     './src/pages/legal/**/*.{ts,tsx}',
     // The ca.buildersnode.com site. A whole subtree rather than named files:
     // it is a marketing site that will grow pages, and a missing entry here

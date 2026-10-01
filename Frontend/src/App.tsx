@@ -27,6 +27,7 @@ const Landing = lazy(() => import('./pages/Landing').then((m) => ({ default: m.L
 const Apply = lazy(() => import('./pages/Apply').then((m) => ({ default: m.Apply })));
 const ApplyThanks = lazy(() => import('./pages/ApplyThanks').then((m) => ({ default: m.ApplyThanks })));
 const Affiliate = lazy(() => import('./pages/Affiliate').then((m) => ({ default: m.Affiliate })));
+const Guide = lazy(() => import('./pages/Guide').then((m) => ({ default: m.Guide })));
 const AffiliateHub = lazy(() => import('./pages/AffiliateHub').then((m) => ({ default: m.AffiliateHub })));
 const AdminLogin = lazy(() => import('./pages/AdminLogin').then((m) => ({ default: m.AdminLogin })));
 const Security = lazy(() => import('./pages/Security').then((m) => ({ default: m.Security })));
@@ -44,6 +45,7 @@ const PAGE_TITLES: Partial<Record<PageId, string>> = {
   apply: 'Apply — Builders Node',
   applyThanks: 'Thank you — Builders Node',
   affiliate: 'Affiliate programme — Builders Node',
+  guide: 'The private guide — Builders Node',
   login: 'Log in — Builders Node',
   signup: 'Create your account — Builders Node',
   setupPassword: 'Set your password — Builders Node',
@@ -257,6 +259,8 @@ function App() {
     // Public, and stays public for a signed-in member too: a member can be an
     // affiliate, and the landing-page redirect below must not sweep them off it.
     if (activePage === 'affiliate') return <Affiliate setActivePage={setActivePage} currentUserId={currentUserId} />;
+    // Public for everybody, members included: a `?key=` link can reach anyone.
+    if (activePage === 'guide') return <Guide />;
     // Public, and public for a signed-in applicant too: the apply flow can
     // create an account on its way here, and that person must still land on
     // the page the redirect sent them to.
@@ -335,7 +339,7 @@ function App() {
 
   // Full-screen views (no app shell): the landing, every auth screen, and any
   // protected page viewed while logged out (which falls back to the login panel).
-  const AUTH_PAGES: PageId[] = ['apply', 'applyThanks', 'affiliate', 'login', 'signup', 'setupPassword', 'forgotPassword', 'resetPassword', 'verifyEmail', 'adminLogin', 'pass'];
+  const AUTH_PAGES: PageId[] = ['apply', 'applyThanks', 'affiliate', 'guide', 'login', 'signup', 'setupPassword', 'forgotPassword', 'resetPassword', 'verifyEmail', 'adminLogin', 'pass'];
   const PROTECTED_PAGES: PageId[] = ['profile', 'community', 'myProfile', 'resources', 'affiliateHub', 'security', 'allUsers', 'units', ...ADMIN_SUB_PAGES];
   if (
     showLanding ||

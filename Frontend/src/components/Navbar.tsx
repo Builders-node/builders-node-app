@@ -20,20 +20,22 @@ const useScrollProgress = () => {
 // `href` scrolls within this page; `page` leaves it for another route, which
 // has to go through the nav context rather than an anchor — an <a href> would
 // reload the whole bundle to reach a page React is already holding.
-type NavItem = { num: string; label: string; href?: string; page?: 'affiliate' };
+type NavItem = { num: string; label: string; href?: string; page?: 'affiliate' | 'guide' };
 
 const navItems: NavItem[] = [
   { num: "/01", label: "Home", href: "#home" },
   { num: "/02", label: "About", href: "#about" },
   { num: "/03", label: "Events", href: "#events" },
-  { num: "/04", label: "Affiliates", page: "affiliate" },
-  { num: "/05", label: "Contact", href: "#contact" },
+  { num: "/04", label: "Guide", page: "guide" },
+  { num: "/05", label: "Affiliates", page: "affiliate" },
+  { num: "/06", label: "Contact", href: "#contact" },
 ];
 
 const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const openApply = useApplyNav();
-  const { currentUserId, openAccount, openLogin, openAffiliate } = useAccountNav();
+  const { currentUserId, openAccount, openLogin, openAffiliate, openGuide } = useAccountNav();
+  const openPage = (page: NonNullable<NavItem["page"]>) => (page === "guide" ? openGuide?.() : openAffiliate());
   const [scrolled, setScrolled] = useState(false);
   const progress = useScrollProgress();
   const textColor = scrolled ? "hsl(0 0% 10%)" : "hsl(0 0% 100%)";
@@ -92,7 +94,7 @@ const Navbar = () => {
               <button
                 key={item.label}
                 type="button"
-                onClick={openAffiliate}
+                onClick={() => openPage(item.page!)}
                 className="text-sm hover:opacity-70 transition-opacity tracking-wide"
                 style={{ color: textColor, background: "none", border: "none", padding: 0, cursor: "pointer" }}
               >
@@ -167,7 +169,7 @@ const Navbar = () => {
                     type="button"
                     className="block text-2xl tracking-wide font-light text-left"
                     style={{ color: "hsl(0 0% 10%)", background: "none", border: "none", padding: 0 }}
-                    onClick={() => { openAffiliate(); setMobileOpen(false); }}
+                    onClick={() => { openPage(item.page!); setMobileOpen(false); }}
                   >
                     <span className="text-xs mr-3" style={{ color: "hsl(0 0% 45%)" }}>{item.num}</span>
                     {item.label}

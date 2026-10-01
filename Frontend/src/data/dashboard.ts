@@ -48,6 +48,7 @@ export type PageId =
   | 'apply'
   | 'applyThanks'
   | 'affiliate'
+  | 'guide'
   | 'login'
   | 'signup'
   | 'forgotPassword'
@@ -174,6 +175,7 @@ export const PAGE_PATHS: Record<PageId, string> = {
   apply: '/apply',
   applyThanks: '/apply-thanks',
   affiliate: '/affiliate',
+  guide: '/guide',
   login: '/login',
   signup: '/signup',
   forgotPassword: '/forgot-password',
@@ -217,6 +219,7 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/apply': 'apply',
   '/apply-thanks': 'applyThanks',
   '/affiliate': 'affiliate',
+  '/guide': 'guide',
   '/login': 'login',
   '/signup': 'signup',
   '/forgot-password': 'forgotPassword',
