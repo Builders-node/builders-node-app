@@ -13,7 +13,6 @@
   <div style="display: flex; flex-direction: column; gap: 6px; padding-bottom: 32px; border-bottom: 1px solid #1a1a1a;">
     <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;">Builders Node</div>
     <h1 style="margin: 24px 0 8px; font-size: 34px; line-height: 1.15; font-weight: 700; text-wrap: balance;">Winter Guide 2026</h1>
-    <div style="font-size: 17px;">Prepared for {{ name }}</div>
     <div style="font-size: 14px; color: #666;">Not public - sent only to people who asked</div>
     <div style="font-size: 14px; color: #666;">Last updated 30 September 2026</div>
   </div>
@@ -509,32 +508,6 @@ class Component extends DCLogic {
     };
   }
 }
-</script>
-<script>
-(function () {
-  var raw = new URLSearchParams(location.search).get('name') || '';
-  var name = raw.trim().slice(0, 60);
-  if (!name) return;
-
-  function fill() {
-    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    var node;
-    while ((node = walker.nextNode())) {
-      if (node.nodeValue.indexOf('[Name]') !== -1) {
-        // textContent, never innerHTML: this value arrived in a query string.
-        node.nodeValue = node.nodeValue.split('[Name]').join(name);
-      }
-    }
-  }
-
-  // The runtime renders asynchronously and re-renders on its own (opening the
-  // contents list, resizing), each time restoring the placeholder from the
-  // props schema. So this watches rather than running once. It cannot loop:
-  // the only write happens where '[Name]' is present, and after it there is
-  // none left to find.
-  fill();
-  new MutationObserver(fill).observe(document.body, { childList: true, subtree: true, characterData: true });
-})();
 </script>
 </body>
 </html>

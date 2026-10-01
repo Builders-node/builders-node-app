@@ -120,46 +120,21 @@ if (!pdfLink.test(html)) {
 }
 html = html.replace(pdfLink, '');
 
+/**
+ * "Prepared for {{ name }}" — dropped rather than filled in.
+ *
+ * The guide is a static page, so the name could only ever reach it through the
+ * query string, and a line addressed to somebody is worth less than it costs
+ * once the key that opens the page is already personal.
+ */
+const preparedFor = /\s*<div[^>]*>\s*Prepared for \{\{\s*name\s*\}\}\s*<\/div>/g;
+if (!preparedFor.test(html)) {
+  console.warn('  ! no "Prepared for" line found — check whether the export changed');
+}
+html = html.replace(preparedFor, '');
+
 const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 html = html.replace('Last updated [date]', `Last updated ${today}`);
-
-/**
- * The reader's name.
- *
- * The page is a static file, so it cannot be rendered per person — the name
- * rides in the query string the unlock step builds. Written with `textContent`
- * and never as HTML, because it arrived in a URL.
- */
-html = html.replace(
-  '</body>',
-  `<script>
-(function () {
-  var raw = new URLSearchParams(location.search).get('name') || '';
-  var name = raw.trim().slice(0, 60);
-  if (!name) return;
-
-  function fill() {
-    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    var node;
-    while ((node = walker.nextNode())) {
-      if (node.nodeValue.indexOf('[Name]') !== -1) {
-        // textContent, never innerHTML: this value arrived in a query string.
-        node.nodeValue = node.nodeValue.split('[Name]').join(name);
-      }
-    }
-  }
-
-  // The runtime renders asynchronously and re-renders on its own (opening the
-  // contents list, resizing), each time restoring the placeholder from the
-  // props schema. So this watches rather than running once. It cannot loop:
-  // the only write happens where '[Name]' is present, and after it there is
-  // none left to find.
-  fill();
-  new MutationObserver(fill).observe(document.body, { childList: true, subtree: true, characterData: true });
-})();
-</script>
-</body>`,
-);
 
 writeFileSync(path.join(PUBLIC_DIR, 'index.html'), html);
 rmSync(work, { recursive: true, force: true });

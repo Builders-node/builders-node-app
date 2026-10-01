@@ -112,10 +112,7 @@ export class GuideService {
       await this.prisma.guideRequest.update({ where: { id: lead.id }, data: { openedAt: new Date() } });
     }
 
-    // The name rides along so the guide can open with it. The page is static,
-    // so there is nowhere else it could come from.
-    const named = lead.name ? `?name=${encodeURIComponent(lead.name)}` : '';
-    return { guideUrl: `${this.guidePageUrl()}${named}` };
+    return { guideUrl: this.guidePageUrl() };
   }
 
   /** Every lead, newest first. */
