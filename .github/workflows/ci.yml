@@ -25,6 +25,37 @@ jobs:
       - run: npm run build
       - run: npm test
 
+  # Migrations used to be a manual step, and the code shipped without them
+  # three times running: Vercel deploys on push, the schema didn't, and every
+  # endpoint touching a new table answered 500 until somebody remembered.
+  #
+  # Run here rather than in the Vercel build, which is what the manual rule was
+  # avoiding: a build runs per deployment and several can overlap, where this
+  # job runs once per push to main, after the tests that would have caught a bad
+  # migration. `migrate deploy` only applies what isn't recorded yet, so a
+  # re-run is a no-op.
+  migrate:
+    name: Database — apply migrations
+    needs: backend
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Backend/package-lock.json
+      - run: npm ci
+      # The direct 5432 connection, not the pooler: pgbouncer can't run DDL.
+      - run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
   frontend:
     name: Frontend — build
     runs-on: ubuntu-latest

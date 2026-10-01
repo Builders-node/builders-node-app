@@ -117,18 +117,28 @@ laptop usually has IPv6, so the direct Supabase host also works locally.
 
 ## Database migrations (production)
 
-Migrations are **not** auto-applied by the Vercel build (build-time DB writes are
-fragile under concurrent deploys). Apply them explicitly after merging schema
-changes, before/with the code deploy:
+**Applied automatically by CI** — the `migrate` job in
+`.github/workflows/ci.yml`, on every push to `main`, after the backend tests
+pass. It needs a repository secret named `DIRECT_URL`: the direct 5432
+connection string, not the pooler, because pgbouncer can't run DDL.
+
+> GitHub → repo → Settings → Secrets and variables → Actions → New repository
+> secret → `DIRECT_URL`.
+
+Not in the Vercel build, which is what this used to avoid: a build runs per
+deployment and several can overlap. The CI job runs once per push. `migrate
+deploy` only applies migrations not recorded in `_prisma_migrations`, so a
+re-run is a no-op.
+
+To apply them by hand — the first time, or if the secret isn't set yet:
 
 ```bash
 cd Backend
-DATABASE_URL="$DIRECT_URL" npm run prisma:deploy   # prisma migrate deploy
+set -a && . ./.env && set +a
+DATABASE_URL="$DIRECT_URL" npx prisma migrate deploy
 ```
 
-Run it from CI or locally against `DIRECT_URL` (the direct 5432 connection, not the
-pooler). `migrate deploy` only applies migrations not yet recorded in
-`_prisma_migrations`, so it is safe to run repeatedly.
+`npx prisma migrate status` against the same URL says what is still pending.
 
 ## ca.buildersnode.com — the second marketing site
 
