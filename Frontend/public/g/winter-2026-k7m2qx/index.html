@@ -415,7 +415,8 @@ class Component extends DCLogic {
     const el = root.querySelector('[data-sec="' + id + '"]');
     let s = root.parentElement;
     while (s && !(s.scrollHeight > s.clientHeight && /auto|scroll/.test(getComputedStyle(s).overflowY))) s = s.parentElement;
-    if (!s || !el) return;
+    if (!el) return;
+    if (!s) { window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 16, behavior: 'smooth' }); return; }
     const k = s.getBoundingClientRect().height / s.offsetHeight || 1;
     s.scrollTo({ top: s.scrollTop + (el.getBoundingClientRect().top - s.getBoundingClientRect().top) / k - 16, behavior: 'smooth' });
   };

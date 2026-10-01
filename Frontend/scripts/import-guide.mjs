@@ -192,6 +192,24 @@ html = html.replace(
   '<style>html,body{margin:0;padding:0;background:#fff;}img{box-sizing:border-box;}</style>\n</head>',
 );
 
+/**
+ * The contents list scrolled nothing.
+ *
+ * Its handler looks for a scrollable ancestor with overflow:auto — which is
+ * what the canvas editor's artboard is. Served as a page, the scroller is the
+ * window itself, no such ancestor exists, and the handler returned silently on
+ * every click. Falls back to scrolling the window instead.
+ */
+const tocGuard = '    if (!s || !el) return;';
+if (!html.includes(tocGuard)) {
+  console.warn('  ! contents-list handler not found — check whether the export changed');
+}
+html = html.replace(
+  tocGuard,
+  "    if (!el) return;\n" +
+    "    if (!s) { window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 16, behavior: 'smooth' }); return; }",
+);
+
 html = html.replace('Winter Guide 2026', 'Buildersnode founder guide');
 
 /**
