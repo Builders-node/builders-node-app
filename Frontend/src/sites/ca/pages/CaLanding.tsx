@@ -1,4 +1,3 @@
-import { useRef } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
@@ -16,7 +15,7 @@ import { ApplyNavProvider, AccountNavProvider } from '@/lib/applyNav';
 import CaNavbar from '../components/CaNavbar';
 import CaHeroSection from '../components/CaHeroSection';
 import CaGallerySection from '../components/CaGallerySection';
-import { GuideSection } from '../components/GuideSection';
+import { GuideCta } from '../components/GuideCta';
 import { applyUrl, mainSiteUrl } from '../site';
 
 /**
@@ -37,8 +36,19 @@ import { applyUrl, mainSiteUrl } from '../site';
  * the floating one. This landing asks for exactly one thing.
  */
 export function CaLanding() {
-  const guideRef = useRef<HTMLElement>(null);
-  const scrollToGuide = () => guideRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  /**
+   * Scroll to whichever guide block is nearest below the reader, falling back
+   * to the last one.
+   *
+   * The ask appears more than once down the page, and a fixed target would
+   * mean the gallery button scrolling backwards past a copy the reader has
+   * already gone by.
+   */
+  const scrollToGuide = () => {
+    const blocks = [...document.querySelectorAll<HTMLElement>('[data-guide-cta]')];
+    const below = blocks.find((block) => block.getBoundingClientRect().top > 80);
+    (below ?? blocks[blocks.length - 1])?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const leaveFor = (url: string) => () => {
     window.location.href = url;
@@ -66,6 +76,9 @@ export function CaLanding() {
               <CaNavbar />
               <CaHeroSection onRequestGuide={scrollToGuide} />
               <AboutSection />
+              {/* Right after the intro: a reader convinced by it shouldn't have
+                  to reach the bottom of the page to act. */}
+              <GuideCta />
               <CaGallerySection onRequestGuide={scrollToGuide} />
               <AdvantagesSection />
               <MissionSection />
@@ -74,9 +87,8 @@ export function CaLanding() {
               <SpeakersSection />
               <EventsSection />
               <FAQSection />
-              {/* Last thing before the footer: by here they've read the page
-                  and the ask has been in the header the whole way down. */}
-              <GuideSection ref={guideRef} />
+              {/* And again at the end, for the reader who went all the way. */}
+              <GuideCta />
               <Footer />
             </div>
           </AccountNavProvider>
