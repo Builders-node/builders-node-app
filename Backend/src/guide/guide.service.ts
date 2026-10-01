@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { timingSafeEqual } from 'crypto';
+import { randomInt, timingSafeEqual } from 'crypto';
 import { GUIDE_ACCESS_KEY, GUIDE_KEY, parseGuideAccessKey, parseGuideUrl } from '../admin/global-settings';
 import { normalizeCode } from '../campaigns/campaigns.service';
 import { PrismaService } from '../database/prisma.service';
@@ -35,17 +35,19 @@ export class GuideService {
    * which is the number worth reporting.
    */
   async request(dto: GuideRequestDto) {
-    const accessKey = await this.accessKey();
-    if (!accessKey) {
-      // Storing the address and quietly sending nothing would leave somebody
-      // waiting for an email that is never coming. Better to fail loudly here,
-      // where an admin can see it, than in their inbox.
-      this.logger.error('A guide key was requested but none is configured (admin settings → Guide leads).');
-      // Not "try again shortly": waiting fixes nothing, and telling somebody to
-      // wait for something that will never arrive is worse than admitting it is
-      // us. The admin-facing reason is in the log above and on the settings page.
-      throw new BadRequestException("The guide isn't available right now — sorry. Please get in touch and we'll send it over.");
+    // The link is the one thing an admin genuinely has to supply: there is no
+    // sensible default for where the guide lives. Storing an address and
+    // quietly sending nothing would leave somebody waiting for an email that is
+    // never coming, so this fails rather than pretending.
+    if (!(await this.guideUrl())) {
+      this.logger.error('A guide was requested but no guide link is configured (admin settings → Guide leads).');
+      throw new BadRequestException("The guide isn't available right now — sorry. Try again a little later.");
     }
+
+    // The key, on the other hand, has a perfectly good default: a random one.
+    // Making an admin invent a second value before anything worked was a step
+    // that existed only because the code asked for it.
+    const accessKey = await this.ensureAccessKey();
 
     const email = dto.email.trim().toLowerCase();
     const name = dto.name?.trim().slice(0, MAX_NAME) || null;
@@ -102,8 +104,8 @@ export class GuideService {
 
     const guideUrl = await this.guideUrl();
     if (!guideUrl) {
-      this.logger.error('The guide was unlocked but no guide URL is configured (admin settings → Guide leads).');
-      throw new BadRequestException("Your key is right, but the guide isn't available right now — sorry. Please get in touch.");
+      this.logger.error('The guide was unlocked but no guide link is configured (admin settings → Guide leads).');
+      throw new BadRequestException("Your key is right, but the guide isn't available right now — sorry. Try again a little later.");
     }
     return { guideUrl };
   }
@@ -120,6 +122,31 @@ export class GuideService {
     return parseGuideAccessKey(row?.value);
   }
 
+  /**
+   * The key, minting one the first time somebody needs it.
+   *
+   * `create`-and-catch rather than read-then-write: two requests arriving
+   * together would otherwise mint two keys and the second would overwrite the
+   * first, invalidating a key that had already gone out in an email.
+   */
+  private async ensureAccessKey(): Promise<string> {
+    const existing = await this.accessKey();
+    if (existing) return existing;
+
+    try {
+      const created = await this.prisma.globalSetting.create({
+        data: { key: GUIDE_ACCESS_KEY, value: createGuideKey() },
+      });
+      this.logger.log('No guide key was set, so one was generated. It is visible in admin settings → Guide leads.');
+      return created.value;
+    } catch {
+      // Lost the race — whoever won wrote a perfectly good key.
+      const settled = await this.accessKey();
+      if (settled) return settled;
+      throw new BadRequestException("The guide isn't available right now — sorry. Try again a little later.");
+    }
+  }
+
   /** The guide page, with the key already in it — what the email links to. */
   private guidePageUrl(key: string): string {
     const base = (process.env.CA_SITE_URL ?? 'https://ca.buildersnode.com').replace(/\/+$/, '');
@@ -132,6 +159,17 @@ export class GuideService {
     const link = await this.prisma.campaignLink.findUnique({ where: { code }, select: { code: true } });
     return link?.code ?? null;
   }
+}
+
+/**
+ * A readable key: no vowels, so it can't spell anything, and no 0/O or 1/I,
+ * which is the pair people get wrong reading one off a phone. Matches the
+ * Generate button in admin settings.
+ */
+function createGuideKey(): string {
+  const alphabet = 'BCDFGHJKLMNPQRSTVWXZ23456789';
+  const block = () => Array.from({ length: 4 }, () => alphabet[randomInt(alphabet.length)]).join('');
+  return `BN-${block()}-${block()}`;
 }
 
 /**

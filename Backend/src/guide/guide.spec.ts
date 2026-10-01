@@ -18,6 +18,7 @@ function makeService(
 
   const settings: Record<string, string | null> = { guide_url: guideUrl, guide_access_key: accessKey };
 
+  const created: Record<string, string> = {};
   const prisma = {
     guideRequest: {
       upsert: jest.fn().mockImplementation(({ create, where }) =>
@@ -31,8 +32,12 @@ function makeService(
     campaignLink: { findUnique: jest.fn().mockResolvedValue(campaignLink) },
     globalSetting: {
       findUnique: jest.fn().mockImplementation(({ where }) => {
-        const value = settings[where.key];
+        const value = settings[where.key] ?? created[where.key];
         return Promise.resolve(value ? { value } : null);
+      }),
+      create: jest.fn().mockImplementation(({ data }) => {
+        created[data.key] = data.value;
+        return Promise.resolve(data);
       }),
     },
   };
@@ -70,12 +75,41 @@ describe('GuideService.request', () => {
     );
   });
 
-  it('refuses when no key is configured, rather than taking an address for nothing', async () => {
-    const { service, prisma, mail } = makeService({ accessKey: null });
+  it('refuses when no guide link is configured, rather than taking an address for nothing', async () => {
+    // The link is the one thing with no sensible default — there is nothing to
+    // send without it.
+    const { service, prisma, mail } = makeService({ guideUrl: null });
 
     await expect(service.request({ email: 'nina@example.com' })).rejects.toThrow();
     expect(prisma.guideRequest.upsert).not.toHaveBeenCalled();
     expect(mail.sendGuideKey).not.toHaveBeenCalled();
+  });
+
+  it('mints a key itself when none is set, rather than refusing', async () => {
+    // Asking an admin to invent a second value before anything worked was a
+    // step that existed only because the code asked for it.
+    const { service, prisma, mail } = makeService({ accessKey: null });
+
+    await expect(service.request({ email: 'nina@example.com' })).resolves.toEqual({
+      sent: true,
+      email: 'nina@example.com',
+    });
+
+    const minted = prisma.globalSetting.create.mock.calls[0][0].data.value;
+    expect(minted).toMatch(/^BN-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+    // The key that was stored is the key that went out.
+    expect(mail.sendGuideKey.mock.calls[0][2]).toBe(minted);
+  });
+
+  it('reuses the key it minted rather than issuing a new one each time', async () => {
+    // A second key would silently invalidate the first, which is already in
+    // somebody's inbox.
+    const { service, prisma } = makeService({ accessKey: null });
+
+    await service.request({ email: 'nina@example.com' });
+    await service.request({ email: 'sam@example.com' });
+
+    expect(prisma.globalSetting.create).toHaveBeenCalledTimes(1);
   });
 
   it('keeps what it already knew when a blank second request comes in', async () => {

@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { PrismaService } from './database/prisma.service';
-import { AFFILIATE_KEY, BATCH_KEY, parseAffiliateReward, parseBatch } from './admin/global-settings';
+import { AFFILIATE_KEY, BATCH_KEY, GUIDE_KEY, parseAffiliateReward, parseBatch, parseGuideUrl } from './admin/global-settings';
 
 @Controller()
 export class AppController {
@@ -18,14 +18,18 @@ export class AppController {
   /** Public site config (read by the landing page — no auth). */
   @Get('public/settings')
   async publicSettings() {
-    const [batchRow, affiliateRow] = await Promise.all([
+    const [batchRow, affiliateRow, guideRow] = await Promise.all([
       this.prisma.globalSetting.findUnique({ where: { key: BATCH_KEY } }),
       this.prisma.globalSetting.findUnique({ where: { key: AFFILIATE_KEY } }),
+      this.prisma.globalSetting.findUnique({ where: { key: GUIDE_KEY } }),
     ]);
     return {
       batch: parseBatch(batchRow?.value),
       // The affiliate page quotes this instead of naming its own figure.
       affiliate: parseAffiliateReward(affiliateRow?.value),
+      // Whether, not where: the CA landing needs to know if it can offer the
+      // guide at all, and the link itself stays behind the key.
+      guide: { available: Boolean(parseGuideUrl(guideRow?.value)) },
     };
   }
 }

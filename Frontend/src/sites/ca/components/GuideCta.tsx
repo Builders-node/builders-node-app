@@ -4,6 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/api';
 import { storedCampaignCode } from '@/lib/campaign';
 import { CA_PATHS, GUIDE_SOURCE, caHref } from '../site';
+import { useGuideAvailable } from '../useGuideAvailable';
 
 const panel = 'hsl(24 14% 9%)';
 const panelText = 'hsl(0 0% 100%)';
@@ -24,6 +25,12 @@ const field = 'hsl(30 30% 96%)';
  * whichever copy is nearest — see CaLanding.
  */
 export function GuideCta() {
+  /**
+   * Nothing is rendered until the guide can actually be sent. Offering a form
+   * that always errors is the worse failure: the reader blames themselves, and
+   * the page loses the one thing it was built to collect.
+   */
+  const available = useGuideAvailable();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -69,6 +76,8 @@ export function GuideCta() {
       setIsSending(false);
     }
   };
+
+  if (!available) return null;
 
   return (
     <section data-guide-cta className="px-6 sm:px-8 md:px-12 py-10 md:py-14 scroll-mt-24">
