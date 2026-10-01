@@ -85,9 +85,6 @@ export function GuideCta() {
       >
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           <div>
-            <p className="text-xs tracking-[0.22em] uppercase mb-5" style={{ color: accent }}>
-              Winter batches, Nov to Jan
-            </p>
             <h2
               className="text-3xl sm:text-4xl md:text-[2.75rem] font-light tracking-tight leading-[1.15]"
               style={{ color: panelText }}
