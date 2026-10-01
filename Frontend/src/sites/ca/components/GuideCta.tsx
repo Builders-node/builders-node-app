@@ -92,8 +92,8 @@ export function GuideCta() {
               Get the complete Buildersnode founder guide
             </h2>
             <p className="mt-5 text-base leading-relaxed max-w-md" style={{ color: panelMuted }}>
-              Real monthly costs, flights from Toronto, Montreal and Vancouver, internet speeds, and what a week here
-              actually looks like.
+              Everything you need to know before deciding: the program, pricing, the vibe, what a day here looks like
+              and flights from Canada.
             </p>
           </div>
 
