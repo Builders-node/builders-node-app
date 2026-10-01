@@ -7,15 +7,6 @@ type CaHeroSectionProps = {
   onRequestGuide: () => void;
 };
 
-/**
- * How far off the winter is, in the headline.
- *
- * Written down rather than counted from today's date on purpose: a computed
- * number would read "0 weeks away" in December and "48 weeks away" in January,
- * which is worse than a line somebody updates when the campaign changes.
- */
-const HERO_WEEKS = 6;
-
 const CaHeroSection = ({ onRequestGuide }: CaHeroSectionProps) => {
   const openApply = useApplyNav();
   const titleRef = useGsapTitle<HTMLHeadingElement>();
@@ -56,18 +47,11 @@ const CaHeroSection = ({ onRequestGuide }: CaHeroSectionProps) => {
 
       {/* Main content — centered */}
       <div className="relative z-10 w-full px-6 md:px-12 flex flex-col items-center text-center gap-6">
-        {/* The promise up top, the urgency under it — and no price: the guide
-            block right below is what this landing is asking for.
-
-            HERO_WEEKS is a campaign line with a shelf life — it stops being
-            true some weeks from now. It lives in one constant so changing it
-            is one edit. */}
+        {/* The whole pitch in one line, and no price under it: the guide block
+            right below is what this landing is asking for. */}
         <h1 ref={titleRef} className="text-4xl sm:text-5xl md:text-[3.5rem] lg:text-[4rem] font-light leading-[1.08] text-white max-w-4xl tracking-tight">
           Spend the winter in a community of founders on a Caribbean island
         </h1>
-        <p className="text-base md:text-lg text-white/70 max-w-xl leading-relaxed">
-          Canadian winter is {HERO_WEEKS} weeks away.
-        </p>
         {/* Two ways in, ranked. The guide is the cheap first step and the ask
             this landing is built around; applying is the commitment, so it sits
             alongside as an outline rather than competing as a second filled
