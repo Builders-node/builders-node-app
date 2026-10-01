@@ -50,7 +50,7 @@ const CaHeroSection = ({ onRequestGuide }: CaHeroSectionProps) => {
         {/* The offer up top, what the month is actually like underneath — and
             no price: the guide block right below is what this landing asks for. */}
         <h1 ref={titleRef} className="text-4xl sm:text-5xl md:text-6xl lg:text-[4.75rem] font-light leading-[1.05] text-white max-w-4xl tracking-tight">
-          Spend the winter at Builders Node.
+          Spend the winter at Buildersnode.
         </h1>
         <p className="text-base md:text-lg text-white/70 max-w-2xl leading-relaxed">
           A community of founders on a Caribbean island. Work on your project, learn, and meet like-minded people while
