@@ -6,7 +6,6 @@ import { Toaster as Sonner } from '@/components/ui/sonner';
 import MissionSection from '@/components/MissionSection';
 import PartnersSection from '@/components/PartnersSection';
 import AboutSection from '@/components/AboutSection';
-import GallerySection from '@/components/GallerySection';
 import AdvantagesSection from '@/components/AdvantagesSection';
 import TwitterSection from '@/components/TwitterSection';
 import SpeakersSection from '@/components/SpeakersSection';
@@ -16,6 +15,7 @@ import Footer from '@/components/Footer';
 import { ApplyNavProvider, AccountNavProvider } from '@/lib/applyNav';
 import CaNavbar from '../components/CaNavbar';
 import CaHeroSection from '../components/CaHeroSection';
+import CaGallerySection from '../components/CaGallerySection';
 import { GuideSection } from '../components/GuideSection';
 import { applyUrl, mainSiteUrl } from '../site';
 
@@ -66,7 +66,7 @@ export function CaLanding() {
               <CaNavbar />
               <CaHeroSection onRequestGuide={scrollToGuide} />
               <AboutSection />
-              <GallerySection />
+              <CaGallerySection onRequestGuide={scrollToGuide} />
               <AdvantagesSection />
               <MissionSection />
               <PartnersSection />
