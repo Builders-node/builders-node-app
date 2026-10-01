@@ -1,6 +1,5 @@
 import { ArrowRight } from "lucide-react";
 import { useGsapTitle } from "@/hooks/useGsapTitle";
-import { useStartingPrice } from "@/lib/membership-plans";
 import { useApplyNav } from "@/lib/applyNav";
 
 type CaHeroSectionProps = {
@@ -8,12 +7,18 @@ type CaHeroSectionProps = {
   onRequestGuide: () => void;
 };
 
+/**
+ * How far off the winter is, in the headline.
+ *
+ * Written down rather than counted from today's date on purpose: a computed
+ * number would read "0 weeks away" in December and "48 weeks away" in January,
+ * which is worse than a line somebody updates when the campaign changes.
+ */
+const HERO_WEEKS = 6;
+
 const CaHeroSection = ({ onRequestGuide }: CaHeroSectionProps) => {
   const openApply = useApplyNav();
   const titleRef = useGsapTitle<HTMLHeadingElement>();
-  // Quoted from the plan catalogue, so a price change in the admin reaches
-  // the landing too — this sentence used to name its own number.
-  const { price: startingPrice } = useStartingPrice();
 
   return (
     <section
@@ -51,11 +56,19 @@ const CaHeroSection = ({ onRequestGuide }: CaHeroSectionProps) => {
 
       {/* Main content — centered */}
       <div className="relative z-10 w-full px-6 md:px-12 flex flex-col items-center text-center gap-6">
-        <h1 ref={titleRef} className="text-4xl sm:text-5xl md:text-6xl lg:text-[5.5rem] font-light leading-[1.05] text-white max-w-6xl tracking-tight">
-          Come to build. <br />Stay for the people
+        {/* The hook, not the offer: this landing is aimed at people about to
+            spend a Canadian winter indoors, so the headline names that and the
+            price waits until further down the page.
+
+            HERO_WEEKS is a campaign line with a shelf life — it stops being
+            true some weeks from now. It lives here, alone, so changing it is
+            one edit. */}
+        <h1 ref={titleRef} className="text-4xl sm:text-5xl md:text-6xl lg:text-[4.25rem] font-light leading-[1.05] text-white max-w-5xl tracking-tight">
+          Canadian winter is <br />{HERO_WEEKS} weeks away
         </h1>
-        <p className="text-base md:text-lg text-white/70 max-w-xl leading-relaxed">
-          {startingPrice}/month and includes private accommodation, nutritious meals, coworking, gym, pool and more.
+        <p className="text-base md:text-lg text-white/70 max-w-2xl leading-relaxed">
+          Spend it building your startup on a Caribbean island instead, with founders who train, ship, and push each
+          other every day.
         </p>
         {/* Two ways in, ranked. The guide is the cheap first step and the ask
             this landing is built around; applying is the commitment, so it sits
