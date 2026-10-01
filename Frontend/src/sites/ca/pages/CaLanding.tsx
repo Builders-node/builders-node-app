@@ -75,10 +75,11 @@ export function CaLanding() {
             >
               <CaNavbar />
               <CaHeroSection onRequestGuide={scrollToGuide} />
-              <AboutSection />
-              {/* Right after the intro: a reader convinced by it shouldn't have
-                  to reach the bottom of the page to act. */}
+              {/* Straight after the hero, above everything else: the ask is
+                  the whole point of this landing, and a reader who already
+                  knows they want it shouldn't have to read the page first. */}
               <GuideCta />
+              <AboutSection />
               <CaGallerySection onRequestGuide={scrollToGuide} />
               <AdvantagesSection />
               <MissionSection />
