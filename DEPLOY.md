@@ -171,12 +171,24 @@ real homepage). Set `VITE_MAIN_SITE_URL` in `Frontend/.env` to keep its buttons
 on your dev server instead of production.
 
 **The guide.** The landing's main call to action is "Send me guide": an email
-address in exchange for a link, which is a much smaller promise than applying,
-so the leads are kept in their own table and never enter the applicant pipeline.
-Set the link in **Admin → Settings → Guide leads**; until one is set the form
-refuses rather than taking an address for an email it cannot send. The same page
-lists the leads and shows whether each one was actually emailed — the mailer
-never throws, so a stored lead is not proof of a delivered guide.
+address in exchange for a key, which is a much smaller promise than applying, so
+the leads are kept in their own table and never enter the applicant pipeline.
+
+The guide itself lives behind `/guide` on the subdomain. One key opens it for
+everyone — worth being honest that this is friction and attribution rather than
+secrecy, since the first reader to paste it into a group chat has published it.
+The key is checked server-side and the guide's location is returned only when it
+holds, so the gate is not something a visitor can read out of the JavaScript.
+
+Both values are set in **Admin → Settings → Guide leads**: the link the guide
+lives at, and the access key (there is a Generate button). With either missing
+the page refuses rather than taking an address for an email it cannot send.
+Changing the key stops every key already emailed. `CA_SITE_URL` on the API tells
+the email where to point its one-tap link; it defaults to
+`https://ca.buildersnode.com`.
+
+The same admin page lists the leads and shows whether each was actually emailed
+— the mailer never throws, so a stored lead is not proof of a delivered key.
 
 **Adding a page.** Two lines in `src/sites/ca/site.ts` (`CA_PATHS`,
 `CA_PATH_TO_PAGE`, `CA_TITLES`) plus the component under

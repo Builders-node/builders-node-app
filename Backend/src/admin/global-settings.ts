@@ -9,6 +9,23 @@ export const GLOBAL_CLEANING_PLAN_KEY = 'global_cleaning_plan';
 export const BATCH_KEY = 'batch_start';
 export const AFFILIATE_KEY = 'affiliate_reward';
 export const GUIDE_KEY = 'guide_url';
+export const GUIDE_ACCESS_KEY = 'guide_access_key';
+
+/**
+ * The key that unlocks the guide page.
+ *
+ * One key for everyone, by design. That is worth being honest about: the first
+ * person to paste it into a group chat has published it, so this is friction
+ * and attribution rather than security — it buys the email address, which is
+ * the point of the whole page. Anything that actually had to stay private
+ * would need a key per person.
+ */
+export function parseGuideAccessKey(value: string | null | undefined): string | null {
+  const key = (value ?? '').trim();
+  // Long enough not to be guessed in the handful of tries the rate limit
+  // allows, short enough to read off a phone screen.
+  return key.length >= 6 && key.length <= 64 ? key : null;
+}
 
 /**
  * Where the guide actually lives — a PDF, a Notion page, whatever it ends up

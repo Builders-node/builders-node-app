@@ -1,14 +1,22 @@
 import { GuideService } from './guide.service';
 
 /**
- * The guide lead magnet.
+ * The guide lead magnet and its key.
  *
  * What's pinned: a lead is never lost to a mail failure, asking twice is one
- * person rather than two, and nobody's address is taken for an email we cannot
- * actually send.
+ * person rather than two, nobody's address is taken for an email we cannot
+ * send, and the guide's location never leaves the server unless the key holds.
  */
-function makeService(options: { guideUrl?: string | null; campaignLink?: { code: string } | null } = {}) {
-  const { guideUrl = 'https://buildersnode.com/guide.pdf', campaignLink = null } = options;
+function makeService(
+  options: { guideUrl?: string | null; accessKey?: string | null; campaignLink?: { code: string } | null } = {},
+) {
+  const {
+    guideUrl = 'https://buildersnode.com/guide.pdf',
+    accessKey = 'BN-7K2M-QX94',
+    campaignLink = null,
+  } = options;
+
+  const settings: Record<string, string | null> = { guide_url: guideUrl, guide_access_key: accessKey };
 
   const prisma = {
     guideRequest: {
@@ -21,15 +29,20 @@ function makeService(options: { guideUrl?: string | null; campaignLink?: { code:
       delete: jest.fn().mockResolvedValue({}),
     },
     campaignLink: { findUnique: jest.fn().mockResolvedValue(campaignLink) },
-    globalSetting: { findUnique: jest.fn().mockResolvedValue(guideUrl ? { value: guideUrl } : null) },
+    globalSetting: {
+      findUnique: jest.fn().mockImplementation(({ where }) => {
+        const value = settings[where.key];
+        return Promise.resolve(value ? { value } : null);
+      }),
+    },
   };
-  const mail = { sendGuide: jest.fn().mockResolvedValue(undefined) };
+  const mail = { sendGuideKey: jest.fn().mockResolvedValue(undefined) };
 
   return { service: new GuideService(prisma as never, mail as never), prisma, mail };
 }
 
 describe('GuideService.request', () => {
-  it('stores the lead and emails the guide', async () => {
+  it('stores the lead and emails the key with a link that carries it', async () => {
     const { service, prisma, mail } = makeService();
 
     const result = await service.request({ email: 'Nina@Example.com ', name: 'Nina Alvarez', source: 'ca' });
@@ -40,7 +53,9 @@ describe('GuideService.request', () => {
     expect(prisma.guideRequest.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ where: { email: 'nina@example.com' } }),
     );
-    expect(mail.sendGuide).toHaveBeenCalledWith('nina@example.com', 'Nina Alvarez', 'https://buildersnode.com/guide.pdf');
+    const [to, name, key, url] = mail.sendGuideKey.mock.calls[0];
+    expect([to, name, key]).toEqual(['nina@example.com', 'Nina Alvarez', 'BN-7K2M-QX94']);
+    expect(url).toContain('/guide?key=BN-7K2M-QX94');
   });
 
   it('marks the lead as served only after the send', async () => {
@@ -55,12 +70,12 @@ describe('GuideService.request', () => {
     );
   });
 
-  it('refuses when no guide is configured, rather than taking an address for nothing', async () => {
-    const { service, prisma, mail } = makeService({ guideUrl: null });
+  it('refuses when no key is configured, rather than taking an address for nothing', async () => {
+    const { service, prisma, mail } = makeService({ accessKey: null });
 
     await expect(service.request({ email: 'nina@example.com' })).rejects.toThrow();
     expect(prisma.guideRequest.upsert).not.toHaveBeenCalled();
-    expect(mail.sendGuide).not.toHaveBeenCalled();
+    expect(mail.sendGuideKey).not.toHaveBeenCalled();
   });
 
   it('keeps what it already knew when a blank second request comes in', async () => {
@@ -70,8 +85,7 @@ describe('GuideService.request', () => {
 
     await service.request({ email: 'nina@example.com' });
 
-    const { update } = prisma.guideRequest.upsert.mock.calls[0][0];
-    expect(update.name).toBeUndefined();
+    expect(prisma.guideRequest.upsert.mock.calls[0][0].update.name).toBeUndefined();
   });
 
   it('ignores a landing name it does not recognise', async () => {
@@ -97,5 +111,42 @@ describe('GuideService.request', () => {
     await service.request({ email: 'nina@example.com', campaignCode: 'ca' });
 
     expect(prisma.guideRequest.upsert.mock.calls[0][0].create.campaignCode).toBe('ca');
+  });
+});
+
+describe('GuideService.unlock', () => {
+  it('hands back where the guide lives for the right key', async () => {
+    const { service } = makeService();
+
+    await expect(service.unlock('BN-7K2M-QX94')).resolves.toEqual({
+      guideUrl: 'https://buildersnode.com/guide.pdf',
+    });
+  });
+
+  it('refuses a wrong key, a blank one, and one of the wrong length', async () => {
+    const { service } = makeService();
+
+    await expect(service.unlock('BN-0000-0000')).rejects.toThrow(/not right/);
+    await expect(service.unlock('')).rejects.toThrow(/not right/);
+    await expect(service.unlock(undefined)).rejects.toThrow(/not right/);
+    // A prefix must not pass: the compare is length-checked before it runs.
+    await expect(service.unlock('BN-7K2M')).rejects.toThrow(/not right/);
+  });
+
+  it('refuses everything when no key is set', async () => {
+    // An unset key takes the guide down rather than opening it to everyone.
+    const { service } = makeService({ accessKey: null });
+
+    await expect(service.unlock('anything')).rejects.toThrow(/not right/);
+  });
+
+  it('never reveals the guide location when the key fails', async () => {
+    // The whole point of checking server-side: the URL is not in the bundle,
+    // so a failed unlock has to leave with nothing.
+    const { service } = makeService();
+
+    await expect(service.unlock('wrong-key-here')).rejects.not.toHaveProperty(
+      'response.guideUrl',
+    );
   });
 });

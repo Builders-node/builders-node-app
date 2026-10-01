@@ -424,23 +424,27 @@ export class MailService {
   }
 
   /**
-   * The guide somebody asked for on the CA landing.
+   * The key to the guide, for somebody who asked on the CA landing.
    *
-   * Says plainly that this is not an application — the address was given to
-   * read something, and an email that reads like a reply to an application
-   * would be a small bait-and-switch. The apply link is offered, not assumed.
+   * Both forms on purpose: the button is one tap from a phone, and the key
+   * itself is what they need when they open it on a laptop later. Says plainly
+   * that no application has been started — the address was given to read
+   * something, and an email that reads like a reply to an application would be
+   * a small bait-and-switch.
    */
-  async sendGuide(to: string, fullName: string | null, guideUrl: string): Promise<void> {
+  async sendGuideKey(to: string, fullName: string | null, key: string, guideUrl: string): Promise<void> {
     const name = fullName ? firstNameOf(fullName) : 'there';
     await this.send({
       to,
-      subject: 'Your Builders Node guide',
-      text: `Hi ${name},\n\nHere's the guide you asked for:\n${guideUrl}\n\nNo application has been started — this is just the read. If it makes you want to come and build in Próspera, you can apply at ${this.frontendBaseUrl()}/apply.\n\nBuilders Node`,
+      subject: 'Your key to the Builders Node guide',
+      text: `Hi ${name},\n\nHere's your key to the guide: ${key}\n\nOpen it directly: ${guideUrl}\n\nNo application has been started — this is just the read. If it makes you want to come and build in Próspera, you can apply at ${this.frontendBaseUrl()}/apply.\n\nBuilders Node`,
       html: layout(
-        'Your guide',
+        'Your key to the guide',
         `<p>Hi ${escapeHtml(name)},</p>
-         <p>Here's the guide you asked for.</p>
-         ${button('Read the guide', guideUrl)}
+         <p>Here's your key:</p>
+         <p style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:22px;font-weight:700;letter-spacing:3px;background:#f3f4f6;padding:12px 18px;border-radius:8px;display:inline-block;color:#111827">${escapeHtml(key)}</p>
+         <p>Or skip typing it:</p>
+         ${button('Open the guide', guideUrl)}
          <p style="color:#6b7280;font-size:13px">No application has been started — this is just the read. If it makes you want to come and build in Próspera, you can <a href="${this.frontendBaseUrl()}/apply">apply here</a>.</p>`,
       ),
     });

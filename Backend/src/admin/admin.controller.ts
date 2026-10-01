@@ -242,6 +242,12 @@ export class AdminController {
     return this.admin.setGuideUrl(body);
   }
 
+  /** The one key that unlocks the guide page. */
+  @Put('settings/global/guide-key')
+  setGuideAccessKey(@Body() body: { key?: string }) {
+    return this.admin.setGuideAccessKey(body);
+  }
+
   /** What an affiliate earns per person who joins through them. */
   @Put('settings/global/affiliate-reward')
   setAffiliateReward(@Body() body: { rewardCents?: number; currency?: string }) {

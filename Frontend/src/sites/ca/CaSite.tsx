@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { CA_TITLES, caPageForPath, type CaPageId } from './site';
 
 const CaLanding = lazy(() => import('./pages/CaLanding').then((m) => ({ default: m.CaLanding })));
+const CaGuide = lazy(() => import('./pages/CaGuide').then((m) => ({ default: m.CaGuide })));
 
 /**
  * The whole of ca.buildersnode.com.
@@ -58,9 +59,7 @@ export function CaSite() {
 
   return (
     <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: 'hsl(30 30% 93%)' }} aria-busy="true" />}>
-      {/* One page today. The second one turns this into a switch — `page` is
-          already resolved from the URL and kept in sync with Back/forward. */}
-      <CaLanding />
+      {page === 'guide' ? <CaGuide /> : <CaLanding />}
     </Suspense>
   );
 }

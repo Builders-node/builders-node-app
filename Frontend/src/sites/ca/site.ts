@@ -64,7 +64,7 @@ export function applyUrl(): string {
  */
 export const GUIDE_SOURCE = 'ca';
 
-export type CaPageId = 'landing';
+export type CaPageId = 'landing' | 'guide';
 
 /**
  * Paths this site answers on.
@@ -75,15 +75,18 @@ export type CaPageId = 'landing';
  */
 export const CA_PATHS: Record<CaPageId, string> = {
   landing: '/',
+  guide: '/guide',
 };
 
 const CA_PATH_TO_PAGE: Record<string, CaPageId> = {
   '/': 'landing',
+  '/guide': 'guide',
 };
 
 /** Per-page browser titles. */
 export const CA_TITLES: Record<CaPageId, string> = {
   landing: 'Builders Node — Startup Society in Próspera',
+  guide: 'The private guide — Builders Node',
 };
 
 /** The page for a pathname, or null when nothing matches (→ the landing). */

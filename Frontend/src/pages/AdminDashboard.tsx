@@ -276,6 +276,8 @@ type GlobalSettings = {
   affiliate: { rewardCents: number; currency: string };
   /** Where the CA landing's guide email points. Null when nothing is set. */
   guideUrl: string | null;
+  /** The one key that unlocks /guide. Null takes the guide down. */
+  guideAccessKey: string | null;
 };
 
 type AdminDashboardProps = {
@@ -302,6 +304,17 @@ function toneForStatus(status: string): StatusTone {
   if (status === 'SUBMITTED' || status === 'IN_PROGRESS' || status === 'PAYMENT_LINK_SENT' || status === 'PENDING') return 'attention';
   if (status.includes('REJECTED') || status === 'NO_APARTMENT_AVAILABLE') return 'danger';
   return 'neutral';
+}
+
+/**
+ * A readable key: no vowels, so it can't spell anything, and no 0/O or 1/I,
+ * which is the pair people get wrong reading one off a phone.
+ */
+function makeGuideKey(): string {
+  const alphabet = 'BCDFGHJKLMNPQRSTVWXZ23456789';
+  const block = () =>
+    Array.from({ length: 4 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('');
+  return `BN-${block()}-${block()}`;
 }
 
 /** How to slice the affiliate list. "Owed" is the one you open this for. */
@@ -819,6 +832,8 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   const [isSavingAffiliate, setIsSavingAffiliate] = useState(false);
   const [guideUrl, setGuideUrl] = useState('');
   const [isSavingGuide, setIsSavingGuide] = useState(false);
+  const [guideAccessKey, setGuideAccessKey] = useState('');
+  const [isSavingGuideKey, setIsSavingGuideKey] = useState(false);
   const [isSavingBatch, setIsSavingBatch] = useState(false);
   const [globalMessage, setGlobalMessage] = useState<string | null>(null);
   const [isSavingGlobal, setIsSavingGlobal] = useState(false);
@@ -1842,6 +1857,7 @@ async function loadGuideLeads() {
     setBatchLabel(data.batch?.label ?? '');
     setAffiliateReward(data.affiliate ? String(data.affiliate.rewardCents / 100) : '');
     setGuideUrl(data.guideUrl ?? '');
+    setGuideAccessKey(data.guideAccessKey ?? '');
     if (data.mealPlan?.id === 'custom') {
       setCustomMealName(data.mealPlan.name);
       setCustomMealPrice(data.mealPlan.weeklyPriceCents != null ? String(data.mealPlan.weeklyPriceCents / 100) : '');
@@ -1885,6 +1901,29 @@ async function loadGuideLeads() {
       setError(caught instanceof Error ? caught.message : 'Could not save the guide link.');
     } finally {
       setIsSavingGuide(false);
+    }
+  }
+
+  async function saveGuideAccessKey() {
+    setError(null);
+    setGlobalMessage(null);
+    setIsSavingGuideKey(true);
+    try {
+      const data = await apiRequest<GlobalSettings>('/admin/settings/global/guide-key', {
+        method: 'PUT',
+        // Empty is a deliberate "take the guide down", not a mistake.
+        body: JSON.stringify({ key: guideAccessKey.trim() }),
+      });
+      applyGlobalSettings(data);
+      setNotice(
+        data.guideAccessKey
+          ? 'Guide key saved. Keys already emailed stop working unless they match.'
+          : 'Guide key cleared — nothing unlocks the guide until a new one is set.',
+      );
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not save the guide key.');
+    } finally {
+      setIsSavingGuideKey(false);
     }
   }
 
@@ -2995,8 +3034,39 @@ async function loadGuideLeads() {
           </div>
           <p className="global-settings__current">
             {globalSettings?.guideUrl
-              ? `The form emails this link: ${globalSettings.guideUrl}`
-              : 'No guide link set — the form refuses rather than taking an address for an email it cannot send.'}
+              ? `Unlocking /guide opens: ${globalSettings.guideUrl}`
+              : 'No guide link set — unlocking will fail even with the right key.'}
+          </p>
+
+          {/* The universal key. Worth saying plainly: it buys the email address
+              and a moment of friction, not secrecy — the first reader to paste
+              it into a group chat has published it. */}
+          <div className="global-settings global-settings--batch">
+            <label className="global-settings__field">
+              Access key (one for everyone)
+              <input
+                value={guideAccessKey}
+                onChange={(event) => setGuideAccessKey(event.target.value)}
+                placeholder="BN-XXXX-XXXX"
+                spellCheck={false}
+                style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}
+              />
+            </label>
+            <button
+              className="ghost-button"
+              type="button"
+              onClick={() => setGuideAccessKey(makeGuideKey())}
+            >
+              Generate
+            </button>
+            <button className="primary-button" disabled={isSavingGuideKey} onClick={() => void saveGuideAccessKey()}>
+              {isSavingGuideKey ? 'Saving…' : 'Save key'}
+            </button>
+          </div>
+          <p className="global-settings__current">
+            {globalSettings?.guideAccessKey
+              ? 'This key is emailed to anyone who asks, and is the only thing that opens the guide. Changing it stops every key already sent out.'
+              : 'No key set — the form refuses to take addresses and nothing opens the guide.'}
           </p>
 
           {guideLeads.length === 0 ? (

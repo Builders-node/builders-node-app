@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/api';
 import { storedCampaignCode } from '@/lib/campaign';
-import { GUIDE_SOURCE } from '../site';
+import { CA_PATHS, GUIDE_SOURCE } from '../site';
 
 const textDark = 'hsl(0 0% 10%)';
 const textMuted = 'hsl(0 0% 45%)';
@@ -91,11 +91,15 @@ export const GuideSection = forwardRef<HTMLElement>(function GuideSection(_props
               <CheckCircle2 className="w-8 h-8" />
             </div>
             <h2 className="text-3xl md:text-5xl font-light tracking-tight" style={{ color: textDark }}>
-              It&apos;s on its way
+              Your key is on its way
             </h2>
             <p className="mt-5 text-base md:text-lg leading-relaxed" style={{ color: textMuted }}>
-              We&apos;ve sent the guide to <strong style={{ color: textDark }}>{sentTo}</strong>. If it isn&apos;t there
-              in a minute, check your spam folder.
+              We&apos;ve sent it to <strong style={{ color: textDark }}>{sentTo}</strong>. The email opens the guide in
+              one tap — or paste the key on{' '}
+              <a href={CA_PATHS.guide} className="underline underline-offset-2" style={{ color: textDark }}>
+                the guide page
+              </a>
+              . Check spam if it isn&apos;t there in a minute.
             </p>
           </>
         ) : (
@@ -108,7 +112,7 @@ export const GuideSection = forwardRef<HTMLElement>(function GuideSection(_props
             </h2>
             <p className="mt-5 text-base md:text-lg font-light leading-relaxed" style={{ color: textMuted }}>
               Everything worth knowing before you come — the place, the people, the costs, and how the month actually
-              runs. Your email, and it&apos;s with you in a minute.
+              runs. Leave your email and we&apos;ll send your key to it.
             </p>
 
             <form className="mt-10 grid gap-4 text-left" onSubmit={submit}>
@@ -167,7 +171,7 @@ export const GuideSection = forwardRef<HTMLElement>(function GuideSection(_props
               </Button>
 
               <p className="text-xs text-center" style={{ color: textMuted }}>
-                One email with the guide. No application is started by this.
+                One email with your key. No application is started by this.
               </p>
             </form>
           </>
