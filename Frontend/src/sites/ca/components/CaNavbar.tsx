@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
-import { useApplyNav } from "@/lib/applyNav";
 import logo from "@/assets/logo.svg";
 
 const useScrollProgress = () => {
@@ -31,7 +30,6 @@ const navItems: NavItem[] = [
 
 const CaNavbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const openApply = useApplyNav();
   const [scrolled, setScrolled] = useState(false);
   const progress = useScrollProgress();
   const textColor = scrolled ? "hsl(0 0% 10%)" : "hsl(0 0% 100%)";
@@ -96,22 +94,6 @@ const CaNavbar = () => {
               <span className="font-medium">{item.label}</span>
             </a>
           ))}
-          {/* One button. Signing in belongs on the apex domain, where the
-              session actually lives — offering it here sent people off a
-              landing whose whole job is the guide. */}
-          <div className="ml-2 flex items-center gap-2">
-            <button
-              onClick={openApply}
-              className="px-5 py-2 text-sm font-semibold tracking-wide rounded-full transition-all duration-300 hover:scale-105"
-              style={{
-                backgroundColor: "#EA5404",
-                color: "hsl(0 0% 100%)",
-                boxShadow: "0 6px 20px rgba(234, 84, 4, 0.45)",
-              }}
-            >
-              Apply now
-            </button>
-          </div>
         </div>
 
         <button className="md:hidden" style={{ color: textColor }} onClick={() => setMobileOpen(!mobileOpen)}>
@@ -149,15 +131,6 @@ const CaNavbar = () => {
                   {item.label}
                 </a>
               ))}
-            </div>
-            <div className="mt-auto flex flex-col gap-3">
-              <button
-                onClick={() => { openApply(); setMobileOpen(false); }}
-                className="w-full px-5 py-4 text-sm font-semibold tracking-wide rounded-full"
-                style={{ backgroundColor: "#EA5404", color: "hsl(0 0% 100%)" }}
-              >
-                Apply now
-              </button>
             </div>
           </div>
         </>
