@@ -23,8 +23,6 @@ type AccountNav = {
    * bundle to reach a page React already has.
    */
   openAffiliate: () => void;
-  /** The guide gate, the same way. Only the main site's nav links to it. */
-  openGuide?: () => void;
 };
 
 const AccountNavContext = createContext<AccountNav>({

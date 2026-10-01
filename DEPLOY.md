@@ -236,8 +236,8 @@ node scripts/import-guide.mjs ~/Downloads/"Builders Node Private Guide.zip" ca
 node scripts/import-guide.mjs ~/Downloads/"Builders Node Private Guide.zip" main
 ```
 
-The main site's gate is `buildersnode.com/guide` (linked as "Guide" in the
-header); the CA one is `ca.buildersnode.com/guide`. A key opens whichever site's
+The main site's gate is `buildersnode.com/guide` — not in the menu, only
+reached through links sent by hand; the CA one is `ca.buildersnode.com/guide`. A key opens whichever site's
 guide it is entered on. The email's one-tap link goes to the site the reader
 asked on — `FRONTEND_URL` for the main site, `CA_SITE_URL` for CA (defaults to
 `https://ca.buildersnode.com`).
