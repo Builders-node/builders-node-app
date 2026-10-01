@@ -29,6 +29,12 @@ export function GuideCta() {
   const [isSending, setIsSending] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
   /**
+   * The address was recorded but the email didn't leave. Worth saying rather
+   * than hiding: "on its way" would be a promise nothing is going to keep, and
+   * the lead does show up in admin as unsent for somebody to pick up.
+   */
+  const [heldUp, setHeldUp] = useState(false);
+  /**
    * Read once, at mount. Never shown: it credits the channel this page was
    * posted on, which belongs to the traffic report rather than to the reader.
    */
@@ -40,7 +46,7 @@ export function GuideCta() {
 
     setIsSending(true);
     try {
-      await apiRequest('/public/guide/request', {
+      const result = await apiRequest<{ sent: boolean }>('/public/guide/request', {
         method: 'POST',
         body: JSON.stringify({
           email: email.trim(),
@@ -48,6 +54,7 @@ export function GuideCta() {
           campaignCode: campaignCode || undefined,
         }),
       });
+      setHeldUp(result.sent === false);
       setSentTo(email.trim());
 
       // One conversion event per lead, same shape as the apply form's.
@@ -101,16 +108,24 @@ export function GuideCta() {
                   style={{ color: panelText }}
                 >
                   <Check size={20} style={{ color: accent }} aria-hidden="true" />
-                  Your key is on its way
+                  {heldUp ? "We've got your address" : 'Your key is on its way'}
                 </p>
-                <p className="mt-3 text-sm leading-relaxed" style={{ color: panelMuted }}>
-                  Sent to <strong style={{ color: panelText }}>{sentTo}</strong>. The email opens the guide in one tap —
-                  or paste the key on{' '}
-                  <a href={caHref(CA_PATHS.guide)} className="underline underline-offset-2" style={{ color: panelText }}>
-                    the guide page
-                  </a>
-                  . Check spam if it isn&apos;t there in a minute.
-                </p>
+                {heldUp ? (
+                  <p className="mt-3 text-sm leading-relaxed" style={{ color: panelMuted }}>
+                    Our email is having trouble right now, so{' '}
+                    <strong style={{ color: panelText }}>{sentTo}</strong> hasn&apos;t received the key yet. It&apos;s on
+                    our list and someone will send it over.
+                  </p>
+                ) : (
+                  <p className="mt-3 text-sm leading-relaxed" style={{ color: panelMuted }}>
+                    Sent to <strong style={{ color: panelText }}>{sentTo}</strong>. The email opens the guide in one tap
+                    — or paste the key on{' '}
+                    <a href={caHref(CA_PATHS.guide)} className="underline underline-offset-2" style={{ color: panelText }}>
+                      the guide page
+                    </a>
+                    . Check spam if it isn&apos;t there in a minute.
+                  </p>
+                )}
               </div>
             ) : (
               <form onSubmit={submit}>

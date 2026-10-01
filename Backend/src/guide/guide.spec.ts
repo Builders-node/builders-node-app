@@ -22,7 +22,8 @@ function makeService(options: { lead?: Record<string, unknown> | null; campaignL
     },
     campaignLink: { findUnique: jest.fn().mockResolvedValue(campaignLink) },
   };
-  const mail = { sendGuideKey: jest.fn().mockResolvedValue(undefined) };
+  // Resolves true: the service only records a send that actually happened.
+  const mail = { sendGuideKey: jest.fn().mockResolvedValue(true) };
 
   return { service: new GuideService(prisma as never, mail as never), prisma, mail };
 }
@@ -63,7 +64,7 @@ describe('GuideService.request', () => {
     expect(prisma.guideRequest.upsert.mock.calls[0][0].update.accessKey).toBeUndefined();
   });
 
-  it('marks the lead as served only after the send', async () => {
+  it('marks the lead as served once the send goes through', async () => {
     // sentAt is the difference between a lead we owe something to and one we
     // have already served; MailService never throws, so nothing else says it.
     const { service, prisma } = makeService();
@@ -169,5 +170,21 @@ describe('GuideService.unlock — what the reader is sent to', () => {
     const { guideUrl } = await service.unlock('BN-7K2M-QX94');
 
     expect(guideUrl).not.toContain('name=');
+  });
+});
+
+describe('GuideService.request — when the mail never leaves', () => {
+  it('keeps the lead but does not claim a send', async () => {
+    // MailService swallows failures so the request still succeeds. Writing
+    // sentAt anyway would show a delivery that never happened — which is
+    // exactly what an unconfigured mail provider looks like.
+    const { service, prisma, mail } = makeService();
+    mail.sendGuideKey.mockResolvedValue(false);
+
+    const result = await service.request({ email: 'nina@example.com' });
+
+    expect(result).toEqual({ sent: false, email: 'nina@example.com' });
+    expect(prisma.guideRequest.upsert).toHaveBeenCalled();
+    expect(prisma.guideRequest.update).not.toHaveBeenCalled();
   });
 });

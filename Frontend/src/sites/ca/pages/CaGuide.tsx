@@ -43,6 +43,8 @@ export function CaGuide() {
   const [email, setEmail] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  /** Address recorded, email didn't leave — see GuideCta for why this is said. */
+  const [heldUp, setHeldUp] = useState(false);
   const [campaignCode] = useState(storedCampaignCode);
 
   /**
@@ -112,7 +114,7 @@ export function CaGuide() {
     setIsSending(true);
     setError(null);
     try {
-      await apiRequest('/public/guide/request', {
+      const result = await apiRequest<{ sent: boolean }>('/public/guide/request', {
         method: 'POST',
         body: JSON.stringify({
           email: email.trim(),
@@ -120,6 +122,7 @@ export function CaGuide() {
           campaignCode: campaignCode || undefined,
         }),
       });
+      setHeldUp(result.sent === false);
       setSentTo(email.trim());
       try {
         (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag?.('event', 'generate_lead', {
@@ -233,8 +236,17 @@ export function CaGuide() {
 
             {sentTo ? (
               <p className="text-base leading-relaxed" style={{ color: textMuted }}>
-                Sent to <strong style={{ color: textDark }}>{sentTo}</strong>. Open the link in that email, or paste the
-                key above. Check spam if it isn&apos;t there in a minute.
+                {heldUp ? (
+                  <>
+                    We&apos;ve got <strong style={{ color: textDark }}>{sentTo}</strong>, but our email is having trouble
+                    right now. It&apos;s on our list and someone will send your key over.
+                  </>
+                ) : (
+                  <>
+                    Sent to <strong style={{ color: textDark }}>{sentTo}</strong>. Open the link in that email, or paste
+                    the key above. Check spam if it isn&apos;t there in a minute.
+                  </>
+                )}
               </p>
             ) : (
               <form className="grid gap-3 text-left" onSubmit={requestKey}>

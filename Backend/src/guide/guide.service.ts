@@ -73,12 +73,22 @@ export class GuideService {
       },
     });
 
-    // MailService.send never throws — a provider having a bad minute must not
-    // lose a lead we have already stored. `sentAt` is what tells the two apart.
-    await this.mail.sendGuideKey(lead.email, lead.name, lead.accessKey, this.unlockUrl(lead.accessKey));
-    await this.prisma.guideRequest.update({ where: { id: lead.id }, data: { sentAt: new Date() } });
+    // Sending never throws — a provider having a bad minute must not lose a
+    // lead already stored. But `sentAt` is a claim that an email exists, so it
+    // is only written when one actually went out: with no mail provider
+    // configured the lead is kept and the admin list says "Not sent", rather
+    // than showing a delivery that never happened.
+    const delivered = await this.mail.sendGuideKey(
+      lead.email,
+      lead.name,
+      lead.accessKey,
+      this.unlockUrl(lead.accessKey),
+    );
+    if (delivered) {
+      await this.prisma.guideRequest.update({ where: { id: lead.id }, data: { sentAt: new Date() } });
+    }
 
-    return { sent: true, email: lead.email };
+    return { sent: delivered, email: lead.email };
   }
 
   /**

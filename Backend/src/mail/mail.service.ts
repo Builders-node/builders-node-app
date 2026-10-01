@@ -59,10 +59,18 @@ export class MailService {
     return this.config.get<string>('MEETING_BOOKING_URL') ?? DEFAULT_MEETING_BOOKING_URL;
   }
 
-  async send(email: Email): Promise<void> {
+  /**
+   * Returns whether the message was actually accepted for delivery.
+   *
+   * Still never throws — a mail failure must not break the request around it —
+   * but callers that record "we sent this" need to know the difference. Without
+   * it, an unconfigured RESEND_API_KEY produced a row claiming an email that
+   * never left the building.
+   */
+  async send(email: Email): Promise<boolean> {
     if (!this.apiKey) {
       this.logger.warn(`RESEND_API_KEY not set — email NOT sent. To: ${email.to} | Subject: ${email.subject}`);
-      return;
+      return false;
     }
 
     try {
@@ -77,10 +85,13 @@ export class MailService {
       if (!res.ok) {
         const detail = await res.text().catch(() => '');
         this.logger.error(`Resend responded ${res.status} for ${email.to}: ${detail.slice(0, 200)}`);
+        return false;
       }
+      return true;
     } catch (error) {
       // Never let a mail failure break the surrounding request.
       this.logger.error(`Failed to send email to ${email.to}: ${(error as Error).message}`);
+      return false;
     }
   }
 
@@ -432,9 +443,9 @@ export class MailService {
    * something, and an email that reads like a reply to an application would be
    * a small bait-and-switch.
    */
-  async sendGuideKey(to: string, fullName: string | null, key: string, guideUrl: string): Promise<void> {
+  async sendGuideKey(to: string, fullName: string | null, key: string, guideUrl: string): Promise<boolean> {
     const name = fullName ? firstNameOf(fullName) : 'there';
-    await this.send({
+    return this.send({
       to,
       subject: 'Your key to the Builders Node guide',
       text: `Hi ${name},\n\nHere's your key to the guide: ${key}\n\nOpen it directly: ${guideUrl}\n\nNo application has been started — this is just the read. If it makes you want to come and build in Próspera, you can apply at ${this.frontendBaseUrl()}/apply.\n\nBuilders Node`,

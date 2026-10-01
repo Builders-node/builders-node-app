@@ -107,6 +107,7 @@ describe('MailService.sendFirstCheckApproved', () => {
     const sent: Array<{ to: string; subject: string; html: string; text: string }> = [];
     jest.spyOn(mail, 'send').mockImplementation(async (email) => {
       sent.push(email as (typeof sent)[number]);
+      return true;
     });
     return { mail, sent };
   }
