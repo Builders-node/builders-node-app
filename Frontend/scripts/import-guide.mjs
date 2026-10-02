@@ -278,6 +278,41 @@ if (applyLinks === 0) {
 }
 
 /**
+ * Credit an application to the link the reader actually came through.
+ *
+ * The Apply links carry a fixed `src` (`guide`, `ca-guide`), which on arrival
+ * at the apply form would overwrite the code a reader brought with them — a
+ * `?src=guide-telegram` visit would apply as plain "guide". The guide is served
+ * from the same origin as the site that stored that code, so it can read it and
+ * put it on the link instead. At click time, not on load: the canvas runtime
+ * renders the page itself and could put its own hrefs back.
+ */
+const carryCampaign = `<script>
+(function () {
+  function stored() {
+    try {
+      var s = JSON.parse(localStorage.getItem('terminus_campaign') || 'null');
+      if (!s || typeof s.code !== 'string' || !/^[a-z0-9][a-z0-9-]{0,39}$/.test(s.code)) return null;
+      if (typeof s.savedAt !== 'number' || Date.now() - s.savedAt > 2592000000) return null;
+      return s.code;
+    } catch (e) { return null; }
+  }
+  function carry(event) {
+    var link = event.target && event.target.closest && event.target.closest('a[href*="/apply?"]');
+    var code = link && stored();
+    if (!code) return;
+    var url = new URL(link.href);
+    url.searchParams.set('src', code);
+    link.href = url.toString();
+  }
+  document.addEventListener('click', carry, true);
+  document.addEventListener('auxclick', carry, true);
+})();
+</script>`;
+if (!html.includes('</body>')) console.warn('  ! no </body> — campaign carry-over not added');
+html = html.replace('</body>', `${carryCampaign}\n</body>`);
+
+/**
  * "Prepared for {{ name }}" — dropped rather than filled in.
  *
  * The guide is a static page, so the name could only ever reach it through the

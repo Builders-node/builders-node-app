@@ -83,8 +83,13 @@ export function captureCampaignFromUrl(): void {
 
   // Fire and forget. This runs during first paint and must never delay it or
   // surface an error: an unreachable API means one uncounted view, nothing more.
+  //
+  // `keepalive`, because some pages leave straight away — a guide link with
+  // its key redirects to the guide as soon as the key checks out, and without
+  // it that navigation can cancel the count on its way out.
   void apiRequest(`/public/campaigns/${encodeURIComponent(fromUrl)}/visit`, {
     method: 'POST',
+    keepalive: true,
     body: JSON.stringify({ visitorKey: visitorKey() }),
   }).catch(() => {
     /* not worth telling anyone about */
