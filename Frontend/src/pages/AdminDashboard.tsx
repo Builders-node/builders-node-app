@@ -2365,7 +2365,7 @@ async function loadGuideLeads() {
                       {APPLICANT_STAGES.map((stage, index) => {
                         const state = index < stageIndex ? 'done' : index === stageIndex ? 'active' : 'todo';
                         return (
-                          <li className={`applicant-step applicant-step--${state}`} key={stage}>
+                          <li className={`applicant-step applicant-step--${state}`} key={stage} title={stage}>
                             <span className="applicant-step__dot">{index < stageIndex ? <Check size={12} /> : index + 1}</span>
                             <span className="applicant-step__label">{stage}</span>
                           </li>

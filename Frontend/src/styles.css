@@ -1913,6 +1913,40 @@ select:disabled {
   font-weight: 600;
 }
 
+/* On a phone six labelled steps can't fit side by side, and the admin's
+   mobile `min-width: 0` reset stops them wrapping — they overlapped. One row
+   of dots instead, with only the current step named; the rest are in each
+   dot's title and the "Next step" line below. */
+@media (max-width: 760px) {
+  .applicant-card__status {
+    align-items: center;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .applicant-stepper {
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  .applicant-step {
+    flex: 0 0 auto;
+  }
+  .applicant-step__label {
+    display: none;
+  }
+  .applicant-step--active {
+    flex: 0 1 auto;
+    margin-right: 4px;
+    min-width: 0;
+  }
+  .applicant-step--active .applicant-step__label {
+    display: inline;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 .applicant-card__footer {
   align-items: center;
   border-top: 1px solid var(--border);
