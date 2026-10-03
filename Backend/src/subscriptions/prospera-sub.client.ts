@@ -21,6 +21,22 @@ import { ConfigService } from '@nestjs/config';
  * keeps working in offline local development.
  */
 
+/**
+ * Ceiling on any one ProsperaSub call. Their API is normally quick; without a
+ * deadline a hung connection would hold an admin's approve/grant request open
+ * until Vercel kills the function at 30s, taking the local half of the work
+ * (which is meant to succeed regardless) down with it.
+ */
+const PROSPERA_SUB_TIMEOUT_MS = 10_000;
+
+/** A fetch failure in words — a timeout named as one, not as a bare abort. */
+function describeFetchError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.name === 'TimeoutError' ? `timed out after ${PROSPERA_SUB_TIMEOUT_MS}ms` : error.message;
+  }
+  return 'Unknown ProsperaSub error.';
+}
+
 export interface MealPlan {
   id: string;
   name: string;
@@ -251,11 +267,20 @@ export class ProsperaSubClient {
   }
 
   private async request<T>(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', path: string, body?: unknown): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      method,
-      headers: this.headers(),
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}${path}`, {
+        method,
+        headers: this.headers(),
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: AbortSignal.timeout(PROSPERA_SUB_TIMEOUT_MS),
+      });
+    } catch (error) {
+      // Logged here so a stalled ProsperaSub shows up as such, then rethrown:
+      // callers already treat a throw from request() as "ProsperaSub failed".
+      this.logger.error(`ProsperaSub API ${method} ${path} failed: ${describeFetchError(error)}`);
+      throw error;
+    }
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
@@ -521,6 +546,7 @@ export class ProsperaSubClient {
         {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${secret}`, Accept: 'application/json' },
+          signal: AbortSignal.timeout(PROSPERA_SUB_TIMEOUT_MS),
         },
       );
       if (!response.ok) {
@@ -531,7 +557,7 @@ export class ProsperaSubClient {
       }
       return { ok: true, status: response.status, message: 'Cancelled on ProsperaSub.' };
     } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Unknown ProsperaSub error.';
+      const msg = describeFetchError(error);
       this.logger.error(`ProsperaSub cancel failed for ${subscriptionId}: ${msg}`);
       return { ok: false, message: msg };
     }
@@ -640,6 +666,7 @@ export class ProsperaSubClient {
           Accept: 'application/json',
         },
         body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(PROSPERA_SUB_TIMEOUT_MS),
       });
 
       if (!response.ok) {
@@ -667,7 +694,7 @@ export class ProsperaSubClient {
       // pushed (e.g. non-UUID plan ids we stripped before sending).
       if (Array.isArray(data.warnings)) base.warnings.push(...data.warnings);
     } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Unknown ProsperaSub error.';
+      const msg = describeFetchError(error);
       this.logger.error(`ProsperaSub integration call failed for ${input.email}: ${msg}`);
       base.message = `ProsperaSub call failed: ${msg}`;
       return base;

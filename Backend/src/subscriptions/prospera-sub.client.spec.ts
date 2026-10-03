@@ -212,6 +212,18 @@ describe('ProsperaSubClient (official api.prosperasub.com)', () => {
     expect(result.message).toMatch(/invalid bearer/);
   });
 
+  it('bounds every integration call with a timeout and reports one as such', async () => {
+    const client = makeClient({ ...liveEnv, BUILDERS_NODE_API_SECRET: 'bn_secret' });
+    const timeout = Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' });
+    const fetchMock = jest.spyOn(global, 'fetch').mockRejectedValue(timeout);
+    jest.spyOn((client as unknown as { logger: { error: () => void } }).logger, 'error').mockImplementation(() => undefined);
+
+    const result = await client.provisionMember({ userId: 'u1', email: 'a@b.test', mealPlanId: '11111111-1111-4111-8111-111111111111' });
+    expect(fetchMock.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+    expect(result.status).toBe('PENDING');
+    expect(result.message).toMatch(/timed out/);
+  });
+
   it('cancels a subscription via DELETE with the Bearer secret', async () => {
     const client = makeClient({ ...liveEnv, BUILDERS_NODE_API_SECRET: 'bn_secret' });
     const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true, status: 204 } as Response);
