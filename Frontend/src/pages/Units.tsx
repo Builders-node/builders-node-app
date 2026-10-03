@@ -2,6 +2,7 @@ import { Pencil, Plus, Search, Trash2, Users as UsersIcon, X } from 'lucide-reac
 import { useEffect, useState } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
+import { statusLabel } from '../lib/statusLabels';
 import type { StatusTone } from '../data/dashboard';
 import { apiRequest } from '../lib/api';
 import { useEscapeToClose } from '../lib/useModalA11y';
@@ -62,10 +63,6 @@ function availabilityTone(status: string): StatusTone {
 
 function formatMoney(cents: number, currency = 'USD') {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(cents / 100);
-}
-
-function statusLabel(status: string) {
-  return status.split('_').join(' ');
 }
 
 export function Units({ embedded = false }: { embedded?: boolean } = {}) {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Wrench, X } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
+import { statusLabel } from '../lib/statusLabels';
 import { apiRequest } from '../lib/api';
 import { useEscapeToClose } from '../lib/useModalA11y';
 
@@ -22,10 +23,6 @@ function statusTone(status: string): 'good' | 'attention' | 'neutral' {
   if (status === 'RESOLVED') return 'good';
   if (status === 'IN_PROGRESS') return 'attention';
   return 'neutral';
-}
-
-function statusLabel(status: string): string {
-  return status.split('_').map((w) => w[0] + w.slice(1).toLowerCase()).join(' ');
 }
 
 function fileToBase64(file: File): Promise<string> {
