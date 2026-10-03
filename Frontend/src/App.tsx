@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from './components/AppShell';
 import { AuthPanel } from './components/AuthPanel';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { PullToRefresh } from './components/PullToRefresh';
 import { ADMIN_SUB_PAGES, canonicalPathFor, pageForPath, type PageId } from './data/dashboard';
 import { ApiError, isTokenExpired } from './lib/api';
@@ -349,7 +350,9 @@ function App() {
     return (
       <>
         <PullToRefresh />
-        <Suspense fallback={<PageFallback />}>{page}</Suspense>
+        <ErrorBoundary>
+          <Suspense fallback={<PageFallback />}>{page}</Suspense>
+        </ErrorBoundary>
       </>
     );
   }
@@ -376,7 +379,11 @@ function App() {
         queryClient.clear();
       }}
     >
-      <Suspense fallback={<PageFallback />}>{page}</Suspense>
+      {/* Inside the shell, so a broken page keeps the sidebar — and with it a
+          way to navigate somewhere that works. */}
+      <ErrorBoundary>
+        <Suspense fallback={<PageFallback />}>{page}</Suspense>
+      </ErrorBoundary>
       <PullToRefresh />
     </AppShell>
   );
