@@ -176,6 +176,9 @@ model Notification {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  // The bell lists newest-first per user and counts the unread ones.
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
 }
 
 model Application {
@@ -223,6 +226,12 @@ model Application {
   approvedAt DateTime?
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
+
+  // The pipeline filters by stage, referrals count by referrer, and campaign
+  // stats group by code — each was a full scan of every application ever filed.
+  @@index([status])
+  @@index([referredByUserId])
+  @@index([campaignCode])
 }
 
 // Holds a submitted-but-not-yet-email-confirmed application. The applicant enters
@@ -390,6 +399,8 @@ model Payment {
   @@unique([userId, billingPeriod])
   @@index([userId])
   @@index([status])
+  // Every billing pass asks "status X, due before/around date Y".
+  @@index([status, dueDate])
 }
 
 model Apartment {
