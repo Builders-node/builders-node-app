@@ -120,7 +120,6 @@
 /* Radix portals render on document.body (outside .landing-root); tag them so the
    dialog/toast reset applies there too. */
 [data-radix-popper-content-wrapper] *,
-[role='dialog'] *,
-[data-sonner-toaster] * {
+[role='dialog'] * {
   box-sizing: border-box;
 }
