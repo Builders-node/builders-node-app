@@ -1,5 +1,6 @@
 import { Send } from "lucide-react";
 import { useGsapTitle } from "@/hooks/useGsapTitle";
+import { HeroVideo } from "@/components/HeroVideo";
 import { TELEGRAM_COMMUNITY_URL } from "@/lib/telegram";
 import { useStartingPrice } from "@/lib/membership-plans";
 import { useApplyNav } from "@/lib/applyNav";
@@ -16,31 +17,7 @@ const HeroSection = () => {
       id="home"
       className="relative min-h-screen flex items-center justify-center overflow-hidden"
     >
-      {/* Background poster fallback (shown until video plays / when video unsupported) */}
-      <div
-        className="absolute inset-0 w-full h-full bg-black bg-cover bg-center"
-        style={{ backgroundImage: "url('/media/hero-poster.jpg')" }}
-      />
-
-      {/* Background video */}
-      <video
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="auto"
-        poster="/media/hero-poster.jpg"
-        className="absolute inset-0 w-full h-full object-cover"
-      >
-        {/* H.264 first — universal support (iOS Safari, older Android) */}
-        <source src="/media/hero.mp4" type="video/mp4; codecs=avc1.42E01E" />
-        {/* AV1 fallback for modern desktop browsers */}
-        <source
-          src="https://v20uliacxvh3bj6g.public.blob.vercel-storage.com/hero_web_av1-6GILWV8N0A8yXV3Nb9Tlv9DYjItjnW.mp4"
-          type="video/mp4; codecs=av01.0.05M.08"
-        />
-      </video>
-
+      <HeroVideo />
 
       {/* Dark overlay */}
       <div className="absolute inset-0 bg-black/50" />

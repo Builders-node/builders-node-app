@@ -18,6 +18,26 @@
     <meta name="theme-color" content="#EA5404" />
     <link rel="canonical" href="https://buildersnode.com/" />
 
+    <!--
+      The landing hero's poster is the largest thing in the first paint, but
+      it is only named in a lazily loaded JS chunk, so without a hint the
+      browser can't start fetching it until React has rendered the landing.
+      Added from a script rather than as a plain <link> so the member app and
+      admin (every other path) don't each download a 95KB photo they never
+      show; an inline script in <head> runs before the app's own bundle, so
+      the fetch still starts first.
+    -->
+    <script>
+      if (location.pathname === '/') {
+        var heroPoster = document.createElement('link');
+        heroPoster.rel = 'preload';
+        heroPoster.as = 'image';
+        heroPoster.href = '/media/hero-poster.jpg';
+        heroPoster.setAttribute('fetchpriority', 'high');
+        document.head.appendChild(heroPoster);
+      }
+    </script>
+
     <!-- Icons + PWA -->
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
