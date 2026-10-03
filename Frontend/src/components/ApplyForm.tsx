@@ -511,6 +511,7 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
                 <Input
                   id="email"
                   type="email"
+                  autoComplete="email"
                   placeholder="you@example.com"
                   required
                   value={email}
@@ -529,6 +530,7 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
                 <Input
                   id="fullname"
                   type="text"
+                  autoComplete="name"
                   placeholder="Satoshi Nakamoto"
                   required
                   value={fullName}

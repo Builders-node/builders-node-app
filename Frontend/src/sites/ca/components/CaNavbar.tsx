@@ -96,8 +96,19 @@ const CaNavbar = () => {
           ))}
         </div>
 
-        <button className="md:hidden" style={{ color: textColor }} onClick={() => setMobileOpen(!mobileOpen)}>
-          {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+        {/* 44px square: the icon alone was a 24px target, under the minimum a
+            thumb can hit reliably. The negative margin keeps the icon itself
+            where it was, flush with the page gutter. */}
+        <button
+          type="button"
+          className="md:hidden inline-flex items-center justify-center w-11 h-11 -mr-2.5"
+          style={{ color: textColor }}
+          onClick={() => setMobileOpen(!mobileOpen)}
+          aria-label={mobileOpen ? "Close menu" : "Open menu"}
+          aria-expanded={mobileOpen}
+          aria-controls="ca-mobile-menu"
+        >
+          {mobileOpen ? <X size={24} aria-hidden="true" /> : <Menu size={24} aria-hidden="true" />}
         </button>
       </div>
 
@@ -108,15 +119,19 @@ const CaNavbar = () => {
         <>
           {/* Full-screen overlay rendered at top level via portal-like fixed positioning */}
           <div
+            id="ca-mobile-menu"
             className="md:hidden fixed left-0 top-0 w-full h-[100dvh] z-[9999] flex flex-col px-8 pt-24 pb-12"
             style={{ backgroundColor: "hsl(30 30% 93%)" }}
           >
+            {/* Same 44px target, centred on where the 24px icon always sat. */}
             <button
-              className="absolute top-5 right-8"
+              type="button"
+              className="absolute top-2.5 right-[22px] inline-flex items-center justify-center w-11 h-11"
               style={{ color: "hsl(0 0% 10%)" }}
               onClick={() => setMobileOpen(false)}
+              aria-label="Close menu"
             >
-              <X size={24} />
+              <X size={24} aria-hidden="true" />
             </button>
             <div className="flex flex-col gap-8 mt-8">
               {navItems.map((item) => (
