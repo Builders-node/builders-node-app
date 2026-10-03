@@ -1,10 +1,13 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../database/prisma.service';
 import { isAdminRole } from '../users/roles';
 import { isValidAdminAccessKey } from './admin-access';
+import { SUPER_ADMIN_ONLY } from './super-admin.decorator';
+import { SessionPayload, sessionMatches } from '../auth/session';
 
 @Injectable()
 export class AdminGuard implements CanActivate {
@@ -12,6 +15,7 @@ export class AdminGuard implements CanActivate {
     private readonly config: ConfigService,
     private readonly jwt: JwtService,
     private readonly prisma: PrismaService,
+    private readonly reflector: Reflector,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -28,25 +32,43 @@ export class AdminGuard implements CanActivate {
         throw new UnauthorizedException('Admin role required.');
       }
 
-      let payload: { sub: string };
+      let payload: SessionPayload;
       try {
-        payload = this.jwt.verify<{ sub: string }>(authorization.slice('Bearer '.length));
+        payload = this.jwt.verify<SessionPayload>(authorization.slice('Bearer '.length));
       } catch {
         throw new UnauthorizedException('Admin session is invalid or expired.');
       }
 
-      const user = await this.prisma.user.findUnique({ where: { id: payload.sub }, select: { id: true, role: true } });
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        select: { id: true, role: true, sessionVersion: true },
+      });
+      if (!sessionMatches(payload, user)) {
+        throw new UnauthorizedException('Admin session is invalid or expired.');
+      }
 
       if (!user || !isAdminRole(user.role)) {
         throw new UnauthorizedException('Admin role required.');
       }
 
       request.adminAccess = { userId: user.id, role: user.role, via: 'session' };
+      this.requireTier(context, user.role);
       return true;
     }
 
     request.adminAccess = { role: 'SUPER_ADMIN', via: 'key' };
     return true;
+  }
+
+  /** Routes marked @SuperAdminOnly() refuse every other admin tier. */
+  private requireTier(context: ExecutionContext, role: string): void {
+    const superOnly = this.reflector.getAllAndOverride<boolean>(SUPER_ADMIN_ONLY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (superOnly && role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Only a Super Admin can do this.');
+    }
   }
 
   /**

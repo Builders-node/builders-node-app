@@ -8,6 +8,16 @@ import { PrismaService } from '../database/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { createReferralCode } from '../users/referral-code';
 import { normalizeSignupSource } from './signup-source';
+import { reclaimUnverifiedAccount, signSession } from './session';
+
+/**
+ * Compared against when an email has no account, so a miss costs the same
+ * bcrypt work as a wrong password. Without it, how fast "incorrect" came back
+ * said whether the address was registered. Made on first use rather than at
+ * load: a cost-12 hash is a quarter of a second off every cold start.
+ */
+let dummyHash: Promise<string> | null = null;
+const timingEqualiser = () => (dummyHash ??= bcrypt.hash('timing-equaliser', 12));
 import { ChangePasswordDto, GoogleLoginDto, LoginDto, PasswordResetDto, PasswordResetRequestDto, SignUpDto } from './dto';
 
 @Injectable()
@@ -43,16 +53,17 @@ export class AuthService {
     });
     await this.mail.sendEmailVerification(user.email, verification.token);
 
-    return this.issueSession(user.id, user.email);
+    return signSession(this.jwt, user);
   }
 
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({ where: { email: dto.email.toLowerCase() } });
-    if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
+    const matches = await bcrypt.compare(dto.password, user?.passwordHash ?? (await timingEqualiser()));
+    if (!user || !matches) {
       throw new UnauthorizedException('Email or password is incorrect.');
     }
 
-    return this.issueSession(user.id, user.email, user.role);
+    return signSession(this.jwt, user);
   }
 
   async googleLogin(dto: GoogleLoginDto) {
@@ -77,19 +88,25 @@ export class AuthService {
     const fullName = payload.name ?? payload.email.split('@')[0];
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      // Google vouches for the address, so the email counts as verified. The
-      // same goes for a pending password setup: `mustChangePassword` means "we
-      // mailed them a temporary password and they're still on it", and someone
-      // who just signed in with Google isn't. Left set, they keep showing as
-      // "Setup required" in the admin list forever.
-      const settled: { emailVerifiedAt?: Date; mustChangePassword?: boolean } = {};
-      if (!existing.emailVerifiedAt) settled.emailVerifiedAt = new Date();
-      if (existing.mustChangePassword) settled.mustChangePassword = false;
-      if (Object.keys(settled).length > 0) {
-        await this.prisma.user.update({ where: { id: existing.id }, data: settled });
+    if (existing && !existing.emailVerifiedAt) {
+      // Google has just proven the address, and nothing had before: whoever
+      // set this account's password may not be its owner. See
+      // reclaimUnverifiedAccount.
+      await reclaimUnverifiedAccount(this.prisma, existing.id);
+      if (existing.mustChangePassword) {
+        await this.prisma.user.update({ where: { id: existing.id }, data: { mustChangePassword: false } });
       }
-      return this.issueSession(existing.id, existing.email, existing.role);
+      return signSession(this.jwt, { ...existing, sessionVersion: existing.sessionVersion + 1 });
+    }
+    if (existing) {
+      // A pending password setup is settled too: `mustChangePassword` means
+      // "we mailed them a temporary password and they're still on it", and
+      // someone who just signed in with Google isn't. Left set, they keep
+      // showing as "Setup required" in the admin list forever.
+      if (existing.mustChangePassword) {
+        await this.prisma.user.update({ where: { id: existing.id }, data: { mustChangePassword: false } });
+      }
+      return signSession(this.jwt, existing);
     }
 
     // No account yet — create one. Google users have no password, so store a
@@ -109,7 +126,7 @@ export class AuthService {
       },
     });
 
-    return this.issueSession(user.id, user.email, user.role);
+    return signSession(this.jwt, user);
   }
 
   async verifyEmail(token: string) {
@@ -151,15 +168,19 @@ export class AuthService {
       throw new UnauthorizedException('Password reset link is invalid or expired.');
     }
 
+    // A reset is what someone does when they think somebody else may be in
+    // their account: every existing login ends, and so does every other reset
+    // link still sitting in their inbox.
     await this.prisma.user.update({
       where: { id: reset.userId },
       data: {
         passwordHash: await bcrypt.hash(dto.password, 12),
         mustChangePassword: false,
         emailVerifiedAt: new Date(),
+        sessionVersion: { increment: 1 },
       },
     });
-    await this.prisma.passwordResetToken.delete({ where: { token: dto.token } });
+    await this.prisma.passwordResetToken.deleteMany({ where: { userId: reset.userId } });
 
     return { passwordReset: true };
   }
@@ -170,23 +191,17 @@ export class AuthService {
       throw new UnauthorizedException('Current password is incorrect.');
     }
 
-    await this.prisma.user.update({
+    // Every other device is signed out. This one gets a fresh session back so
+    // the person who just changed it isn't thrown out with them.
+    const updated = await this.prisma.user.update({
       where: { id: user.id },
       data: {
         passwordHash: await bcrypt.hash(dto.newPassword, 12),
         mustChangePassword: false,
+        sessionVersion: { increment: 1 },
       },
     });
 
-    return { passwordChanged: true };
-  }
-
-  private async issueSession(userId: string, email: string, role?: string) {
-    const resolvedRole = role ?? (await this.prisma.user.findUnique({ where: { id: userId }, select: { role: true } }))?.role ?? 'MEMBER';
-
-    return {
-      accessToken: this.jwt.sign({ sub: userId, email, role: resolvedRole }),
-      user: { id: userId, email, role: resolvedRole },
-    };
+    return { passwordChanged: true, ...signSession(this.jwt, updated) };
   }
 }

@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../admin/admin.guard';
+import { SuperAdminOnly } from '../admin/super-admin.decorator';
 import { MembershipPlansService, type PlanInput } from './membership-plans.service';
 
 /**
@@ -18,7 +19,7 @@ export class PublicMembershipPlansController {
   }
 }
 
-/** The same catalogue, editable. */
+/** The same catalogue, editable — prices, so Super Admin only to change. */
 @Controller('admin/membership-plans')
 @UseGuards(AdminGuard)
 export class AdminMembershipPlansController {
@@ -29,17 +30,20 @@ export class AdminMembershipPlansController {
     return this.plans.listAll();
   }
 
+  @SuperAdminOnly()
   @Post()
   create(@Body() body: PlanInput) {
     return this.plans.create(body);
   }
 
+  @SuperAdminOnly()
   @Patch(':planId')
   update(@Param('planId') planId: string, @Body() body: PlanInput) {
     return this.plans.update(planId, body);
   }
 
   /** Retires the plan — see the service for why this isn't a real delete. */
+  @SuperAdminOnly()
   @Delete(':planId')
   remove(@Param('planId') planId: string) {
     return this.plans.remove(planId);

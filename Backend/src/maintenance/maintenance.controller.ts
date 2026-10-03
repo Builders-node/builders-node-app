@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../admin/admin.guard';
+import { ActiveMemberGuard } from '../auth/active-member.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { MaintenanceService } from './maintenance.service';
 
@@ -10,7 +11,7 @@ export class MaintenanceController {
   constructor(private readonly maintenance: MaintenanceService) {}
 
   // Member: submit + list own requests. Guard restricts :userId to the owner.
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActiveMemberGuard)
   @Post('users/:userId/maintenance')
   create(@Param('userId') userId: string, @Body() body: CreateBody) {
     return this.maintenance.create(userId, body);

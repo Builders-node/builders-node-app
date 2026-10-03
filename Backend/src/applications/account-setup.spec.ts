@@ -29,8 +29,12 @@ function makeService(application: Record<string, unknown> | null = {}) {
     },
     user: {
       findUnique: jest.fn().mockResolvedValue(null),
-      create: jest.fn().mockResolvedValue({ id: 'user-1', email: 'ada@builders.test', role: 'MEMBER' }),
+      create: jest.fn().mockResolvedValue({ id: 'user-1', email: 'ada@builders.test', role: 'MEMBER', sessionVersion: 0 }),
+      update: jest.fn().mockImplementation(({ where }) =>
+        Promise.resolve({ id: where.id, email: 'ada@builders.test', role: 'MEMBER', sessionVersion: 1 }),
+      ),
     },
+    passwordResetToken: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
   };
   const jwt = { sign: jest.fn().mockReturnValue('signed-token') };
   const notifications = { notify: jest.fn().mockResolvedValue(undefined) };
@@ -104,11 +108,30 @@ describe('ApplicationsService.createAccountFromApply', () => {
     );
   });
 
-  it('still refuses when an account already exists', async () => {
+  it('still refuses when a verified account already exists', async () => {
     const { service, prisma } = makeService();
-    prisma.user.findUnique.mockResolvedValue({ id: 'existing' });
+    prisma.user.findUnique.mockResolvedValue({ id: 'existing', emailVerifiedAt: new Date() });
 
     await expect(service.createAccountFromApply(CREDENTIALS)).rejects.toThrow(/already exists/i);
     expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it('hands an unverified account to the applicant who proved the address', async () => {
+    // Somebody registered this email without owning it. The code step proves
+    // who does: they get the account, with their password, and the
+    // registrant's sessions end.
+    const { service, prisma } = makeService();
+    prisma.user.findUnique.mockResolvedValue({ id: 'squatted', emailVerifiedAt: null, sessionVersion: 0 });
+
+    const session = await service.createAccountFromApply(CREDENTIALS);
+
+    expect(prisma.user.create).not.toHaveBeenCalled();
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'squatted' }, data: expect.objectContaining({ sessionVersion: { increment: 1 } }) }),
+    );
+    expect(prisma.user.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({ where: { id: 'squatted' }, data: expect.objectContaining({ passwordHash: expect.any(String) }) }),
+    );
+    expect(session.user.id).toBe('squatted');
   });
 });

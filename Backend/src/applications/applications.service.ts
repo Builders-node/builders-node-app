@@ -5,6 +5,7 @@ import * as bcrypt from 'bcryptjs';
 import { randomInt, randomUUID } from 'crypto';
 import { buildCredentialInvitation } from '../auth/invitation';
 import { createTemporaryPassword } from '../auth/temporary-password';
+import { reclaimUnverifiedAccount, signSession } from '../auth/session';
 import { PrismaService } from '../database/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -115,8 +116,12 @@ export class ApplicationsService {
     await this.mail.sendApplicationReceived(application.email, application.fullName);
 
     // If they don't have a login yet, the frontend will prompt them to set a
-    // password (create-account below). If an account already exists, skip that.
-    const accountExists = Boolean(await this.prisma.user.findUnique({ where: { email }, select: { id: true } }));
+    // password (create-account below). If an account already exists, skip that
+    // — unless its address was never verified. Then it may have been made by
+    // somebody else, and the code just entered is the first proof of who owns
+    // it, so it goes through the password step and becomes theirs.
+    const existingAccount = await this.prisma.user.findUnique({ where: { email }, select: { emailVerifiedAt: true } });
+    const accountExists = Boolean(existingAccount?.emailVerifiedAt);
 
     // Entering the emailed code is the only thing that proves this is their
     // address, and it happens here. Hand back a one-time token so the password
@@ -162,12 +167,29 @@ export class ApplicationsService {
       throw new BadRequestException('This password link has expired. Please apply again to get a new code.');
     }
 
-    const existing = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
-    if (existing) {
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing?.emailVerifiedAt) {
       throw new BadRequestException('An account already exists for this email. Please log in instead.');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
+
+    if (existing) {
+      // Registered under this address by somebody who never proved it. The
+      // setup token proves it now, so the account is handed to its owner:
+      // their password, and every session the registrant held ended.
+      await reclaimUnverifiedAccount(this.prisma, existing.id);
+      const claimed = await this.prisma.user.update({
+        where: { id: existing.id },
+        data: { passwordHash, mustChangePassword: false },
+      });
+      await this.prisma.application.update({
+        where: { id: application.id },
+        data: { setupToken: null, setupTokenExpiresAt: null },
+      });
+      return signSession(this.jwt, claimed);
+    }
+
     const user = await this.prisma.user.create({
       data: {
         email,
@@ -197,10 +219,7 @@ export class ApplicationsService {
     });
 
     // Sign them straight in — mirrors the shape returned by /auth/signup & /auth/login.
-    return {
-      accessToken: this.jwt.sign({ sub: user.id, email: user.email, role: user.role }),
-      user: { id: user.id, email: user.email, role: user.role },
-    };
+    return signSession(this.jwt, user);
   }
 
 

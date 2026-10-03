@@ -39,14 +39,19 @@ export function Security({ currentUserId, setCurrentUserId, setActivePage }: Sec
 
     try {
       // The account is derived from the auth token server-side; no userId in body.
-      await apiRequest('/auth/change-password', {
+      // Changing it signs out every other device, this one included — so the
+      // server hands back a fresh session for this tab to carry on with.
+      const result = await apiRequest<{ accessToken?: string }>('/auth/change-password', {
         method: 'POST',
         body: JSON.stringify({ currentPassword, newPassword }),
       });
+      if (result.accessToken) {
+        localStorage.setItem('terminus_access_token', result.accessToken);
+      }
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      setMessage('Password changed.');
+      setMessage('Password changed. Other devices have been signed out.');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not change password.');
     }

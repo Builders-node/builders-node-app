@@ -34,6 +34,11 @@ model User {
   // id) so it can be rotated if a phone is lost without changing identity.
   // Minted lazily the first time the member opens their pass.
   passToken             String?                  @unique
+  /// Bumped whenever every existing login must stop working: a password
+  /// change or reset, or the real owner of an address claiming an account
+  /// someone else registered with it. Sessions carry the version they were
+  /// issued at and the guards refuse any other.
+  sessionVersion        Int                      @default(0)
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
   profile               Profile?

@@ -11,6 +11,7 @@ import { AuthService } from './auth.service';
 /** Pass clientId: '' for the unconfigured case — an unset env var reads as empty. */
 function makeService(existing: Record<string, unknown> | null, clientId = 'client-123') {
   const prisma = {
+    passwordResetToken: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
     user: {
       findUnique: jest.fn().mockResolvedValue(existing),
       update: jest.fn().mockResolvedValue({}),
@@ -58,11 +59,30 @@ describe('AuthService.googleLogin', () => {
     expect(session.accessToken).toBe('signed-token');
   });
 
-  it('marks an existing unverified email as verified — Google vouches for it', async () => {
-    const { service, prisma } = makeService({ id: 'u1', email: 'ada@gmail.test', role: 'MEMBER', emailVerifiedAt: null, mustChangePassword: false });
+  it('takes an unverified account back from whoever registered it', async () => {
+    // Signing up never proved the address. Google does, so the account becomes
+    // the Google user's — and the password someone else chose stops working,
+    // along with every session they held.
+    const { service, prisma } = makeService({ id: 'u1', email: 'ada@gmail.test', role: 'MEMBER', emailVerifiedAt: null, mustChangePassword: false, sessionVersion: 0 });
     acceptToken(service);
     await service.googleLogin({ credential: 'x' });
-    expect(prisma.user.update).toHaveBeenCalledWith(expect.objectContaining({ data: { emailVerifiedAt: expect.any(Date) } }));
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          passwordHash: expect.any(String),
+          sessionVersion: { increment: 1 },
+          emailVerifiedAt: expect.any(Date),
+        },
+      }),
+    );
+    expect(prisma.passwordResetToken.deleteMany).toHaveBeenCalledWith({ where: { userId: 'u1' } });
+  });
+
+  it('leaves a verified account and its password alone', async () => {
+    const { service, prisma } = makeService({ id: 'u1', email: 'ada@gmail.test', role: 'MEMBER', emailVerifiedAt: new Date(), mustChangePassword: false, sessionVersion: 0 });
+    acceptToken(service);
+    await service.googleLogin({ credential: 'x' });
+    expect(prisma.passwordResetToken.deleteMany).not.toHaveBeenCalled();
   });
 
   it('clears a pending password setup', async () => {

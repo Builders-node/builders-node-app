@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { ActiveMemberGuard } from '../auth/active-member.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { HomeService } from './home.service';
 
@@ -60,7 +61,7 @@ export class HomeController {
    * Set or move the weekly slot. PUT, not POST: there is exactly one slot per
    * member and booking again replaces it — it isn't a queue of requests.
    */
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActiveMemberGuard)
   @Put('users/:userId/cleaning')
   setMyCleaning(
     @Param('userId') userId: string,

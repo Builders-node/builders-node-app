@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req, Use
 import { Request } from 'express';
 import { AdminGuard } from './admin.guard';
 import { AdminService } from './admin.service';
+import { SuperAdminOnly } from './super-admin.decorator';
 
 @Controller('admin')
 @UseGuards(AdminGuard)
@@ -30,6 +31,7 @@ export class AdminController {
     return this.admin.sendCredentials(applicationId);
   }
 
+  @SuperAdminOnly()
   @Post('applications/:applicationId/activate')
   activateMembership(@Param('applicationId') applicationId: string) {
     return this.admin.activateMembership(applicationId);
@@ -77,6 +79,7 @@ export class AdminController {
     return this.admin.sendPaymentLink(applicationId, body.paymentLink);
   }
 
+  @SuperAdminOnly()
   @Post('applications/:applicationId/confirm-payment')
   confirmPayment(@Param('applicationId') applicationId: string) {
     return this.admin.confirmPayment(applicationId);
@@ -160,8 +163,8 @@ export class AdminController {
     title?: string;
     message?: string;
     link?: string;
-  }) {
-    return this.admin.composeNotification(body);
+  }, @Req() request: Request & { adminAccess?: { role: string } }) {
+    return this.admin.composeNotification(body, request.adminAccess);
   }
 
   @Get('support-tickets')
@@ -187,11 +190,13 @@ export class AdminController {
     return this.admin.listPayments(status);
   }
 
+  @SuperAdminOnly()
   @Post('payments')
   createPayment(@Body() body: { userId?: string; amountCents?: number; currency?: string; dueDate?: string; description?: string; status?: string; payUrl?: string }) {
     return this.admin.createPayment(body);
   }
 
+  @SuperAdminOnly()
   @Patch('payments/:paymentId')
   updatePayment(
     @Param('paymentId') paymentId: string,
@@ -219,6 +224,7 @@ export class AdminController {
     return this.admin.previewGlobalPlanAffected();
   }
 
+  @SuperAdminOnly()
   @Put('settings/global/meal-plan')
   setGlobalMealPlan(
     @Body() body: { planId?: string; custom?: { name?: string; weeklyPriceCents?: number; mealsLabel?: string } },
@@ -226,17 +232,20 @@ export class AdminController {
     return this.admin.setGlobalMealPlan(body.planId, body.custom);
   }
 
+  @SuperAdminOnly()
   @Put('settings/global/cleaning-plan')
   setGlobalCleaningPlan(@Body() body: { planId?: string }) {
     return this.admin.setGlobalCleaningPlan(body.planId);
   }
 
+  @SuperAdminOnly()
   @Put('settings/global/batch')
   setBatch(@Body() body: { startDate?: string; label?: string }) {
     return this.admin.setBatch(body);
   }
 
   /** What an affiliate earns per person who joins through them. */
+  @SuperAdminOnly()
   @Put('settings/global/affiliate-reward')
   setAffiliateReward(@Body() body: { rewardCents?: number; currency?: string }) {
     return this.admin.setAffiliateReward(body);

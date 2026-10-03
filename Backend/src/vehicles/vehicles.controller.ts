@@ -1,8 +1,11 @@
 import { Body, Controller, Delete, Get, Header, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { AdminGuard } from '../admin/admin.guard';
+import { ActiveMemberGuard } from '../auth/active-member.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { VehiclesService } from './vehicles.service';
+
+const SAFE_IMAGE_TYPE = /^image\/(png|jpe?g|webp|gif|avif)$/i;
 
 type BookBody = { vehicleId?: string; startDate?: string; endDate?: string; note?: string };
 type VehicleBody = { name?: string; description?: string; active?: boolean; photoFileName?: string; photoFileType?: string; photoBase64?: string };
@@ -32,7 +35,11 @@ export class VehiclesController {
   @Header('Cache-Control', 'public, max-age=86400')
   async photo(@Param('id') id: string, @Res() res: Response) {
     const photo = await this.vehicles.getVehiclePhoto(id);
-    res.type(photo.fileType);
+    // Served as whatever type was stored, from the API's own origin — so only
+    // raster image types go out as themselves. Anything else (HTML, SVG with a
+    // script in it) would run as a page on this origin; it goes out as bytes.
+    res.type(SAFE_IMAGE_TYPE.test(photo.fileType) ? photo.fileType : 'application/octet-stream');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.send(Buffer.from(photo.dataBase64, 'base64'));
   }
 
@@ -42,7 +49,7 @@ export class VehiclesController {
     return this.vehicles.listMyBookings(userId);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActiveMemberGuard)
   @Post('users/:userId/vehicle-bookings')
   book(@Param('userId') userId: string, @Body() body: BookBody) {
     return this.vehicles.book(userId, body);

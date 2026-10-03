@@ -117,13 +117,21 @@ export class AdminService {
     const yearStart = new Date(now.getFullYear(), 0, 1);
 
     const [applications, users, paidPayments, pendingResidency, openTickets, overduePayments, openMaintenance] = await Promise.all([
-      this.prisma.application.findMany({ orderBy: { createdAt: 'desc' } }),
+      // Never the setup token: whoever holds it can set the applicant's
+      // password, and the admin list has no use for it.
+      this.prisma.application.findMany({
+        orderBy: { createdAt: 'desc' },
+        omit: { setupToken: true, setupTokenExpiresAt: true },
+      }),
+      // Only what the list shows. `profile: true` and `residencyApplication:
+      // true` used to drag every avatar and every uploaded residency proof —
+      // megabytes of base64 each — out of the database on every dashboard load.
       this.prisma.user.findMany({
         orderBy: { createdAt: 'desc' },
         include: {
-          profile: true,
+          profile: { select: { fullName: true } },
           membership: true,
-          residencyApplication: true,
+          residencyApplication: { select: { status: true } },
           assignedApartment: { include: { apartment: true } },
           mealMenuItems: { orderBy: { createdAt: 'desc' }, take: 1 },
           cleaningSchedules: { orderBy: { createdAt: 'desc' }, take: 1 },
@@ -239,7 +247,8 @@ export class AdminService {
         include: {
           profile: true,
           membership: true,
-          residencyApplication: true,
+          // The proof file itself is fetched on its own when an admin opens it.
+          residencyApplication: { omit: { proofData: true } },
           subscriptionPlan: true,
           communityPlans: { orderBy: { purchasedAt: 'desc' } },
           payments: { orderBy: { dueDate: 'desc' } },
@@ -1177,10 +1186,15 @@ export class AdminService {
       });
     }
 
+    // Selected, not the whole row: the row carries the password hash and the
+    // member's pass token, and this goes back to every admin tier.
     return this.prisma.user.findUnique({
       where: { id: userId },
-      include: {
-        profile: true,
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        profile: { omit: { avatarData: true } },
         assignedApartment: { include: { apartment: true } },
         mealMenuItems: true,
         cleaningSchedules: true,
@@ -1461,9 +1475,14 @@ export class AdminService {
     title?: string;
     message?: string;
     link?: string;
-  }) {
+  }, actor?: { role: string }) {
     const title = body.title?.trim();
     if (!title) throw new BadRequestException('Title is required.');
+    // A message to every member at once, with a link of the sender's choosing,
+    // is the one thing here that could reach the whole community in a click.
+    if (body.audience === 'all-members' && actor?.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Only a Super Admin can message every member at once.');
+    }
     const payload = {
       type: body.type ?? 'info',
       title,
@@ -1493,7 +1512,8 @@ export class AdminService {
     const apps = await this.prisma.residencyApplication.findMany({
       where: { status: { in: ['PENDING_REVIEW', 'VERIFIED', 'REJECTED'] } },
       orderBy: [{ submittedAt: 'desc' }],
-      include: { user: { include: { profile: true } } },
+      omit: { proofData: true },
+      include: { user: { select: { email: true, profile: { select: { fullName: true } } } } },
     });
     return apps.map((a) => ({
       userId: a.userId,
@@ -1815,6 +1835,13 @@ export class AdminService {
       await this.assertRoleChangeAllowed(userId, user.role, body.role, actor);
     }
 
+    // What a member is billed, and when, is money: Super Admin only, like the
+    // invoice and pricing routes (see SuperAdminOnly).
+    const touchesBilling = body.monthlyAmountCents !== undefined || body.nextDueDate !== undefined;
+    if (touchesBilling && actor?.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Only a Super Admin can change what a member is billed.');
+    }
+
     // Money and a date, so both are validated before anything is written —
     // a bad amount here becomes an invoice somebody actually receives.
     const billing: { monthlyAmountCents?: number | null; dueDate?: Date | null } = {};
@@ -2106,7 +2133,7 @@ export class AdminService {
     const apartments = await this.prisma.apartment.findMany({
       orderBy: [{ availability: 'asc' }, { name: 'asc' }],
       include: {
-        assignments: { include: { user: { include: { profile: true } } } },
+        assignments: { include: { user: { select: { email: true, profile: { select: { fullName: true } } } } } },
         unitType: { select: { id: true, name: true } },
       },
     });
