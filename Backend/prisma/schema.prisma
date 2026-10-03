@@ -70,8 +70,11 @@ model Vehicle {
 }
 
 // A reservation of a vehicle for a date range (inclusive). Status: ACTIVE |
-// CANCELLED. Overlap checks live in the service, not the DB, so admins can
-// cancel/replace without losing history.
+// CANCELLED. The service checks for overlaps to give a friendly message; the
+// database backs it with an exclusion constraint, "VehicleBooking_no_overlap"
+// (raw SQL in migration 20261002100000 — Prisma can't express one), so two
+// simultaneous requests can't both win the same slot. Only ACTIVE rows take
+// part, so cancelled bookings stay as history.
 model VehicleBooking {
   id        String   @id @default(uuid())
   vehicleId String

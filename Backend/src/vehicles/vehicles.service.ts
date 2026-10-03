@@ -39,6 +39,26 @@ function overlapMs(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): number {
   return Math.max(0, end - start);
 }
 
+/** Same words the service's own overlap check uses — the member can't tell which caught it. */
+const OVERLAP_MESSAGE = 'Those dates overlap another booking. Please pick a different range.';
+
+/**
+ * True when a write was refused by the "VehicleBooking_no_overlap" exclusion
+ * constraint (SQLSTATE 23P01).
+ *
+ * Prisma has no error code of its own for an exclusion violation, so it can
+ * arrive as a known request error carrying the SQLSTATE in `meta`, or as an
+ * unknown request error whose message quotes Postgres. Matching on the
+ * constraint name and the SQLSTATE covers both without depending on which.
+ */
+export function isBookingOverlapViolation(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const { message, meta } = error as { message?: unknown; meta?: { code?: unknown } };
+  if (meta?.code === '23P01') return true;
+  const text = typeof message === 'string' ? message : '';
+  return text.includes('VehicleBooking_no_overlap') || text.includes('23P01');
+}
+
 type VehicleInput = {
   name?: string;
   description?: string;
@@ -176,7 +196,7 @@ export class VehiclesService {
       select: { id: true, startDate: true, endDate: true },
     });
     if (overlap) {
-      throw new BadRequestException("Those dates overlap another booking. Please pick a different range.");
+      throw new BadRequestException(OVERLAP_MESSAGE);
     }
 
     // Daily quota, counted across every car: two back-to-back three-hour
@@ -206,10 +226,19 @@ export class VehiclesService {
       );
     }
 
-    const booking = await this.prisma.vehicleBooking.create({
-      data: { vehicleId, userId, startDate: start, endDate: end, note: input.note?.trim() || null },
-      select: publicBookingSelect,
-    });
+    // The check above can't see a booking another request is inserting at
+    // this same moment; the database's exclusion constraint can. Losing that
+    // race reads exactly like losing the check.
+    let booking;
+    try {
+      booking = await this.prisma.vehicleBooking.create({
+        data: { vehicleId, userId, startDate: start, endDate: end, note: input.note?.trim() || null },
+        select: publicBookingSelect,
+      });
+    } catch (error) {
+      if (isBookingOverlapViolation(error)) throw new BadRequestException(OVERLAP_MESSAGE);
+      throw error;
+    }
 
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, profile: { select: { fullName: true } } } });
     const label = user?.profile?.fullName ?? user?.email ?? 'A member';
