@@ -1913,10 +1913,11 @@ select:disabled {
   font-weight: 600;
 }
 
-/* On a phone six labelled steps can't fit side by side, and the admin's
-   mobile `min-width: 0` reset stops them wrapping — they overlapped. One row
-   of dots instead, with only the current step named; the rest are in each
-   dot's title and the "Next step" line below. */
+/* On a phone six labelled steps can't fit side by side — at 116px each they
+   overlapped. One row of dots instead, with only the current step named; the
+   rest are in each dot's title and the "Next step" line below. The 116px
+   floor is lifted here explicitly: the mobile `min-width: 0` reset is
+   zero-specificity and no longer overrides it. */
 @media (max-width: 760px) {
   .applicant-card__status {
     align-items: center;
@@ -1930,6 +1931,7 @@ select:disabled {
   }
   .applicant-step {
     flex: 0 0 auto;
+    min-width: 0;
   }
   .applicant-step__label {
     display: none;
@@ -3584,8 +3586,12 @@ select:disabled {
 
 /* ── Mobile-first: let grid/flex items shrink so admin pages never overflow ── */
 @media (max-width: 760px) {
-  .page-stack,
-  .page-stack * {
+  /* :where() keeps this at zero specificity. As a plain `.page-stack *` it
+     outranked every single-class rule, so the deliberate min-widths that make
+     wide tables scroll inside their wrappers (.units-table, the funnel and
+     income tables, admin rows) collapsed instead and their columns crushed
+     together. Now it only fills in where nothing more specific says otherwise. */
+  :where(.page-stack, .page-stack *) {
     min-width: 0;
   }
   .page-header .primary-button {

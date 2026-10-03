@@ -6,7 +6,9 @@ import { GoogleSignInButton } from './GoogleSignInButton';
 
 type AuthPanelProps = {
   mode: 'login' | 'setupPassword' | 'signup' | 'resetPassword' | 'forgotPassword';
-  setActivePage: (page: PageId) => void;
+  /** `replace` for the redirects after signing in or resetting a password —
+   *  the form shouldn't be where Back takes them afterwards. */
+  setActivePage: (page: PageId, options?: { replace?: boolean }) => void;
   setCurrentUserId: (userId: string | null) => void;
   setCurrentUserRole: (role: string | null) => void;
 };
@@ -43,10 +45,10 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
     // not the applicant queue.
     const intended = takePostAuthPage();
     if (intended) {
-      setActivePage(intended);
+      setActivePage(intended, { replace: true });
       return;
     }
-    setActivePage(ADMIN_ROLES.includes(session.user.role) ? 'adminDashboard' : 'profile');
+    setActivePage(ADMIN_ROLES.includes(session.user.role) ? 'adminDashboard' : 'profile', { replace: true });
   }
 
   async function signInWithGoogle(credential: string) {
@@ -101,7 +103,7 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
         });
         window.history.replaceState(null, '', '/');
         setSuccess(isReset ? 'Password updated. You can log in now.' : 'Password set. You can log in now.');
-        setTimeout(() => setActivePage('login'), 700);
+        setTimeout(() => setActivePage('login', { replace: true }), 700);
         return;
       }
 
@@ -236,7 +238,7 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
         {isSignup ? (
           <label>
             Full name
-            <input type="text" value={fullName} onChange={(event) => setFullName(event.target.value)} placeholder="Satoshi Nakamoto" />
+            <input type="text" autoComplete="name" value={fullName} onChange={(event) => setFullName(event.target.value)} placeholder="Satoshi Nakamoto" />
           </label>
         ) : null}
 
@@ -245,21 +247,31 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
         ) : (
           <label>
             Email
-            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" />
+            <input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" />
           </label>
         )}
 
+        {/* autoComplete tells password managers which password this is: fill
+            the saved one on login, offer to generate and save a new one
+            everywhere else. The length rule only means anything to somebody
+            choosing a password, so login doesn't show it. */}
         {isForgot ? null : (
           <label>
             {isTokenPassword ? 'New password' : 'Password'}
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" />
+            <input
+              type="password"
+              autoComplete={isLogin ? 'current-password' : 'new-password'}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder={isLogin ? 'Your password' : 'At least 8 characters'}
+            />
           </label>
         )}
 
         {isTokenPassword || isSignup ? (
           <label>
             Confirm password
-            <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Repeat your password" />
+            <input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Repeat your password" />
           </label>
         ) : null}
 

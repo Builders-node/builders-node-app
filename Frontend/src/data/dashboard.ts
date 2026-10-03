@@ -80,7 +80,10 @@ export type PageId =
   | 'myProfile'
   | 'resources'
   | 'affiliateHub'
-  | 'security';
+  | 'security'
+  // Any path nothing else claims. Never navigated to — only ever derived from
+  // the URL, which it leaves as the visitor typed it.
+  | 'notFound';
 
 /** Sub-page ids that render inside the AdminDashboard. */
 export const ADMIN_SUB_PAGES: PageId[] = [
@@ -211,6 +214,8 @@ export const PAGE_PATHS: Record<PageId, string> = {
   resources: '/resources',
   affiliateHub: '/account/affiliate',
   security: '/security',
+  // No path of its own: canonicalPathFor keeps whatever URL was asked for.
+  notFound: '/',
 };
 
 // Reverse map. '/account' resolves to `profile` (dashboard is a legacy alias).
@@ -272,7 +277,10 @@ export function pageForPath(pathname: string): PageId | null {
   // Public member pass has a dynamic segment (/pass/:memberId) — treat any
   // /pass/... URL as the same PageId; the page reads the id from location.
   if (pathname === '/pass' || pathname.startsWith('/pass/')) return 'pass';
-  return PATH_TO_PAGE[pathname] ?? null;
+  // '/apply/' is the same page as '/apply' to anyone typing it or pasting it
+  // from somewhere that appends a slash; without this it would be a 404.
+  const trimmed = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+  return PATH_TO_PAGE[trimmed] ?? null;
 }
 
 export function pathForPage(page: PageId): string {
@@ -292,6 +300,9 @@ const DYNAMIC_PAGES: PageId[] = ['pass'];
  * strips the token off /pass/:token and the pass reads as "missing its code".
  */
 export function canonicalPathFor(page: PageId, currentPathname: string): string {
+  // A 404 keeps the address it was asked for — rewriting it to '/' made a dead
+  // link look like a working homepage, to visitors and crawlers alike.
+  if (page === 'notFound') return currentPathname;
   const base = pathForPage(page);
   if (DYNAMIC_PAGES.includes(page) && currentPathname.startsWith(`${base}/`)) {
     return currentPathname;

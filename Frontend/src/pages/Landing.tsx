@@ -1,7 +1,5 @@
-import { MemoryRouter } from 'react-router-dom';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
-import { Toaster as Sonner } from '@/components/ui/sonner';
 import Navbar from '@/components/Navbar';
 import HeroSection from '@/components/HeroSection';
 import MissionSection from '@/components/MissionSection';
@@ -25,39 +23,36 @@ type LandingProps = {
 
 export function Landing({ setActivePage, currentUserId }: LandingProps) {
   return (
-      <MemoryRouter>
-        <TooltipProvider>
-          <ApplyNavProvider openApply={() => setActivePage('apply')}>
-          <AccountNavProvider
-            value={{
-              currentUserId: currentUserId ?? null,
-              openAccount: () => setActivePage('profile'),
-              openLogin: () => setActivePage('login'),
-              openAffiliate: () => setActivePage('affiliate'),
-            }}
-          >
-          <div className="landing-root min-h-screen" style={{ backgroundColor: 'hsl(30 30% 93%)', color: 'hsl(0 0% 10%)' }}>
-            <Navbar />
-            <HeroSection />
-            <AboutSection />
-            <GallerySection />
-            <AdvantagesSection />
-            <MissionSection />
-            <PartnersSection />
-            <TwitterSection />
-            <SpeakersSection />
-            <EventsSection />
-            <FAQSection />
-            <Footer />
-            {/* Outside the page flow on purpose — it follows the visitor down
-                the page rather than waiting in a section they may not reach. */}
-            <TelegramCommunityButton />
-          </div>
-          </AccountNavProvider>
-          </ApplyNavProvider>
-          <Toaster />
-          <Sonner />
-        </TooltipProvider>
-      </MemoryRouter>
+    <TooltipProvider>
+      <ApplyNavProvider openApply={() => setActivePage('apply')}>
+      <AccountNavProvider
+        value={{
+          currentUserId: currentUserId ?? null,
+          openAccount: () => setActivePage('profile'),
+          openLogin: () => setActivePage('login'),
+          openAffiliate: () => setActivePage('affiliate'),
+        }}
+      >
+      <div className="landing-root min-h-screen" style={{ backgroundColor: 'hsl(30 30% 93%)', color: 'hsl(0 0% 10%)' }}>
+        <Navbar />
+        <HeroSection />
+        <AboutSection />
+        <GallerySection />
+        <AdvantagesSection />
+        <MissionSection />
+        <PartnersSection />
+        <TwitterSection />
+        <SpeakersSection />
+        <EventsSection />
+        <FAQSection />
+        <Footer />
+        {/* Outside the page flow on purpose — it follows the visitor down
+            the page rather than waiting in a section they may not reach. */}
+        <TelegramCommunityButton />
+      </div>
+      </AccountNavProvider>
+      </ApplyNavProvider>
+      <Toaster />
+    </TooltipProvider>
   );
 }

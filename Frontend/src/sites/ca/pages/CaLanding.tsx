@@ -1,7 +1,5 @@
-import { MemoryRouter } from 'react-router-dom';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
-import { Toaster as Sonner } from '@/components/ui/sonner';
 import MissionSection from '@/components/MissionSection';
 import PartnersSection from '@/components/PartnersSection';
 import AboutSection from '@/components/AboutSection';
@@ -55,48 +53,45 @@ export function CaLanding() {
   };
 
   return (
-    <MemoryRouter>
-      <TooltipProvider>
-        <ApplyNavProvider openApply={leaveFor(applyUrl())}>
-          <AccountNavProvider
-            value={{
-              // Always null: this origin has no session of its own and must not
-              // pretend to. Everyone gets "Log in", which goes to the apex
-              // domain, where their session actually lives.
-              currentUserId: null,
-              openAccount: leaveFor(mainSiteUrl('/account')),
-              openLogin: leaveFor(mainSiteUrl('/login')),
-              openAffiliate: leaveFor(mainSiteUrl('/affiliate')),
-            }}
+    <TooltipProvider>
+      <ApplyNavProvider openApply={leaveFor(applyUrl())}>
+        <AccountNavProvider
+          value={{
+            // Always null: this origin has no session of its own and must not
+            // pretend to. Everyone gets "Log in", which goes to the apex
+            // domain, where their session actually lives.
+            currentUserId: null,
+            openAccount: leaveFor(mainSiteUrl('/account')),
+            openLogin: leaveFor(mainSiteUrl('/login')),
+            openAffiliate: leaveFor(mainSiteUrl('/affiliate')),
+          }}
+        >
+          <div
+            className="landing-root min-h-screen"
+            style={{ backgroundColor: 'hsl(30 30% 93%)', color: 'hsl(0 0% 10%)' }}
           >
-            <div
-              className="landing-root min-h-screen"
-              style={{ backgroundColor: 'hsl(30 30% 93%)', color: 'hsl(0 0% 10%)' }}
-            >
-              <CaNavbar />
-              <CaHeroSection onRequestGuide={scrollToGuide} />
-              {/* Straight after the hero, above everything else: the ask is
-                  the whole point of this landing, and a reader who already
-                  knows they want it shouldn't have to read the page first. */}
-              <GuideCta />
-              <AboutSection />
-              <CaGallerySection onRequestGuide={scrollToGuide} />
-              <AdvantagesSection />
-              <MissionSection />
-              <PartnersSection />
-              <TwitterSection />
-              <SpeakersSection />
-              <EventsSection />
-              <FAQSection />
-              {/* And again at the end, for the reader who went all the way. */}
-              <GuideCta />
-              <Footer />
-            </div>
-          </AccountNavProvider>
-        </ApplyNavProvider>
-        <Toaster />
-        <Sonner />
-      </TooltipProvider>
-    </MemoryRouter>
+            <CaNavbar />
+            <CaHeroSection onRequestGuide={scrollToGuide} />
+            {/* Straight after the hero, above everything else: the ask is
+                the whole point of this landing, and a reader who already
+                knows they want it shouldn't have to read the page first. */}
+            <GuideCta />
+            <AboutSection />
+            <CaGallerySection onRequestGuide={scrollToGuide} />
+            <AdvantagesSection />
+            <MissionSection />
+            <PartnersSection />
+            <TwitterSection />
+            <SpeakersSection />
+            <EventsSection />
+            <FAQSection />
+            {/* And again at the end, for the reader who went all the way. */}
+            <GuideCta />
+            <Footer />
+          </div>
+        </AccountNavProvider>
+      </ApplyNavProvider>
+      <Toaster />
+    </TooltipProvider>
   );
 }

@@ -2,6 +2,7 @@ import { FileText, Pencil, Search, Trash2, UserPlus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
+import { statusLabel } from '../lib/statusLabels';
 import { ADMIN_ROLES, type StatusTone } from '../data/dashboard';
 import { apiRequest } from '../lib/api';
 import { useEscapeToClose } from '../lib/useModalA11y';
@@ -153,9 +154,8 @@ function toneForStatus(status: string): StatusTone {
   return 'neutral';
 }
 
-function roleLabel(role: string) {
-  return role.split('_').join(' ');
-}
+// Shared with the status badges, so a role reads the same everywhere.
+const roleLabel = statusLabel;
 
 function formatMoney(cents: number, currency = 'USD') {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(cents / 100);
@@ -549,7 +549,7 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
                   Membership status
                   <select value={addForm.membershipStatus} onChange={(event) => setAddForm({ ...addForm, membershipStatus: event.target.value })}>
                     {membershipStatusOptions.map((status) => (
-                      <option key={status} value={status}>{status}</option>
+                      <option key={status} value={status}>{statusLabel(status)}</option>
                     ))}
                   </select>
                 </label>
@@ -796,7 +796,7 @@ export function AllUsers({ currentUserId, currentUserRole }: AllUsersProps) {
                           Membership status
                           <select value={editForm.membershipStatus} onChange={(event) => setEditForm({ ...editForm, membershipStatus: event.target.value })}>
                             {membershipStatusOptions.map((status) => (
-                              <option key={status} value={status}>{status}</option>
+                              <option key={status} value={status}>{statusLabel(status)}</option>
                             ))}
                           </select>
                         </label>
