@@ -215,6 +215,13 @@ type CampaignLink = {
   views: number;
   people: number;
   applications: number;
+  /** Further down the funnel, for the applications this link brought. */
+  guideLeads: number;
+  firstCheck: number;
+  calls: number;
+  paid: number;
+  onboarded: number;
+  revenueCents: number;
   conversionRate: number;
 };
 
@@ -231,6 +238,11 @@ type GuideLead = {
   openedAt: string | null;
   /** Null means the send failed — a lead we still owe the guide to. */
   sentAt: string | null;
+  /** How many of the two automatic follow-ups have gone out. */
+  followUpCount?: number;
+  /** Their application's status, if they went on to apply. */
+  applicationStatus?: string | null;
+  appliedAt?: string | null;
   createdAt: string;
 };
 
@@ -750,6 +762,8 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   const [copiedCampaignId, setCopiedCampaignId] = useState<string | null>(null);
   /** Which channel's links are showing; 'all' groups them under headings. */
   const [campaignChannel, setCampaignChannel] = useState('all');
+  /** YYYY-MM-DD bounds for the traffic report; empty = all time. `to` is inclusive here. */
+  const [campaignRange, setCampaignRange] = useState<{ from: string; to: string }>({ from: '', to: '' });
   const [guideLeads, setGuideLeads] = useState<GuideLead[]>([]);
   const [affiliates, setAffiliates] = useState<AffiliateRow[]>([]);
   const [affiliateFilter, setAffiliateFilter] = useState('ALL');
@@ -795,6 +809,8 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   }>({ audience: 'all-members', userId: '', type: 'info', title: '', message: '', link: '' });
   const [notifSending, setNotifSending] = useState(false);
   const [notifSentMsg, setNotifSentMsg] = useState<string | null>(null);
+  /** Whether the global settings form holds real values yet. A ref: nothing renders from it. */
+  const globalSettingsLoaded = useRef(false);
   /** The payment-link dialog: which applicant, and the link and amount being sent. */
   const [paymentDialog, setPaymentDialog] = useState<{ app: Applicant; link: string; amount: string } | null>(null);
   const [invoiceForm, setInvoiceForm] = useState<{ userId: string; amountCents: string; description: string; dueDate: string; payUrl: string } | null>(null);
@@ -888,10 +904,13 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
       .then((data) => {
         if (isMounted) {
           applyGlobalSettings(data);
+          globalSettingsLoaded.current = true;
         }
       })
       .catch(() => {
-        /* non-fatal: global settings panel just stays empty */
+        // Not fatal for the dashboard, but the settings form is now blank —
+        // and saving a blank form clears the real values. The save functions
+        // check globalSettingsLoaded for exactly this.
       });
     return () => {
       isMounted = false;
@@ -1338,6 +1357,43 @@ async function loadGuideLeads() {
     }
   }
 
+  async function resendGuideKey(lead: GuideLead) {
+    setError(null);
+    try {
+      const result = await apiRequest<{ sent: boolean }>(`/admin/guide-requests/${lead.id}/resend`, { method: 'POST' });
+      if (result.sent) setNotice(`Key re-sent to ${lead.email}.`);
+      else setError('The email did not go out. Check the mail settings and try again.');
+      await loadGuideLeads();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not resend the key.');
+    }
+  }
+
+  /** The list as a CSV, for a newsletter tool or a spreadsheet. */
+  function exportGuideLeads() {
+    const header = ['email', 'name', 'site', 'campaign', 'asked', 'opened', 'applied', 'application_status'];
+    const quote = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const rows = guideLeads.map((lead) =>
+      [
+        lead.email,
+        lead.name,
+        lead.source ?? 'main',
+        lead.campaignCode,
+        lead.createdAt.slice(0, 10),
+        lead.openedAt?.slice(0, 10),
+        lead.appliedAt?.slice(0, 10),
+        lead.applicationStatus,
+      ].map(quote).join(','),
+    );
+    const blob = new Blob([[header.join(','), ...rows].join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `guide-leads-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function deleteGuideLead(lead: GuideLead) {
     if (!window.confirm(`Delete ${lead.email} from the guide list? There is no undo.`)) return;
     setError(null);
@@ -1369,9 +1425,18 @@ async function loadGuideLeads() {
     }
   }
 
-  async function loadCampaigns() {
+  async function loadCampaigns(range = campaignRange) {
     try {
-      setCampaigns(await apiRequest<CampaignLink[]>('/admin/campaigns'));
+      const params = new URLSearchParams();
+      if (range.from) params.set('from', range.from);
+      if (range.to) {
+        // The API's `to` is exclusive; the picker's is the last day to include.
+        const next = new Date(`${range.to}T00:00:00Z`);
+        next.setUTCDate(next.getUTCDate() + 1);
+        params.set('to', next.toISOString().slice(0, 10));
+      }
+      const query = params.toString();
+      setCampaigns(await apiRequest<CampaignLink[]>(`/admin/campaigns${query ? `?${query}` : ''}`));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not load traffic links.');
     }
@@ -1423,14 +1488,16 @@ async function loadGuideLeads() {
    * spelling seen is the one shown, so an admin sees what they typed.
    */
   const campaignChannels = useMemo(() => {
-    const groups = new Map<string, { name: string; links: CampaignLink[]; views: number; people: number; applications: number }>();
+    const groups = new Map<string, { name: string; links: CampaignLink[]; views: number; people: number; applications: number; paid: number; revenueCents: number }>();
     for (const link of campaigns) {
       const key = link.channel.trim().toLowerCase();
-      const group = groups.get(key) ?? { name: link.channel.trim(), links: [], views: 0, people: 0, applications: 0 };
+      const group = groups.get(key) ?? { name: link.channel.trim(), links: [], views: 0, people: 0, applications: 0, paid: 0, revenueCents: 0 };
       group.links.push(link);
       group.views += link.views;
       group.people += link.people;
       group.applications += link.applications;
+      group.paid += link.paid ?? 0;
+      group.revenueCents += link.revenueCents ?? 0;
       groups.set(key, group);
     }
     // Busiest first: the point of the screen is which channel is working.
@@ -1889,6 +1956,32 @@ async function loadGuideLeads() {
     }
   }
 
+  /**
+   * Refuse to save settings that never loaded. The form starts blank, so a
+   * failed load followed by a save sent blanks: "Batch start cleared."
+   */
+  function settingsReady(): boolean {
+    if (globalSettingsLoaded.current) return true;
+    setError('Settings did not load, so saving now would overwrite them with blanks. Reload the page and try again.');
+    return false;
+  }
+
+  /**
+   * How many members a global plan change reaches — and if that can't be
+   * counted, ask anyway rather than applying it to everyone unseen.
+   */
+  async function confirmGlobalPlan(kind: 'meal' | 'cleaning'): Promise<boolean> {
+    try {
+      const preview = await apiRequest<{ meal: { affected: number }; cleaning: { affected: number } }>('/admin/settings/global/affected-members');
+      const n = preview[kind].affected;
+      return n === 0 || window.confirm(`Apply this ${kind} plan to ${n} active member${n === 1 ? '' : 's'} without a personal plan?`);
+    } catch {
+      return window.confirm(
+        `Could not count who this affects. Apply this ${kind} plan to every active member without a personal plan anyway?`,
+      );
+    }
+  }
+
   function applyGlobalSettings(data: GlobalSettings) {
     setGlobalSettings(data);
     setGlobalMealPlanId(data.mealPlan?.id ?? '');
@@ -1904,6 +1997,7 @@ async function loadGuideLeads() {
   }
 
   async function saveBatch() {
+    if (!settingsReady()) return;
     setError(null);
     setGlobalMessage(null);
     setIsSavingBatch(true);
@@ -1924,6 +2018,7 @@ async function loadGuideLeads() {
   }
 
   async function saveAffiliateReward() {
+    if (!settingsReady()) return;
     const dollars = Number(affiliateReward);
     if (!Number.isFinite(dollars) || dollars <= 0) {
       setError('Enter what one referral pays, in dollars.');
@@ -1949,14 +2044,9 @@ async function loadGuideLeads() {
   async function saveGlobalMealPlan() {
     setError(null);
     setGlobalMessage(null);
+    if (!settingsReady()) return;
     // Dry-run preview: how many active members would inherit this global.
-    try {
-      const preview = await apiRequest<{ meal: { affected: number } }>('/admin/settings/global/affected-members');
-      const n = preview.meal.affected;
-      if (n > 0 && !window.confirm(`Apply this meal plan to ${n} active member${n === 1 ? '' : 's'} without a personal plan?`)) {
-        return;
-      }
-    } catch { /* if preview fails, fall through and save anyway */ }
+    if (!(await confirmGlobalPlan('meal'))) return;
     setIsSavingGlobal(true);
     try {
       const isCustom = globalMealPlanId === 'custom';
@@ -1992,13 +2082,8 @@ async function loadGuideLeads() {
   async function saveGlobalCleaningPlan() {
     setError(null);
     setGlobalMessage(null);
-    try {
-      const preview = await apiRequest<{ cleaning: { affected: number } }>('/admin/settings/global/affected-members');
-      const n = preview.cleaning.affected;
-      if (n > 0 && !window.confirm(`Apply this cleaning plan to ${n} active member${n === 1 ? '' : 's'} without a personal plan?`)) {
-        return;
-      }
-    } catch { /* fall through */ }
+    if (!settingsReady()) return;
+    if (!(await confirmGlobalPlan('cleaning'))) return;
     setIsSavingGlobalCleaning(true);
     try {
       const data = await apiRequest<GlobalSettings>('/admin/settings/global/cleaning-plan', {
@@ -2918,6 +3003,31 @@ async function loadGuideLeads() {
           {/* One tab per channel. A flat list stops being readable at about a
               dozen links, and the comparison an admin came for is between
               channels anyway — so the tabs carry each channel's totals. */}
+          <form
+            className="form-grid"
+            style={{ alignItems: 'end', marginBottom: 12 }}
+            onSubmit={(event) => { event.preventDefault(); void loadCampaigns(); }}
+          >
+            <label>From<input type="date" value={campaignRange.from} onChange={(event) => setCampaignRange({ ...campaignRange, from: event.target.value })} /></label>
+            <label>To<input type="date" value={campaignRange.to} onChange={(event) => setCampaignRange({ ...campaignRange, to: event.target.value })} /></label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="compact-button" type="submit">Apply dates</button>
+              {campaignRange.from || campaignRange.to ? (
+                <button
+                  className="ghost-button compact-button"
+                  type="button"
+                  onClick={() => {
+                    const allTime = { from: '', to: '' };
+                    setCampaignRange(allTime);
+                    void loadCampaigns(allTime);
+                  }}
+                >
+                  All time
+                </button>
+              ) : null}
+            </div>
+          </form>
+
           {campaigns.length > 0 ? (
             <div className="designation-filter-bar campaign-tabs" role="group" aria-label="Traffic channels">
               <button
@@ -2950,6 +3060,8 @@ async function loadGuideLeads() {
                     <span>{group.views} views</span>
                     <span>{group.people} people</span>
                     <span>{group.applications} applied</span>
+                    <span>{group.paid} paid</span>
+                    {group.revenueCents ? <span>{formatMoney(group.revenueCents)}</span> : null}
                   </div>
                 </header>
                 {group.links.map((link) => (
@@ -2976,6 +3088,12 @@ async function loadGuideLeads() {
                   <span>People</span>
                   <strong>{link.people}</strong>
                 </div>
+                {link.guideLeads ? (
+                  <div>
+                    <span>Guide</span>
+                    <strong>{link.guideLeads}</strong>
+                  </div>
+                ) : null}
                 <div>
                   <span>Applied</span>
                   <strong>{link.applications}</strong>
@@ -2984,6 +3102,25 @@ async function loadGuideLeads() {
                   <span>Rate</span>
                   <strong>{link.conversionRate}%</strong>
                 </div>
+                {/* Past the application: what the link's applicants became. */}
+                <div>
+                  <span>1st check</span>
+                  <strong>{link.firstCheck ?? 0}</strong>
+                </div>
+                <div>
+                  <span>Calls</span>
+                  <strong>{link.calls ?? 0}</strong>
+                </div>
+                <div>
+                  <span>Paid</span>
+                  <strong>{link.paid ?? 0}</strong>
+                </div>
+                {link.revenueCents ? (
+                  <div>
+                    <span>Revenue</span>
+                    <strong>{formatMoney(link.revenueCents)}</strong>
+                  </div>
+                ) : null}
               </div>
 
               <div className="campaign-row__actions">
@@ -3007,15 +3144,19 @@ async function loadGuideLeads() {
             <div>
               <h2>Guide leads</h2>
               <p>
-                People who asked for the guide on ca.buildersnode.com. They gave an address to read something — none of
-                them has applied, and none of them is in the applicant pipeline.
+                People who asked for the guide on buildersnode.com/guide or ca.buildersnode.com. They gave an address to
+                read something; the ones who went on to apply are marked.
               </p>
             </div>
+            {guideLeads.length > 0 ? (
+              <button className="compact-button" onClick={exportGuideLeads}>Export CSV</button>
+            ) : null}
           </div>
 
           <p className="global-settings__current">
-            Nothing to set up here. Each reader is emailed a key of their own the moment they ask, and the guide ships
-            with the site.
+            Nothing to set up here. Each reader is emailed a key of their own the moment they ask, and gets two short
+            follow-ups (day 2 and day 6) unless they apply first. People opening the guide with the shared code
+            BN-GUIDE-2026 don&apos;t appear here — they never gave an address.
           </p>
 
           {guideLeads.length === 0 ? (
@@ -3045,10 +3186,20 @@ async function loadGuideLeads() {
                   <span><em>Key</em> {lead.accessKey}</span>
                   {lead.source ? <span><em>From</em> {lead.source}</span> : null}
                   {lead.campaignCode ? <span><em>Via</em> {lead.campaignCode}</span> : null}
+                  {lead.followUpCount ? <span><em>Follow-ups</em> {lead.followUpCount} of 2</span> : null}
+                  {lead.applicationStatus ? (
+                    <span>
+                      <em>Applied</em> {lead.appliedAt ? new Date(lead.appliedAt).toLocaleDateString() : ''} ·{' '}
+                      <StatusBadge tone={toneForStatus(lead.applicationStatus)}>{lead.applicationStatus}</StatusBadge>
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
               <div className="campaign-row__actions">
+                <button className="compact-button" onClick={() => void resendGuideKey(lead)}>
+                  {lead.sentAt ? 'Resend key' : 'Send key'}
+                </button>
                 <button className="compact-button applicant-action--danger" onClick={() => void deleteGuideLead(lead)}>
                   Delete
                 </button>

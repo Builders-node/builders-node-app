@@ -54,6 +54,22 @@ export const TERMINAL_APPLICATION_STATUSES = [
 ];
 
 /**
+ * Applications where the next move is ours — what the Inbox badge counts.
+ * FIRST_APPROVED (they book the call) and PAYMENT_LINK_SENT (they pay) are
+ * waiting on the applicant: counting them made the badge say "pending" about
+ * people nobody on the team could do anything for.
+ */
+const WAITING_ON_US_STATUSES = [
+  'SUBMITTED',
+  'MEETING_SCHEDULED',
+  'MEETING_APPROVED',
+  'APARTMENT_AVAILABLE',
+  'NO_APARTMENT_AVAILABLE',
+  'PAYMENT_CONFIRMED',
+];
+const WAITING_ON_THEM_STATUSES = ['FIRST_APPROVED', 'PAYMENT_LINK_SENT'];
+
+/**
  * Statuses a payment link may be raised from — the "Past meeting" column.
  *
  * The two APARTMENT ones are historical: they were the step between the call
@@ -123,16 +139,17 @@ export class AdminService {
   async counters() {
     const now = new Date();
 
-    const [pendingApplications, pendingResidency, openTickets, overduePayments, openMaintenance] =
+    const [pendingApplications, waitingOnApplicants, pendingResidency, openTickets, overduePayments, openMaintenance] =
       await Promise.all([
-        this.prisma.application.count({ where: { status: { notIn: TERMINAL_APPLICATION_STATUSES } } }),
+        this.prisma.application.count({ where: { status: { in: WAITING_ON_US_STATUSES } } }),
+        this.prisma.application.count({ where: { status: { in: WAITING_ON_THEM_STATUSES } } }),
         this.prisma.residencyApplication.count({ where: { status: 'PENDING_REVIEW' } }),
         this.prisma.supportTicket.count({ where: { status: 'OPEN' } }),
         this.prisma.payment.count({ where: { status: { in: ['DUE', 'OVERDUE'] }, dueDate: { lt: now } } }),
         this.prisma.maintenanceRequest.count({ where: { status: { not: 'RESOLVED' } } }),
       ]);
 
-    return { pendingApplications, pendingResidency, openTickets, overduePayments, openMaintenance };
+    return { pendingApplications, waitingOnApplicants, pendingResidency, openTickets, overduePayments, openMaintenance };
   }
 
   async overview() {
@@ -185,8 +202,8 @@ export class AdminService {
     const planById = new Map(plans.map((plan) => [plan.id, plan]));
 
     // Applications still awaiting an admin decision (not onboarded, not rejected).
-    const terminal = new Set(TERMINAL_APPLICATION_STATUSES);
-    const pendingApplications = applications.filter((app) => !terminal.has(app.status)).length;
+    const waitingOnUs = new Set(WAITING_ON_US_STATUSES);
+    const pendingApplications = applications.filter((app) => waitingOnUs.has(app.status)).length;
 
     // The arrival date each person gave on the way in, keyed by email — the
     // designation form defaults meal deliveries to it. Built from the

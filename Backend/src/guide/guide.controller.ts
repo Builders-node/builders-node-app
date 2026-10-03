@@ -49,4 +49,9 @@ export class AdminGuideController {
   remove(@Param('id') id: string) {
     return this.guide.remove(id);
   }
+
+  @Post(':id/resend')
+  resend(@Param('id') id: string) {
+    return this.guide.resend(id);
+  }
 }

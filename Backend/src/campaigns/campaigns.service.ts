@@ -30,35 +30,72 @@ export class CampaignsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Every link with its numbers, newest first. */
-  async list() {
+  /**
+   * Every link with its numbers, newest first — the whole funnel, not just
+   * the top of it.
+   *
+   * It used to stop at "applied", which flatters a channel that sends lots of
+   * applications nobody takes. Each link now carries guide leads, first checks
+   * passed, calls held, payments and the money behind them.
+   *
+   * `range` counts visits, leads and applications that arrived inside it; the
+   * later stages are counted for those same applications, whenever they
+   * happened, so a cohort reads straight down.
+   */
+  async list(range: { from?: Date; to?: Date } = {}) {
     const links = await this.prisma.campaignLink.findMany({ orderBy: { createdAt: 'desc' } });
     if (links.length === 0) return [];
 
     const codes = links.map((link) => link.code);
     const ids = links.map((link) => link.id);
+    const createdAt = range.from || range.to ? { ...(range.from ? { gte: range.from } : {}), ...(range.to ? { lt: range.to } : {}) } : undefined;
 
-    // Three aggregates rather than a per-link loop: this screen is opened to
-    // compare links, so it always loads all of them at once.
-    const [visitTotals, visitors, applications] = await Promise.all([
-      this.prisma.campaignVisit.groupBy({ by: ['linkId'], where: { linkId: { in: ids } }, _count: { _all: true } }),
+    // A handful of set queries rather than a per-link loop: this screen is
+    // opened to compare links, so it always loads all of them at once.
+    const [visitTotals, visitors, applications, guideLeads] = await Promise.all([
+      this.prisma.campaignVisit.groupBy({ by: ['linkId'], where: { linkId: { in: ids }, createdAt }, _count: { _all: true } }),
       this.prisma.campaignVisit.findMany({
-        where: { linkId: { in: ids } },
+        where: { linkId: { in: ids }, createdAt },
         select: { linkId: true, visitorKey: true },
         distinct: ['linkId', 'visitorKey'],
       }),
-      this.prisma.application.groupBy({ by: ['campaignCode'], where: { campaignCode: { in: codes } }, _count: { _all: true } }),
+      this.prisma.application.findMany({
+        where: { campaignCode: { in: codes }, createdAt },
+        select: {
+          campaignCode: true,
+          status: true,
+          firstApprovedAt: true,
+          meetingApprovedAt: true,
+          paymentConfirmedAt: true,
+          paymentAmountCents: true,
+        },
+      }),
+      this.prisma.guideRequest.groupBy({ by: ['campaignCode'], where: { campaignCode: { in: codes }, createdAt }, _count: { _all: true } }),
     ]);
 
     const viewsByLink = new Map(visitTotals.map((row) => [row.linkId, row._count._all]));
     const peopleByLink = new Map<string, number>();
     for (const row of visitors) peopleByLink.set(row.linkId, (peopleByLink.get(row.linkId) ?? 0) + 1);
-    const appsByCode = new Map(applications.map((row) => [row.campaignCode ?? '', row._count._all]));
+    const leadsByCode = new Map(guideLeads.map((row) => [row.campaignCode ?? '', row._count._all]));
+
+    const funnel = new Map<string, { applications: number; firstCheck: number; calls: number; paid: number; onboarded: number; revenueCents: number }>();
+    for (const app of applications) {
+      const row = funnel.get(app.campaignCode!) ?? { applications: 0, firstCheck: 0, calls: 0, paid: 0, onboarded: 0, revenueCents: 0 };
+      row.applications += 1;
+      if (app.firstApprovedAt) row.firstCheck += 1;
+      if (app.meetingApprovedAt) row.calls += 1;
+      if (app.paymentConfirmedAt) {
+        row.paid += 1;
+        row.revenueCents += app.paymentAmountCents ?? 0;
+      }
+      if (app.status === 'CREDENTIALS_SENT' || app.status === 'APPROVED') row.onboarded += 1;
+      funnel.set(app.campaignCode!, row);
+    }
 
     return links.map((link) => {
       const views = viewsByLink.get(link.id) ?? 0;
       const people = peopleByLink.get(link.id) ?? 0;
-      const applied = appsByCode.get(link.code) ?? 0;
+      const stages = funnel.get(link.code) ?? { applications: 0, firstCheck: 0, calls: 0, paid: 0, onboarded: 0, revenueCents: 0 };
       return {
         id: link.id,
         code: link.code,
@@ -68,10 +105,11 @@ export class CampaignsService {
         createdAt: link.createdAt,
         views,
         people,
-        applications: applied,
+        guideLeads: leadsByCode.get(link.code) ?? 0,
+        ...stages,
         // Of the people who arrived, how many applied. Against people rather
         // than views: one person refreshing five times is not four lost leads.
-        conversionRate: people > 0 ? Math.round((applied / people) * 1000) / 10 : 0,
+        conversionRate: people > 0 ? Math.round((stages.applications / people) * 1000) / 10 : 0,
       };
     });
   }

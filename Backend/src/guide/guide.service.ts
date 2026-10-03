@@ -145,9 +145,39 @@ export class GuideService {
     return { guideUrl: this.guidePageUrl(site) };
   }
 
-  /** Every lead, newest first. */
-  list() {
-    return this.prisma.guideRequest.findMany({ orderBy: { createdAt: 'desc' } });
+  /**
+   * Every lead, newest first, with where they went next: the status of their
+   * application if they applied (matched by email). A lead magnet is only
+   * worth what it turns into, and this list couldn't say.
+   */
+  async list() {
+    const leads = await this.prisma.guideRequest.findMany({ orderBy: { createdAt: 'desc' } });
+    const applications = await this.prisma.application.findMany({
+      where: { email: { in: leads.map((lead) => lead.email) } },
+      select: { email: true, status: true, createdAt: true },
+    });
+    const byEmail = new Map(applications.map((app) => [app.email, app]));
+    return leads.map((lead) => ({
+      ...lead,
+      applicationStatus: byEmail.get(lead.email)?.status ?? null,
+      appliedAt: byEmail.get(lead.email)?.createdAt ?? null,
+    }));
+  }
+
+  /**
+   * Email a lead their key again — for "Not sent" (the provider was down, or
+   * mail wasn't configured yet) or someone who lost it. Same key: the one in
+   * any earlier email keeps working.
+   */
+  async resend(id: string) {
+    const lead = await this.prisma.guideRequest.findUnique({ where: { id } });
+    if (!lead) throw new NotFoundException('Lead not found.');
+    const site = lead.source === 'ca' ? 'ca' : 'main';
+    const delivered = await this.mail.sendGuideKey(lead.email, lead.name, lead.accessKey, this.unlockUrl(lead.accessKey, site));
+    if (delivered) {
+      await this.prisma.guideRequest.update({ where: { id }, data: { sentAt: new Date() } });
+    }
+    return { sent: delivered };
   }
 
   /**

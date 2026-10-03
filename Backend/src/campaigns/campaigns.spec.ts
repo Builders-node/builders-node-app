@@ -39,8 +39,13 @@ function makeService(options: { link?: Record<string, unknown> | null } = {}) {
       ]),
       create: jest.fn().mockResolvedValue({}),
     },
+    guideRequest: {
+      groupBy: jest.fn().mockResolvedValue([{ campaignCode: 'tg-post', _count: { _all: 2 } }]),
+    },
     application: {
-      groupBy: jest.fn().mockResolvedValue([{ campaignCode: 'twitter-launch', _count: { _all: 1 } }]),
+      findMany: jest.fn().mockResolvedValue([
+        { campaignCode: 'twitter-launch', status: 'CREDENTIALS_SENT', firstApprovedAt: new Date(), meetingApprovedAt: new Date(), paymentConfirmedAt: new Date(), paymentAmountCents: 195000 },
+      ]),
     },
   };
 
@@ -191,5 +196,14 @@ describe('code handling', () => {
 
   it('slugifies accents rather than dropping the word', () => {
     expect(slugify('Próspera launch')).toBe('prospera-launch');
+  });
+});
+
+describe('CampaignsService.list — the rest of the funnel', () => {
+  it('follows a link past the application to the money', async () => {
+    const { service } = makeService();
+    const [twitter, telegram] = await service.list();
+    expect(twitter).toMatchObject({ applications: 1, firstCheck: 1, calls: 1, paid: 1, onboarded: 1, revenueCents: 195000 });
+    expect(telegram).toMatchObject({ guideLeads: 2, applications: 0, paid: 0 });
   });
 });

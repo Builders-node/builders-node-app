@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Query, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { AdminGuard } from '../admin/admin.guard';
@@ -29,9 +29,11 @@ export class PublicCampaignsController {
 export class AdminCampaignsController {
   constructor(private readonly campaigns: CampaignsService) {}
 
+  /** `?from=YYYY-MM-DD&to=YYYY-MM-DD` (to is exclusive); both optional. */
   @Get()
-  list() {
-    return this.campaigns.list();
+  list(@Query('from') from?: string, @Query('to') to?: string) {
+    const day = (value?: string) => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00Z`) : undefined);
+    return this.campaigns.list({ from: day(from), to: day(to) });
   }
 
   @Post()
