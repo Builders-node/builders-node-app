@@ -150,11 +150,14 @@ export class BillingService {
    */
   private async markOverdue(today: Date, result: BillingRunResult): Promise<void> {
     const due = await this.prisma.payment.findMany({
-      where: { status: 'DUE', dueDate: { lt: today } },
+      // Detached invoices (the member was erased) have nobody to tell.
+      where: { status: 'DUE', dueDate: { lt: today }, userId: { not: null } },
       include: { user: { select: { id: true, email: true, profile: { select: { fullName: true } } } } },
     });
 
     for (const payment of due) {
+      const { userId, user } = payment;
+      if (!userId || !user) continue;
       try {
         // Status first. If the notification below fails, the row is still
         // correct — and it won't be picked up again tomorrow, so nobody gets
@@ -162,13 +165,13 @@ export class BillingService {
         await this.prisma.payment.update({ where: { id: payment.id }, data: { status: 'OVERDUE' } });
         result.markedOverdue += 1;
 
-        await this.notifications.notify(payment.userId, {
+        await this.notifications.notify(userId, {
           type: 'warning',
           title: 'Payment overdue',
           body: `${payment.description} was due on ${formatDay(payment.dueDate)}.`,
           link: '/account',
         });
-        await this.mail.sendPaymentOverdue(payment.user.email, payment.user.profile?.fullName ?? payment.user.email, {
+        await this.mail.sendPaymentOverdue(user.email, user.profile?.fullName ?? user.email, {
           description: payment.description,
           amountCents: payment.amountCents,
           currency: payment.currency,
@@ -192,10 +195,12 @@ export class BillingService {
         status: 'DUE',
         reminderSentAt: null,
         dueDate: { gte: today, lte: horizon },
+        userId: { not: null },
       },
     });
 
     for (const payment of soon) {
+      if (!payment.userId) continue;
       try {
         await this.notifications.notify(payment.userId, {
           type: 'info',

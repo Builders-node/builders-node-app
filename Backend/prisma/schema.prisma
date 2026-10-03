@@ -355,7 +355,10 @@ model CommunityPlanPurchase {
 
 model Payment {
   id          String        @id @default(uuid())
-  userId      String
+  /// Null once the member has been erased. The invoice itself is a record of
+  /// money owed or paid and has to outlive the account, so deleting a user
+  /// detaches their payments rather than deleting them — see purgeUser.
+  userId      String?
   amountCents Int
   currency    String        @default("USD")
   status      String        @default("DUE")
@@ -375,7 +378,7 @@ model Payment {
   receiptUrl  String?
   adminNote   String?
   createdAt   DateTime      @default(now())
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@unique([userId, billingPeriod])
   @@index([userId])

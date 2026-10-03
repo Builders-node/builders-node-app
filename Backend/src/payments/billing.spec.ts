@@ -66,6 +66,8 @@ describe('BillingService.runDaily — overdue', () => {
     expect(prisma.payment.findMany.mock.calls[0][0].where).toEqual({
       status: 'DUE',
       dueDate: { lt: new Date('2026-08-10T00:00:00.000Z') },
+      // An erased member's invoice stays for the books but has nobody to tell.
+      userId: { not: null },
     });
   });
 
@@ -96,6 +98,7 @@ describe('BillingService.runDaily — the nudge before the due date', () => {
       status: 'DUE',
       reminderSentAt: null,
       dueDate: { gte: new Date('2026-08-10T00:00:00.000Z'), lte: new Date('2026-08-13T00:00:00.000Z') },
+      userId: { not: null },
     });
   });
 

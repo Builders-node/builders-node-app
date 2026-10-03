@@ -1311,8 +1311,9 @@ export class AdminService {
     return rows.map((p) => ({
       id: p.id,
       userId: p.userId,
-      email: p.user.email,
-      fullName: p.user.profile?.fullName ?? null,
+      // No user once the member was erased: the invoice stays for the books.
+      email: p.user?.email ?? 'Deleted member',
+      fullName: p.user?.profile?.fullName ?? null,
       amountCents: p.amountCents,
       currency: p.currency,
       status: p.status,
