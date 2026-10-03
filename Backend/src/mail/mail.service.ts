@@ -3,7 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import type { InvitationEmail } from '../auth/invitation';
 import { resolveFrontendBaseUrl } from '../common/frontend-url';
 
-type Email = { to: string; subject: string; html: string; text: string };
+/**
+ * `replyTo: true` sets Reply-To to a person who reads it (MAIL_REPLY_TO, by
+ * default the address the guide gives). Only on emails that ask for a reply:
+ * the sending address is a no-reply mailbox nobody watches.
+ */
+type Email = { to: string; subject: string; html: string; text: string; replyTo?: boolean };
+
+const DEFAULT_REPLY_TO = 'taras@buildersnode.com';
 
 /** The parts of an invoice an email needs to state it plainly. */
 export type InvoiceEmail = {
@@ -87,7 +94,14 @@ export class MailService {
           Authorization: `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ from: this.from, to: email.to, subject: email.subject, html: email.html, text: email.text }),
+        body: JSON.stringify({
+          from: this.from,
+          to: email.to,
+          subject: email.subject,
+          html: email.html,
+          text: email.text,
+          ...(email.replyTo ? { reply_to: this.config.get<string>('MAIL_REPLY_TO') ?? DEFAULT_REPLY_TO } : {}),
+        }),
         // Without a deadline a hung Resend connection holds the whole request
         // open until Vercel kills the function at 30s — and the daily job sends
         // many of these in one invocation, so one stall would starve the rest.
@@ -500,6 +514,7 @@ export class MailService {
     return this.send({
       to,
       subject: 'About your Builders Node application',
+      replyTo: true,
       text:
         `Hi ${name},\n\n` +
         'Thank you for applying to Builders Node and for the time you put into it.\n\n' +
@@ -515,6 +530,146 @@ export class MailService {
          <p>If your plans change or you'd like to join a later batch, you're welcome to apply again:</p>
          ${button('Apply for a later batch', applyUrl)}
          <p>Best regards,<br />Builders Node</p>`,
+      ),
+    });
+  }
+
+  /**
+   * "Your payment link is still waiting." Sent by the daily job at most twice
+   * (see NudgesService), so a place someone was offered doesn't lapse because
+   * one email sank in their inbox.
+   */
+  async sendPaymentReminder(
+    to: string,
+    fullName: string,
+    paymentUrl: string,
+    amount?: { cents: number; currency: string },
+  ): Promise<boolean> {
+    const name = firstNameOf(fullName);
+    const amountLine = amount ? ` (${formatMoney(amount.cents, amount.currency)})` : '';
+    return this.send({
+      to,
+      subject: 'Your place at Builders Node is waiting',
+      replyTo: true,
+      text:
+        `Hi ${name},\n\n` +
+        `A quick reminder that your payment link${amountLine} is still open: ${paymentUrl}\n\n` +
+        "Once it's done we'll confirm your membership. If anything is unclear, or the timing has changed, just reply.\n\n" +
+        'Best regards,\nBuilders Node',
+      html: layout(
+        'Your place is waiting',
+        `<p>Hi ${escapeHtml(name)},</p>
+         <p>A quick reminder that your payment link${escapeHtml(amountLine)} is still open:</p>
+         ${button('Complete payment', paymentUrl)}
+         <p>Once it's done we'll confirm your membership. If anything is unclear, or the timing has changed, just reply.</p>
+         <p>Best regards,<br />Builders Node</p>`,
+      ),
+    });
+  }
+
+  /**
+   * For someone who filled in the whole application and never entered the
+   * emailed code — the form was kept, it just never became an application.
+   * Carries a fresh code and a link that opens the code step directly.
+   */
+  async sendApplicationUnfinished(to: string, fullName: string, code: string): Promise<boolean> {
+    const name = firstNameOf(fullName);
+    const resumeUrl = `${this.frontendBaseUrl()}/apply?resume=${encodeURIComponent(to)}`;
+    return this.send({
+      to,
+      subject: 'Finish your Builders Node application',
+      text:
+        `Hi ${name},\n\n` +
+        "You filled in your application but didn't confirm your email, so it hasn't reached us yet.\n\n" +
+        `Your code is ${code}. Enter it here to send it: ${resumeUrl}\n\n` +
+        'The code works for 48 hours.\n\n' +
+        'Best regards,\nBuilders Node',
+      html: layout(
+        'Finish your application',
+        `<p>Hi ${escapeHtml(name)},</p>
+         <p>You filled in your application but didn't confirm your email, so it hasn't reached us yet.</p>
+         <p>Your code:</p>
+         <p style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:26px;font-weight:700;letter-spacing:6px;background:#f3f4f6;padding:12px 18px;border-radius:8px;display:inline-block;color:#111827">${escapeHtml(code)}</p>
+         ${button('Enter the code', resumeUrl)}
+         <p style="color:#6b7280;font-size:13px">The code works for 48 hours.</p>
+         <p>Best regards,<br />Builders Node</p>`,
+      ),
+    });
+  }
+
+  /**
+   * The two notes after the guide. Short, and each with one thing to do —
+   * these go to people who asked to read something, not to be sold to. They
+   * stop as soon as the reader applies (see NudgesService).
+   */
+  async sendGuideFollowUp(
+    to: string,
+    fullName: string | null,
+    step: 1 | 2,
+    links: { guideUrl: string; applyUrl: string },
+  ): Promise<boolean> {
+    const name = fullName ? firstNameOf(fullName) : 'there';
+    if (step === 1) {
+      return this.send({
+        to,
+        subject: 'Any questions after the guide?',
+        replyTo: true,
+        text:
+          `Hi ${name},\n\n` +
+          "You picked up the Builders Node guide a couple of days ago. If anything in it raised a question — the price, the dates, " +
+          "what a normal day looks like, getting here — just reply to this email and we'll answer.\n\n" +
+          `The guide again, if you need it: ${links.guideUrl}\n\n` +
+          'Best regards,\nBuilders Node',
+        html: layout(
+          'Any questions after the guide?',
+          `<p>Hi ${escapeHtml(name)},</p>
+           <p>You picked up the Builders Node guide a couple of days ago. If anything in it raised a question — the price, the dates, what a normal day looks like, getting here — just reply to this email and we'll answer.</p>
+           ${button('Open the guide again', links.guideUrl)}
+           <p>Best regards,<br />Builders Node</p>`,
+        ),
+      });
+    }
+    return this.send({
+      to,
+      subject: 'Applying to Builders Node takes 5 minutes',
+      replyTo: true,
+      text:
+        `Hi ${name},\n\n` +
+        "If the guide made you curious, the next step is the application — it takes about five minutes, and it isn't a commitment: " +
+        "we read it, and if it looks like a fit we set up a short call.\n\n" +
+        `Apply here: ${links.applyUrl}\n\n` +
+        "This is the last note we'll send about the guide.\n\n" +
+        'Best regards,\nBuilders Node',
+      html: layout(
+        'Ready to apply?',
+        `<p>Hi ${escapeHtml(name)},</p>
+         <p>If the guide made you curious, the next step is the application — it takes about five minutes, and it isn't a commitment: we read it, and if it looks like a fit we set up a short call.</p>
+         ${button('Apply now', links.applyUrl)}
+         <p style="color:#6b7280;font-size:13px">This is the last note we'll send about the guide.</p>
+         <p>Best regards,<br />Builders Node</p>`,
+      ),
+    });
+  }
+
+  /**
+   * The team's morning list of applicants waiting on us for more than a few
+   * days. Only sent when there is something on it.
+   */
+  async sendStaleApplicantsDigest(
+    to: string,
+    rows: Array<{ fullName: string; email: string; stage: string; days: number }>,
+  ): Promise<boolean> {
+    const adminUrl = `${this.frontendBaseUrl()}/admin/inbox/applicants`;
+    const lines = rows.map((row) => `${row.fullName} (${row.email}) — ${row.stage}, ${row.days} days`);
+    return this.send({
+      to,
+      subject: `${rows.length} applicant${rows.length === 1 ? '' : 's'} waiting on us`,
+      text: `These have been waiting on us for more than 5 days:\n\n${lines.join('\n')}\n\n${adminUrl}`,
+      html: layout(
+        `${rows.length} waiting on us`,
+        `<p>These have been waiting on us for more than 5 days:</p>
+         <ul>${rows.map((row) => `<li>${escapeHtml(row.fullName)} (${escapeHtml(row.email)}) — ${escapeHtml(row.stage)}, ${row.days} days</li>`).join('')}</ul>
+         ${button('Open the pipeline', adminUrl)}`,
       ),
     });
   }

@@ -45,7 +45,19 @@ const referralSources = [
 const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialFullName }: ApplyFormProps) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [email, setEmail] = useState(initialEmail ?? "");
+  /**
+   * `?resume=<email>` — the link in the "finish your application" email. The
+   * form they filled in is still on the server, so they land on the code step
+   * with the fresh code from that email; nothing to retype.
+   */
+  const [resumeEmail] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get("resume")?.trim().toLowerCase() || "";
+    } catch {
+      return "";
+    }
+  });
+  const [email, setEmail] = useState(resumeEmail || initialEmail || "");
   const [fullName, setFullName] = useState(initialFullName ?? "");
   // Stored in Application.phone — the column has always been there, the form
   // just never asked. It seeds the member's profile phone once they're in.
@@ -72,7 +84,7 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
   const maxChars = 1000;
 
   // Flow: form → confirm emailed 6-digit code → (set password if no account) → success.
-  const [step, setStep] = useState<"form" | "code" | "password">("form");
+  const [step, setStep] = useState<"form" | "code" | "password">(resumeEmail ? "code" : "form");
   const [code, setCode] = useState("");
   /** One-time proof from the code step that this mailbox is theirs. */
   const [setupToken, setSetupToken] = useState("");
@@ -253,8 +265,9 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
       // it is a key to the account, so it should not outlive the tab.
       setSetupToken(result.setupToken ?? "");
 
-      // Best-effort mirror to the Google Sheet (never blocks; only on confirmed apps).
-      fetch(GOOGLE_SCRIPT_URL, {
+      // Best-effort mirror to the Google Sheet (never blocks; only on confirmed
+      // apps). Not for a resumed application: this tab never had the answers.
+      if (!resumeEmail) fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
         mode: "no-cors",
         headers: { "Content-Type": "application/json" },
@@ -478,6 +491,9 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
             </Button>
           </form>
 
+          {/* A resumed application's code came in the reminder email, and
+              resending needs the form this tab never saw. */}
+          {resumeEmail ? null : (
           <div className="mt-6 text-sm" style={{ color: "hsl(0 0% 45%)" }}>
             Didn&apos;t get it?{" "}
             <button
@@ -490,6 +506,7 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
               {isResending ? "Resending..." : "Resend code"}
             </button>
           </div>
+          )}
 
           <button
             type="button"

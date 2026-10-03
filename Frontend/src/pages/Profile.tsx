@@ -419,13 +419,7 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
         <section className="panel residency-gate-panel">
           <span className="section-label">Membership</span>
           {hasApplied ? (
-            <>
-              <h2>Your application is under review</h2>
-              <p>
-                Thanks for applying. Our team is reviewing your application — you&apos;ll get an email once it&apos;s
-                approved, and your member home unlocks then.
-              </p>
-            </>
+            <ApplicationStage membership={home?.membership} onApply={setActivePage ? () => setActivePage('apply') : undefined} />
           ) : (
             <>
               <h2>You are not a member yet</h2>
@@ -826,5 +820,93 @@ export function Profile({ currentUserId, setActivePage }: ProfileProps) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Where an applicant's application stands, in their words, with the one thing
+ * they can do about it. It used to say "under review" whatever the stage —
+ * including to people who should have been booking a call or paying.
+ */
+function ApplicationStage({
+  membership,
+  onApply,
+}: {
+  membership?: { applicationStatus?: string | null; bookingUrl?: string | null; payment?: { url: string; amountCents?: number | null; currency: string } | null };
+  onApply?: () => void;
+}) {
+  const status = membership?.applicationStatus ?? 'SUBMITTED';
+
+  if (status === 'FIRST_APPROVED' && membership?.bookingUrl) {
+    return (
+      <>
+        <h2>Book your intro call</h2>
+        <p>You&apos;re through the first check. The next step is a short video call so we can get to know each other.</p>
+        <a className="primary-button" href={membership.bookingUrl} target="_blank" rel="noopener noreferrer">
+          Book a time
+        </a>
+      </>
+    );
+  }
+  if (status === 'MEETING_SCHEDULED') {
+    return (
+      <>
+        <h2>Your call is booked</h2>
+        <p>We&apos;re looking forward to it. You&apos;ll hear from us after the call about next steps.</p>
+      </>
+    );
+  }
+  if (status === 'MEETING_APPROVED' || status === 'APARTMENT_AVAILABLE' || status === 'NO_APARTMENT_AVAILABLE') {
+    return (
+      <>
+        <h2>Thanks for the call</h2>
+        <p>We&apos;re preparing your place. Your payment link will arrive by email shortly.</p>
+      </>
+    );
+  }
+  if (status === 'PAYMENT_LINK_SENT' && membership?.payment) {
+    const { amountCents, currency, url } = membership.payment;
+    const amount = amountCents
+      ? new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: amountCents % 100 ? 2 : 0 }).format(amountCents / 100)
+      : null;
+    return (
+      <>
+        <h2>Secure your place</h2>
+        <p>Your place is ready{amount ? ` — the first payment is ${amount}` : ''}. Once it&apos;s done we&apos;ll confirm your membership.</p>
+        <a className="primary-button" href={url} target="_blank" rel="noopener noreferrer">
+          Complete payment
+        </a>
+      </>
+    );
+  }
+  if (status === 'PAYMENT_CONFIRMED') {
+    return (
+      <>
+        <h2>Payment received</h2>
+        <p>Thank you. We&apos;re activating your membership — your member home unlocks as soon as it&apos;s done.</p>
+      </>
+    );
+  }
+  if (status === 'FIRST_REJECTED' || status === 'MEETING_REJECTED') {
+    return (
+      <>
+        <h2>Not this batch</h2>
+        <p>We couldn&apos;t offer you a place this time. You&apos;re welcome to apply again for a later batch.</p>
+        {onApply ? (
+          <button className="primary-button" onClick={onApply}>
+            Apply again
+          </button>
+        ) : null}
+      </>
+    );
+  }
+  return (
+    <>
+      <h2>Your application is under review</h2>
+      <p>
+        Thanks for applying. Our team is reviewing your application — you&apos;ll get an email once it&apos;s
+        approved, and your member home unlocks then.
+      </p>
+    </>
   );
 }

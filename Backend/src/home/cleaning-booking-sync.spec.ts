@@ -51,7 +51,7 @@ function makeService(options: { externalMemberId?: string | null; previousBookin
     deleteCleaningBooking: jest.fn().mockResolvedValue(undefined),
   };
 
-  const service = new HomeService(prisma as never, prosperaSub as never);
+  const service = new HomeService(prisma as never, prosperaSub as never, {} as never);
   return { service, prisma, prosperaSub };
 }
 

@@ -8,6 +8,10 @@
     {
       "path": "/jobs/daily",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/jobs/nudges",
+      "schedule": "0 16 * * *"
     }
   ]
 }

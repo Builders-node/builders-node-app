@@ -164,17 +164,11 @@ export class GuideService {
   }
 
   private guidePageUrl(site: GuideSite): string {
-    return `${this.siteUrl(site)}${GUIDE_PATHS[site]}`;
+    return `${siteUrl(site)}${GUIDE_PATHS[site]}`;
   }
 
-  /** The gate, with the key already in it — what the email links to. */
   private unlockUrl(key: string, site: GuideSite): string {
-    return `${this.siteUrl(site)}/guide?key=${encodeURIComponent(key)}`;
-  }
-
-  private siteUrl(site: GuideSite): string {
-    if (site === 'ca') return (process.env.CA_SITE_URL ?? 'https://ca.buildersnode.com').replace(/\/+$/, '');
-    return resolveFrontendBaseUrl(process.env.FRONTEND_URL);
+    return guideUnlockUrl(key, site);
   }
 
   private sharedKey(): string {
@@ -200,4 +194,18 @@ function createGuideKey(): string {
   const alphabet = 'BCDFGHJKLMNPQRSTVWXZ23456789';
   const block = () => Array.from({ length: 4 }, () => alphabet[randomInt(alphabet.length)]).join('');
   return `BN-${block()}-${block()}`;
+}
+
+function siteUrl(site: GuideSite): string {
+  if (site === 'ca') return (process.env.CA_SITE_URL ?? 'https://ca.buildersnode.com').replace(/\/+$/, '');
+  return resolveFrontendBaseUrl(process.env.FRONTEND_URL);
+}
+
+/**
+ * The gate, with the key already in it — what every email about the guide
+ * links to, on the site the reader asked on (main when unknown).
+ */
+export function guideUnlockUrl(key: string, site?: string | null): string {
+  const resolved: GuideSite = isGuideSite(site) ? site : 'main';
+  return `${siteUrl(resolved)}/guide?key=${encodeURIComponent(key)}`;
 }

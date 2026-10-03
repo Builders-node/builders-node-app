@@ -64,7 +64,15 @@ export type ResidencyData = {
 
 export type HomeMemberData = {
   account?: { externalMemberId?: string | null };
-  membership?: { status: string; hasApplied: boolean; applicationStatus?: string | null };
+  membership?: {
+    status: string;
+    hasApplied: boolean;
+    applicationStatus?: string | null;
+    /** The intro-call calendar, while they still have to book it. */
+    bookingUrl?: string | null;
+    /** Their payment link, while it is waiting on them. */
+    payment?: { url: string; amountCents?: number | null; currency: string } | null;
+  };
   apartment: { name: string; status: string; moveInDate?: string | null; details: string } | null;
   /** `startsAt` is only present while deliveries are still in the future. */
   meals: { items: Array<{ id: string; day: string; meal: string; startsAt?: string | null }> };

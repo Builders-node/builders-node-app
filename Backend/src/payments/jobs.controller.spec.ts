@@ -10,7 +10,7 @@ function makeController(env: Record<string, string | undefined>) {
   const billing = { runDaily: jest.fn().mockResolvedValue({ markedOverdue: 0, remindersSent: 0, failures: [] }) };
   const config = { get: (key: string) => env[key] };
   const cleanup = { runDaily: jest.fn().mockResolvedValue({ readNotifications: { deleted: 0 } }) };
-  return { controller: new JobsController(billing as never, config as never, cleanup as never), billing, cleanup };
+  return { controller: new JobsController(billing as never, config as never, cleanup as never, {} as never), billing, cleanup };
 }
 
 /** Minimal stand-in for the bits of the express request the guard reads. */

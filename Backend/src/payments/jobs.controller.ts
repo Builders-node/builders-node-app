@@ -4,6 +4,7 @@ import { Request } from 'express';
 import { isValidAdminAccessKey } from '../admin/admin-access';
 import { BILLING_TIME_BUDGET_MS, BillingService } from './billing.service';
 import { CleanupService } from './cleanup.service';
+import { NudgesService } from '../nudges/nudges.service';
 
 /**
  * The daily job, triggered over HTTP.
@@ -20,6 +21,7 @@ export class JobsController {
     private readonly billing: BillingService,
     private readonly config: ConfigService,
     private readonly cleanup: CleanupService,
+    private readonly nudges: NudgesService,
   ) {}
 
   @Get('daily')
@@ -31,6 +33,23 @@ export class JobsController {
   @Post('daily')
   runDailyManually(@Req() request: Request) {
     return this.run(request);
+  }
+
+  /**
+   * The follow-up emails (see NudgesService), on a schedule of their own —
+   * later in the day, at a civil hour in Honduras, and with a whole function
+   * time budget rather than whatever billing leaves over.
+   */
+  @Get('nudges')
+  runNudgesViaCron(@Req() request: Request) {
+    this.assertAuthorised(request);
+    return this.nudges.runDaily(new Date(), Date.now() + 25_000);
+  }
+
+  @Post('nudges')
+  runNudgesManually(@Req() request: Request) {
+    this.assertAuthorised(request);
+    return this.nudges.runDaily(new Date(), Date.now() + 25_000);
   }
 
   private run(request: Request) {

@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { resolveFrontendBaseUrl } from '../common/frontend-url';
+import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../database/prisma.service';
 import { ProsperaSubClient, type DatedCleaningSlot } from '../subscriptions/prospera-sub.client';
 import {
@@ -74,6 +75,7 @@ export class HomeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly prosperaSub: ProsperaSubClient,
+    private readonly mail: MailService,
   ) {}
 
   async getHome(userId: string) {
@@ -104,7 +106,7 @@ export class HomeService {
     // A freshly self-registered user has an account but no application yet.
     const application = await this.prisma.application.findUnique({
       where: { email: user.email },
-      select: { id: true, status: true },
+      select: { id: true, status: true, paymentLink: true, paymentAmountCents: true, paymentCurrency: true },
     });
 
     const cleaning = user.cleaningSchedules[0] ?? null;
@@ -123,6 +125,14 @@ export class HomeService {
         status: user.membership?.status ?? 'APPLICANT',
         hasApplied: Boolean(application),
         applicationStatus: application?.status ?? null,
+        // What the applicant needs for their own next step, so their home can
+        // offer it instead of a generic "under review": the calendar while
+        // they owe us a booking, the link while they owe a payment.
+        bookingUrl: application?.status === 'FIRST_APPROVED' ? this.mail.meetingBookingUrl() : null,
+        payment:
+          application?.status === 'PAYMENT_LINK_SENT' && application.paymentLink
+            ? { url: application.paymentLink, amountCents: application.paymentAmountCents, currency: application.paymentCurrency }
+            : null,
       },
       eResidency: {
         status: user.residencyApplication?.status ?? 'NOT_STARTED',

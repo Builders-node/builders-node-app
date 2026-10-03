@@ -271,6 +271,9 @@ model ApplicationVerification {
   payloadJson String
   attempts    Int      @default(0)
   expiresAt   DateTime
+  /// When the one "finish your application" email went out for this form.
+  /// Someone who filled it in and never entered the code gets exactly one.
+  reminderSentAt DateTime?
   createdAt   DateTime @default(now())
 }
 
@@ -718,6 +721,10 @@ model GuideRequest {
   /// not configured, which is the difference between a lead we owe something
   /// to and one we have already served.
   sentAt       DateTime?
+  /// Follow-ups sent after the guide (at most two), and when the last went.
+  /// They stop as soon as the reader applies.
+  followUpCount  Int       @default(0)
+  lastFollowUpAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
