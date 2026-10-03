@@ -14,12 +14,31 @@ const REMINDER_DAYS_BEFORE = 3;
  */
 const ISSUE_DAYS_AHEAD = 7;
 
+/**
+ * How many members are worked on at once. Each one is a few queries and an
+ * email round-trip; one at a time, a few dozen members with a slow mail
+ * provider was enough to run into Vercel's 30s limit. Five overlaps the
+ * waiting without opening a flood of connections through the pooler.
+ */
+const CONCURRENCY = 5;
+
+/**
+ * How long the run may keep starting new work. Vercel stops the function at
+ * 30s, and a run killed mid-flight reports nothing; stopping at 25s leaves time
+ * to finish what's in hand and answer. Whatever is left is still due tomorrow —
+ * every pass selects by state (DUE, unreminded, dueDate in range), so the next
+ * run picks up exactly where this one stopped.
+ */
+export const BILLING_TIME_BUDGET_MS = 25_000;
+
 export type BillingRunResult = {
   invoicesIssued: number;
   markedOverdue: number;
   remindersSent: number;
   /** Anything that failed for one member without stopping the run. */
   failures: string[];
+  /** Items not started because the time budget ran out; tomorrow's run continues. */
+  deferred: number;
 };
 
 /**
@@ -45,19 +64,24 @@ export class BillingService {
     private readonly mail: MailService,
   ) {}
 
-  async runDaily(now = new Date()): Promise<BillingRunResult> {
+  /**
+   * @param now      the moment the run is for (tests pin it).
+   * @param deadline wall-clock ms after which no new member is started.
+   */
+  async runDaily(now = new Date(), deadline = Date.now() + BILLING_TIME_BUDGET_MS): Promise<BillingRunResult> {
     const today = startOfUtcDay(now);
-    const result: BillingRunResult = { invoicesIssued: 0, markedOverdue: 0, remindersSent: 0, failures: [] };
+    const result: BillingRunResult = { invoicesIssued: 0, markedOverdue: 0, remindersSent: 0, failures: [], deferred: 0 };
 
     // Issue first: an invoice raised today can still be picked up by the
     // reminder pass below if it happens to fall inside the window.
-    await this.issueMonthly(today, result);
-    await this.markOverdue(today, result);
-    await this.remindBeforeDue(today, result);
+    await this.issueMonthly(today, result, deadline);
+    await this.markOverdue(today, result, deadline);
+    await this.remindBeforeDue(today, result, deadline);
 
     this.logger.log(
       `Billing run: ${result.invoicesIssued} issued, ${result.markedOverdue} marked overdue, ${result.remindersSent} reminders sent` +
-        (result.failures.length ? `, ${result.failures.length} failed` : ''),
+        (result.failures.length ? `, ${result.failures.length} failed` : '') +
+        (result.deferred ? `, ${result.deferred} left for the next run` : ''),
     );
     return result;
   }
@@ -69,7 +93,7 @@ export class BillingService {
    * forward a month. Nothing is generated for a member without an amount —
    * that's the switch an admin uses to decide who is billed automatically.
    */
-  private async issueMonthly(today: Date, result: BillingRunResult): Promise<void> {
+  private async issueMonthly(today: Date, result: BillingRunResult, deadline: number): Promise<void> {
     const horizon = new Date(today);
     horizon.setUTCDate(horizon.getUTCDate() + ISSUE_DAYS_AHEAD);
 
@@ -82,11 +106,11 @@ export class BillingService {
       include: { user: { select: { id: true, email: true, profile: { select: { fullName: true } } } } },
     });
 
-    for (const membership of memberships) {
+    result.deferred += await forEachBounded(memberships, deadline, async (membership) => {
       const dueDate = membership.dueDate!;
       // Their stay has ended: stop billing rather than invoicing someone who
       // has already left.
-      if (membership.finishDate && dueDate > membership.finishDate) continue;
+      if (membership.finishDate && dueDate > membership.finishDate) return;
 
       const period = billingPeriodOf(dueDate);
       const description = `Membership — ${monthName(dueDate)}`;
@@ -128,17 +152,27 @@ export class BillingService {
         // date still has to move on, or it would try again forever.
         if (!isDuplicatePeriod(error)) {
           result.failures.push(`invoice ${membership.userId}: ${(error as Error).message}`);
-          continue;
+          return;
         }
       }
 
       // Rolled forward last, so a failure above leaves the member due for the
       // same month tomorrow rather than skipping a month's rent silently.
-      await this.prisma.membership.update({
-        where: { id: membership.id },
-        data: { dueDate: addOneMonth(dueDate) },
-      });
-    }
+      //
+      // Conditional on the date still being the one just billed: if two runs
+      // overlap, both reach here, and an unconditional update would move the
+      // date on twice and skip a month. The anchor day is saved alongside,
+      // which is how a member whose dueDate predates billingDay gets one.
+      const anchor = anchorDayFor(dueDate, membership.billingDay);
+      try {
+        await this.prisma.membership.updateMany({
+          where: { id: membership.id, dueDate },
+          data: { dueDate: addOneMonth(dueDate, anchor), billingDay: anchor },
+        });
+      } catch (error) {
+        result.failures.push(`roll ${membership.userId}: ${(error as Error).message}`);
+      }
+    });
   }
 
   /**
@@ -148,21 +182,29 @@ export class BillingService {
    * Compared against the start of today, not `now`: a payment due today is not
    * late, and comparing against the current moment would flag it from midnight.
    */
-  private async markOverdue(today: Date, result: BillingRunResult): Promise<void> {
+  private async markOverdue(today: Date, result: BillingRunResult, deadline: number): Promise<void> {
     const due = await this.prisma.payment.findMany({
       // Detached invoices (the member was erased) have nobody to tell.
       where: { status: 'DUE', dueDate: { lt: today }, userId: { not: null } },
       include: { user: { select: { id: true, email: true, profile: { select: { fullName: true } } } } },
     });
 
-    for (const payment of due) {
+    result.deferred += await forEachBounded(due, deadline, async (payment) => {
       const { userId, user } = payment;
-      if (!userId || !user) continue;
+      if (!userId || !user) return;
       try {
         // Status first. If the notification below fails, the row is still
         // correct — and it won't be picked up again tomorrow, so nobody gets
         // told twice.
-        await this.prisma.payment.update({ where: { id: payment.id }, data: { status: 'OVERDUE' } });
+        //
+        // Flipped only from DUE, and only the run that actually flipped it
+        // sends anything: two overlapping runs both see this row as DUE, and
+        // without the condition both would email the member.
+        const flipped = await this.prisma.payment.updateMany({
+          where: { id: payment.id, status: 'DUE' },
+          data: { status: 'OVERDUE' },
+        });
+        if (flipped.count !== 1) return;
         result.markedOverdue += 1;
 
         await this.notifications.notify(userId, {
@@ -182,11 +224,11 @@ export class BillingService {
         // One member's bad row must not stop the rest of the run.
         result.failures.push(`overdue ${payment.id}: ${(error as Error).message}`);
       }
-    }
+    });
   }
 
   /** A single in-app nudge a few days out. No email — this one isn't news yet. */
-  private async remindBeforeDue(today: Date, result: BillingRunResult): Promise<void> {
+  private async remindBeforeDue(today: Date, result: BillingRunResult, deadline: number): Promise<void> {
     const horizon = new Date(today);
     horizon.setUTCDate(horizon.getUTCDate() + REMINDER_DAYS_BEFORE);
 
@@ -199,8 +241,8 @@ export class BillingService {
       },
     });
 
-    for (const payment of soon) {
-      if (!payment.userId) continue;
+    result.deferred += await forEachBounded(soon, deadline, async (payment) => {
+      if (!payment.userId) return;
       try {
         await this.notifications.notify(payment.userId, {
           type: 'info',
@@ -215,8 +257,33 @@ export class BillingService {
       } catch (error) {
         result.failures.push(`reminder ${payment.id}: ${(error as Error).message}`);
       }
-    }
+    });
   }
+}
+
+/**
+ * Run `work` over `items`, at most CONCURRENCY at a time, starting nothing new
+ * once `deadline` has passed. Returns how many items were never started.
+ *
+ * `work` is expected to catch its own failures (every pass records them per
+ * member); anything that escapes is still contained here so one item can't
+ * reject the whole pool and abandon the rest mid-flight.
+ */
+export async function forEachBounded<T>(
+  items: readonly T[],
+  deadline: number,
+  work: (item: T) => Promise<void>,
+  concurrency = CONCURRENCY,
+): Promise<number> {
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length && Date.now() < deadline) {
+      const item = items[next++];
+      await work(item).catch(() => undefined);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
+  return items.length - next;
 }
 
 /** Midnight UTC on the day of `date`. Due dates are calendar days, not moments. */
@@ -237,18 +304,42 @@ function monthName(date: Date): string {
   return date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
 
+/** Days in the UTC month containing `date`. */
+function daysInMonth(year: number, monthIndex: number): number {
+  return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+}
+
 /**
- * The same day next month, clamped to the last day when that day doesn't exist.
+ * The anchor day (1-31) to bill on, given the due date being billed now and
+ * the membership's stored `billingDay`.
  *
- * Without the clamp, a 31st rolls into the 1st or 2nd and every later invoice
- * drifts to a different day of the month than the member agreed to.
+ * The stored day wins while the due date agrees with it — that is, the due
+ * date sits on that day, or on the last day of a month too short to have it
+ * (31 → Feb 28). If an admin has since moved the due date to some other day,
+ * the date is the newer decision and becomes the anchor.
  */
-export function addOneMonth(date: Date): Date {
-  const day = date.getUTCDate();
-  const next = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1));
-  const lastDay = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0)).getUTCDate();
-  next.setUTCDate(Math.min(day, lastDay));
-  return next;
+export function anchorDayFor(dueDate: Date, billingDay: number | null | undefined): number {
+  const day = dueDate.getUTCDate();
+  if (billingDay && Number.isInteger(billingDay) && billingDay >= 1 && billingDay <= 31) {
+    const clamped = Math.min(billingDay, daysInMonth(dueDate.getUTCFullYear(), dueDate.getUTCMonth()));
+    if (clamped === day) return billingDay;
+  }
+  return day;
+}
+
+/**
+ * The anchor day next month, clamped to the last day when that day doesn't exist.
+ *
+ * Without the clamp, a 31st rolls into the 1st or 2nd. And it has to start
+ * from the anchor, not from `date`'s own day: stepping from an already-clamped
+ * date (Jan 31 → Feb 28 → Mar 28 → ...) left the member on the 28th for good.
+ * Defaults to `date`'s day for a member with no anchor stored yet.
+ */
+export function addOneMonth(date: Date, anchorDay = date.getUTCDate()): Date {
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + 1;
+  const lastDay = daysInMonth(year, month);
+  return new Date(Date.UTC(year, month, Math.min(anchorDay, lastDay)));
 }
 
 /** Prisma's unique-constraint code. */

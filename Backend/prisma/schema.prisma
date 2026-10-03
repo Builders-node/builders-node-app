@@ -281,6 +281,13 @@ model Membership {
   /// When the next invoice is due. The monthly job bills this date and then
   /// rolls it forward, so it is always the *next* one owed.
   dueDate DateTime?
+  /// The day of the month (1-31) the member is billed on — the anchor the
+  /// monthly roll steps from. Kept apart from `dueDate` because a clamped date
+  /// forgets it: Jan 31 rolls to Feb 28, and Feb 28 alone can't say whether
+  /// March should be the 28th or the 31st. Set by the billing run from the due
+  /// date it bills; if an admin moves `dueDate` to a different day, that day
+  /// becomes the new anchor (see anchorDayFor). Null until first billed.
+  billingDay Int?
   finishDate DateTime?
   /// What this member pays per month.
   ///
