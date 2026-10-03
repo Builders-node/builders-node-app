@@ -125,10 +125,18 @@ connection string, not the pooler, because pgbouncer can't run DDL.
 > GitHub → repo → Settings → Secrets and variables → Actions → New repository
 > secret → `DIRECT_URL`.
 
-Not in the Vercel build, which is what this used to avoid: a build runs per
-deployment and several can overlap. The CI job runs once per push. `migrate
-deploy` only applies migrations not recorded in `_prisma_migrations`, so a
-re-run is a no-op.
+**And in the production Vercel build, when it can.** Vercel deploys on push
+while the CI job waits for the tests, so for a few minutes new code ran against
+the old schema and every request touching a new column failed. The backend's
+`vercel-build` (`Backend/scripts/vercel-build.sh`) runs `migrate deploy` first —
+only when `VERCEL_ENV=production` and `DIRECT_URL` is set in the API project's
+Vercel env (add it there to switch this on; preview builds never migrate).
+Overlap is safe: `migrate deploy` takes a lock and only applies migrations not
+recorded in `_prisma_migrations`, so whichever runs second is a no-op.
+
+CI also fails the backend job if `schema.prisma` and the migrations drift
+(`prisma migrate diff` against a throwaway Postgres), and the migrate job
+waits for it.
 
 To apply them by hand — the first time, or if the secret isn't set yet:
 
@@ -256,6 +264,33 @@ takes their key with them, which is the one thing a shared key could never do.
 `src/sites/ca/pages/`. Tailwind already scans the whole `src/sites/**` subtree.
 Sections that should differ from the apex site get their own copy under
 `src/sites/ca/components/` — `CaNavbar` and `CaHeroSection` are already that.
+
+## Pipeline automation and admin tiers
+
+**Daily jobs** (`Backend/vercel.json`, both need `CRON_SECRET`):
+- `/jobs/daily` 13:00 UTC — billing, overdue notices, cleanup of expired codes,
+  tokens and old notifications.
+- `/jobs/nudges` 16:00 UTC — capped follow-ups: "book your call" (day 3, day 7),
+  "payment link waiting" (day 2, +3 days), one "finish your application" email
+  with a 48-hour code, two notes after the guide (day 2, day 6; stop when they
+  apply), and a digest to each Super Admin of applicants waiting on us > 5 days.
+  Nothing reaches back more than two weeks.
+
+**Env:**
+- `MAIL_REPLY_TO` — Reply-To on emails that invite a reply (default
+  `taras@buildersnode.com`).
+- `PAYMENT_LINK_HOSTS` — comma-separated hosts a non-Super-Admin may send a
+  payment link on (default prosperasub.com, stripe.com, paypal.com, wise.com,
+  revolut.me, buildersnode.com; subdomains count).
+- `GUIDE_SHARED_KEY` — replaces the shared guide code `BN-GUIDE-2026`.
+- `ALLOW_VERCEL_ORIGINS=false` — recommended: stops any `*.vercel.app` origin
+  being allowed by CORS.
+
+**Admin tiers.** Super Admin only: activating memberships, confirming payments,
+invoices, plan prices, global meal/cleaning/batch settings, the affiliate
+reward and payouts, a member's billing amount, and messaging every member at
+once. Moderators and community leaders run the pipeline (checks, reminders,
+payment links on the allowed hosts, declines) and the day-to-day queues.
 
 ## Error tracking (optional)
 
