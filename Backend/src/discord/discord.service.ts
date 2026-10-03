@@ -7,6 +7,13 @@ const DISCORD_API = 'https://discord.com/api/v10';
 // identify → read their Discord id/username; guilds.join → let the bot add them to
 // the server (and set roles) in one step.
 const SCOPES = 'identify guilds.join';
+/**
+ * Ceiling on one Discord API call. The OAuth callback makes up to four in a
+ * row inside a single request, so each needs its own deadline well under
+ * Vercel's 30s limit — otherwise one hung call turns a slow Discord into a
+ * function timeout with no log line saying why.
+ */
+const DISCORD_TIMEOUT_MS = 6_000;
 
 type DiscordUser = { id: string; username: string; global_name?: string | null };
 
@@ -108,6 +115,22 @@ export class DiscordService {
 
   // ── Discord API helpers ────────────────────────────────────────────────────
 
+  /**
+   * fetch with a deadline. A timeout or network failure is logged and comes
+   * back as null, so each caller decides whether that is fatal (sign-in) or
+   * something to shrug off (a role that can be re-granted on the next link).
+   */
+  private async call(what: string, url: string, init: RequestInit = {}): Promise<Response | null> {
+    try {
+      return await fetch(url, { ...init, signal: AbortSignal.timeout(DISCORD_TIMEOUT_MS) });
+    } catch (error) {
+      const reason =
+        (error as Error)?.name === 'TimeoutError' ? `timed out after ${DISCORD_TIMEOUT_MS}ms` : (error as Error)?.message;
+      this.logger.error(`Discord ${what} failed: ${reason}`);
+      return null;
+    }
+  }
+
   private async exchangeCode(code: string): Promise<string> {
     const body = new URLSearchParams({
       client_id: this.cfg('DISCORD_CLIENT_ID')!,
@@ -116,11 +139,14 @@ export class DiscordService {
       code,
       redirect_uri: this.cfg('DISCORD_REDIRECT_URI')!,
     });
-    const res = await fetch(`${DISCORD_API}/oauth2/token`, {
+    const res = await this.call('token exchange', `${DISCORD_API}/oauth2/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body,
     });
+    if (!res) {
+      throw new BadRequestException('Could not complete Discord sign-in. Please try again.');
+    }
     if (!res.ok) {
       this.logger.error(`Discord token exchange failed: ${res.status} ${await res.text().catch(() => '')}`);
       throw new BadRequestException('Could not complete Discord sign-in. Please try again.');
@@ -130,8 +156,10 @@ export class DiscordService {
   }
 
   private async fetchDiscordUser(accessToken: string): Promise<DiscordUser> {
-    const res = await fetch(`${DISCORD_API}/users/@me`, { headers: { Authorization: `Bearer ${accessToken}` } });
-    if (!res.ok) {
+    const res = await this.call('profile read', `${DISCORD_API}/users/@me`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res?.ok) {
       throw new BadRequestException('Could not read your Discord profile.');
     }
     return (await res.json()) as DiscordUser;
@@ -156,22 +184,24 @@ export class DiscordService {
     const roles = await this.targetRoleIds(userId);
 
     // Join the guild with roles (no-op / 204 if already a member).
-    const joinRes = await fetch(`${DISCORD_API}/guilds/${guild}/members/${discordId}`, {
+    // A failed call is already logged by call(); the account link itself is
+    // saved by now, so role trouble is a warning, not a failed sign-in.
+    const joinRes = await this.call('guild join', `${DISCORD_API}/guilds/${guild}/members/${discordId}`, {
       method: 'PUT',
       headers: { Authorization: `Bot ${bot}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ access_token: accessToken, roles }),
     });
-    if (!joinRes.ok && joinRes.status !== 204) {
+    if (joinRes && !joinRes.ok && joinRes.status !== 204) {
       this.logger.warn(`Discord guild join returned ${joinRes.status}: ${await joinRes.text().catch(() => '')}`);
     }
 
     // Ensure each role is set even if they were already a member (join won't update roles then).
     for (const roleId of roles) {
-      const res = await fetch(`${DISCORD_API}/guilds/${guild}/members/${discordId}/roles/${roleId}`, {
+      const res = await this.call(`add-role ${roleId}`, `${DISCORD_API}/guilds/${guild}/members/${discordId}/roles/${roleId}`, {
         method: 'PUT',
         headers: { Authorization: `Bot ${bot}` },
       });
-      if (!res.ok && res.status !== 204) {
+      if (res && !res.ok && res.status !== 204) {
         this.logger.warn(`Discord add-role ${roleId} returned ${res.status}: ${await res.text().catch(() => '')}`);
       }
     }
@@ -180,9 +210,11 @@ export class DiscordService {
   private async removeRole(discordId: string, roleId: string): Promise<void> {
     const guild = this.cfg('DISCORD_GUILD_ID')!;
     const bot = this.cfg('DISCORD_BOT_TOKEN')!;
-    await fetch(`${DISCORD_API}/guilds/${guild}/members/${discordId}/roles/${roleId}`, {
+    // Best-effort: call() logs a failure and never throws, so unlinking still
+    // clears our side even when Discord is unreachable.
+    await this.call(`remove-role ${roleId}`, `${DISCORD_API}/guilds/${guild}/members/${discordId}/roles/${roleId}`, {
       method: 'DELETE',
       headers: { Authorization: `Bot ${bot}` },
-    }).catch(() => undefined);
+    });
   }
 }

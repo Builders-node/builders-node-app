@@ -3,8 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { randomInt, randomUUID } from 'crypto';
-import { buildCredentialInvitation } from '../auth/invitation';
-import { createTemporaryPassword } from '../auth/temporary-password';
 import { reclaimUnverifiedAccount, signSession } from '../auth/session';
 import { PrismaService } from '../database/prisma.service';
 import { MailService } from '../mail/mail.service';
@@ -13,7 +11,7 @@ import { linksFromUrls, MAX_BIO } from '../common/profile-fields';
 import { parseMoveInDate } from './move-in-date';
 import { createReferralCode } from '../users/referral-code';
 import { normalizeCode } from '../campaigns/campaigns.service';
-import { ApplyDto, ConfirmApplicationDto, CreateAccountDto, SendCredentialsDto } from './dto';
+import { ApplyDto, ConfirmApplicationDto, CreateAccountDto } from './dto';
 
 const CODE_TTL_MS = 1000 * 60 * 10; // 10 minutes
 const MAX_CODE_ATTEMPTS = 5;
@@ -316,73 +314,6 @@ export class ApplicationsService {
     });
 
     return application;
-  }
-
-  async approveAndSendCredentials(dto: SendCredentialsDto) {
-    const application = await this.prisma.application.findUnique({
-      where: { email: dto.email.toLowerCase() },
-    });
-    if (!application) {
-      throw new NotFoundException('Application not found.');
-    }
-
-    const temporaryPassword = createTemporaryPassword();
-    const passwordHash = await bcrypt.hash(temporaryPassword, 12);
-    const user = await this.prisma.user.upsert({
-      where: { email: application.email },
-      create: {
-        email: application.email,
-        passwordHash,
-        referralCode: createReferralCode(),
-        mustChangePassword: true,
-        profile: { create: profileSeedFrom(application) },
-        membership: { create: { status: 'APPROVED', approvedAt: new Date() } },
-      },
-      update: {
-        passwordHash,
-        mustChangePassword: true,
-        profile: {
-          upsert: {
-            create: profileSeedFrom(application),
-            // Only name and phone are refreshed on an existing profile. Bio and
-            // links are the member's to maintain once they have an account —
-            // re-seeding here would overwrite their edits with the application
-            // they wrote months ago.
-            update: { fullName: application.fullName, phone: application.phone },
-          },
-        },
-      },
-    });
-    const userWithReferral = user.referralCode
-      ? user
-      : await this.prisma.user.update({
-          where: { id: user.id },
-          data: { referralCode: createReferralCode() },
-        });
-
-    const token = randomUUID();
-    await this.prisma.passwordResetToken.create({
-      data: {
-        userId: userWithReferral.id,
-        token,
-        expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
-      },
-    });
-
-    await this.prisma.application.update({
-      where: { id: application.id },
-      data: { status: 'APPROVED', approvedAt: new Date() },
-    });
-
-    const invitation = buildCredentialInvitation({
-      email: userWithReferral.email,
-      token,
-      temporaryPassword,
-      frontendUrl: this.mail.frontendBaseUrl(),
-    });
-    await this.mail.sendInvitation(invitation);
-
-    return { userId: userWithReferral.id, invitation };
   }
 
   private normalizeReferralCode(value?: string) {

@@ -75,8 +75,11 @@ model Vehicle {
 }
 
 // A reservation of a vehicle for a date range (inclusive). Status: ACTIVE |
-// CANCELLED. Overlap checks live in the service, not the DB, so admins can
-// cancel/replace without losing history.
+// CANCELLED. The service checks for overlaps to give a friendly message; the
+// database backs it with an exclusion constraint, "VehicleBooking_no_overlap"
+// (raw SQL in migration 20261002100000 — Prisma can't express one), so two
+// simultaneous requests can't both win the same slot. Only ACTIVE rows take
+// part, so cancelled bookings stay as history.
 model VehicleBooking {
   id        String   @id @default(uuid())
   vehicleId String
@@ -178,6 +181,9 @@ model Notification {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  // The bell lists newest-first per user and counts the unread ones.
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
 }
 
 model Application {
@@ -247,6 +253,12 @@ model Application {
   approvedAt DateTime?
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
+
+  // The pipeline filters by stage, referrals count by referrer, and campaign
+  // stats group by code — each was a full scan of every application ever filed.
+  @@index([status])
+  @@index([referredByUserId])
+  @@index([campaignCode])
 }
 
 // Holds a submitted-but-not-yet-email-confirmed application. The applicant enters
@@ -305,6 +317,13 @@ model Membership {
   /// When the next invoice is due. The monthly job bills this date and then
   /// rolls it forward, so it is always the *next* one owed.
   dueDate DateTime?
+  /// The day of the month (1-31) the member is billed on — the anchor the
+  /// monthly roll steps from. Kept apart from `dueDate` because a clamped date
+  /// forgets it: Jan 31 rolls to Feb 28, and Feb 28 alone can't say whether
+  /// March should be the 28th or the 31st. Set by the billing run from the due
+  /// date it bills; if an admin moves `dueDate` to a different day, that day
+  /// becomes the new anchor (see anchorDayFor). Null until first billed.
+  billingDay Int?
   finishDate DateTime?
   /// What this member pays per month.
   ///
@@ -379,7 +398,10 @@ model CommunityPlanPurchase {
 
 model Payment {
   id          String        @id @default(uuid())
-  userId      String
+  /// Null once the member has been erased. The invoice itself is a record of
+  /// money owed or paid and has to outlive the account, so deleting a user
+  /// detaches their payments rather than deleting them — see purgeUser.
+  userId      String?
   amountCents Int
   currency    String        @default("USD")
   status      String        @default("DUE")
@@ -399,11 +421,13 @@ model Payment {
   receiptUrl  String?
   adminNote   String?
   createdAt   DateTime      @default(now())
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@unique([userId, billingPeriod])
   @@index([userId])
   @@index([status])
+  // Every billing pass asks "status X, due before/around date Y".
+  @@index([status, dueDate])
 }
 
 model Apartment {

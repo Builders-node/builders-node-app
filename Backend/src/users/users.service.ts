@@ -12,7 +12,7 @@ import {
 } from '../common/profile-fields';
 import { PrismaService } from '../database/prisma.service';
 import { DiscordService } from '../discord/discord.service';
-import { purgeUser } from './purge-user';
+import { personalRecordsByEmail, purgeUser } from './purge-user';
 
 /**
  * An application that made it in.
@@ -174,6 +174,10 @@ export class UsersService {
    * GDPR data portability: everything we hold about the user as one JSON object.
    * Excludes secrets (password hash, raw tokens) and the base64 proof blob (its
    * metadata is included; the file itself is downloadable via the proof endpoint).
+   *
+   * Also includes what they told us before they had an account — their
+   * application and any guide request — found by email exactly the way
+   * erasure finds them, so the export and the deletion cover the same rows.
    */
   async exportData(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -201,8 +205,21 @@ export class UsersService {
       throw new NotFoundException('User not found.');
     }
 
-    const referrals = await this.prisma.application.count({ where: { referredByUserId: userId } });
-    return { exportedAt: new Date().toISOString(), account: user, referralsMade: referrals };
+    const byEmail = personalRecordsByEmail(user.email);
+    const [referrals, applications, guideRequests] = await Promise.all([
+      this.prisma.application.count({ where: { referredByUserId: userId } }),
+      // The setup token and the guide access key are credentials, not data
+      // about the person — same rule as the password hash above.
+      this.prisma.application.findMany({ where: byEmail, omit: { setupToken: true, setupTokenExpiresAt: true } }),
+      this.prisma.guideRequest.findMany({ where: byEmail, omit: { accessKey: true } }),
+    ]);
+    return {
+      exportedAt: new Date().toISOString(),
+      account: user,
+      applications,
+      guideRequests,
+      referralsMade: referrals,
+    };
   }
 
   /** GDPR right to erasure: a member deletes their own account and all owned data. */

@@ -14,6 +14,13 @@ export type InvoiceEmail = {
   payUrl?: string | null;
 };
 
+/**
+ * How long one Resend call may take. Resend answers in well under a second
+ * when healthy; this is generous for a bad moment and still leaves room inside
+ * the 30s function limit for the request that triggered the email.
+ */
+const MAIL_TIMEOUT_MS = 8_000;
+
 /** Builders Node's Google appointment schedule; override with MEETING_BOOKING_URL. */
 const DEFAULT_MEETING_BOOKING_URL =
   'https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ2-5XDVVLfQfx0r_nqtDttfQV00lCZcIvMg-0B-RG7XYnTALuq2_XY2Q55U8s4J6UdeZjPHbIp9';
@@ -81,6 +88,10 @@ export class MailService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ from: this.from, to: email.to, subject: email.subject, html: email.html, text: email.text }),
+        // Without a deadline a hung Resend connection holds the whole request
+        // open until Vercel kills the function at 30s — and the daily job sends
+        // many of these in one invocation, so one stall would starve the rest.
+        signal: AbortSignal.timeout(MAIL_TIMEOUT_MS),
       });
       if (!res.ok) {
         const detail = await res.text().catch(() => '');
@@ -89,8 +100,11 @@ export class MailService {
       }
       return true;
     } catch (error) {
-      // Never let a mail failure break the surrounding request.
-      this.logger.error(`Failed to send email to ${email.to}: ${(error as Error).message}`);
+      // Never let a mail failure break the surrounding request. A timeout lands
+      // here too (AbortSignal.timeout rejects with a TimeoutError), named as
+      // such so a slow provider reads differently from a refused one.
+      const reason = (error as Error)?.name === 'TimeoutError' ? `timed out after ${MAIL_TIMEOUT_MS}ms` : (error as Error).message;
+      this.logger.error(`Failed to send email to ${email.to}: ${reason}`);
       return false;
     }
   }
