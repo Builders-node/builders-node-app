@@ -23,13 +23,16 @@ const ISSUE_DAYS_AHEAD = 7;
 const CONCURRENCY = 5;
 
 /**
- * How long the run may keep starting new work. Vercel stops the function at
- * 30s, and a run killed mid-flight reports nothing; stopping at 25s leaves time
- * to finish what's in hand and answer. Whatever is left is still due tomorrow —
- * every pass selects by state (DUE, unreminded, dueDate in range), so the next
- * run picks up exactly where this one stopped.
+ * How long, from the start of the job, the run may keep starting new members.
+ *
+ * Vercel stops the function at 30s, and a run killed mid-flight reports
+ * nothing. A member already started can still take one mail round-trip to
+ * finish (bounded by the 8s mail timeout), so starting nothing after 20s means
+ * the run has wound down and answered by ~25-28s even in the worst case.
+ * Whatever is left is still due tomorrow — every pass selects by state (DUE,
+ * unreminded, dueDate in range), so the next run picks up where this stopped.
  */
-export const BILLING_TIME_BUDGET_MS = 25_000;
+export const BILLING_TIME_BUDGET_MS = 20_000;
 
 export type BillingRunResult = {
   invoicesIssued: number;

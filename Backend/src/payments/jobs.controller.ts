@@ -2,7 +2,8 @@ import { Controller, ForbiddenException, Get, Post, Req } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { isValidAdminAccessKey } from '../admin/admin-access';
-import { BillingService } from './billing.service';
+import { BILLING_TIME_BUDGET_MS, BillingService } from './billing.service';
+import { CleanupService } from './cleanup.service';
 
 /**
  * The daily job, triggered over HTTP.
@@ -18,6 +19,7 @@ export class JobsController {
   constructor(
     private readonly billing: BillingService,
     private readonly config: ConfigService,
+    private readonly cleanup: CleanupService,
   ) {}
 
   @Get('daily')
@@ -32,8 +34,25 @@ export class JobsController {
   }
 
   private run(request: Request) {
+    // Synchronous, before any work starts: an unauthorised call throws here
+    // rather than as a rejected promise halfway through a run.
     this.assertAuthorised(request);
-    return this.billing.runDaily();
+    return this.runJob(Date.now());
+  }
+
+  /**
+   * Cleanup first, billing second, against one clock.
+   *
+   * Cleanup is a handful of single-statement deletes and never throws (each
+   * step reports its own failure). Running it first means billing — the part
+   * that matters, and the part that can be long — gets the rest of the time
+   * budget, measured from when the job started rather than from when billing
+   * did, so the two together stay inside Vercel's 30s.
+   */
+  private async runJob(startedAt: number) {
+    const cleanup = await this.cleanup.runDaily();
+    const billing = await this.billing.runDaily(new Date(), startedAt + BILLING_TIME_BUDGET_MS);
+    return { ...billing, cleanup };
   }
 
   /**
