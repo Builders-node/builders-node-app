@@ -1,8 +1,8 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { EventsService } from './events.service';
 
-function makeService(over: Record<string, unknown> = {}) {
-  const prisma = {
+function makeService(over: Record<string, unknown> = {}, goingOthers = 0, lockedCapacity: number | null = null) {
+  const prisma: Record<string, unknown> = {
     membership: { findUnique: jest.fn().mockResolvedValue({ status: 'ACTIVE_MEMBER' }) },
     event: {
       findMany: jest.fn().mockResolvedValue([]),
@@ -11,11 +11,15 @@ function makeService(over: Record<string, unknown> = {}) {
       update: jest.fn().mockResolvedValue({ id: 'e1', title: 'T', startsAt: new Date(), published: false }),
       delete: jest.fn().mockResolvedValue({}),
     },
-    eventRsvp: { upsert: jest.fn().mockResolvedValue({}) },
+    eventRsvp: { upsert: jest.fn().mockResolvedValue({}), count: jest.fn().mockResolvedValue(goingOthers) },
+    // The row lock on the event: hands back the capacity as read under it.
+    $queryRaw: jest.fn().mockResolvedValue([{ capacity: lockedCapacity }]),
     ...over,
   };
+  // Interactive transaction: run the callback against the same mock.
+  prisma.$transaction = jest.fn((cb: (tx: unknown) => unknown) => cb(prisma));
   const notifications = { broadcast: jest.fn().mockResolvedValue({ sent: 0 }) };
-  return { service: new EventsService(prisma as never, notifications as never), prisma, notifications };
+  return { service: new EventsService(prisma as never, notifications as never), prisma: prisma as any, notifications };
 }
 
 const HOUR = 3600_000;
@@ -103,11 +107,28 @@ describe('EventsService — rsvp', () => {
   });
 
   it('refuses GOING when the event is full', async () => {
-    const { service } = makeService({
+    const { service, prisma } = makeService({
       event: { findUnique: jest.fn().mockResolvedValue(fullEvent), findMany: jest.fn().mockResolvedValue([]),
         create: jest.fn(), update: jest.fn(), delete: jest.fn() },
-    });
+    }, 2, 2);
     await expect(service.rsvp('me', 'e1', 'GOING')).rejects.toThrow('This event is full.');
+    expect(prisma.eventRsvp.upsert).not.toHaveBeenCalled();
+  });
+
+  it('counts the seats only after locking the event row', async () => {
+    // Two members racing for the last seat: the lock is what makes the second
+    // one wait and then see a full house, so it must come before the count.
+    const { service, prisma } = makeService({
+      event: { findUnique: jest.fn().mockResolvedValue(fullEvent), findMany: jest.fn().mockResolvedValue([]),
+        create: jest.fn(), update: jest.fn(), delete: jest.fn() },
+    }, 1, 2);
+    await service.rsvp('me', 'e1', 'GOING');
+    expect(prisma.$transaction).toHaveBeenCalled();
+    const lockOrder = prisma.$queryRaw.mock.invocationCallOrder[0];
+    const countOrder = prisma.eventRsvp.count.mock.invocationCallOrder[0];
+    expect(lockOrder).toBeLessThan(countOrder);
+    expect(String(prisma.$queryRaw.mock.calls[0][0].join(''))).toMatch(/FOR UPDATE/);
+    expect(prisma.eventRsvp.upsert).toHaveBeenCalled();
   });
 
   it('still allows MAYBE / DECLINED on a full event', async () => {
@@ -129,8 +150,9 @@ describe('EventsService — rsvp', () => {
         }),
         findMany: jest.fn().mockResolvedValue([]), create: jest.fn(), update: jest.fn(), delete: jest.fn(),
       },
-    });
+    }, 1, 2);
     await service.rsvp('me', 'e1', 'GOING');
+    expect(prisma.eventRsvp.count.mock.calls[0][0].where.userId).toEqual({ not: 'me' });
     expect(prisma.eventRsvp.upsert).toHaveBeenCalled();
   });
 

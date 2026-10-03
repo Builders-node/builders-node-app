@@ -89,21 +89,40 @@ export class EventsService {
 
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
-      include: { rsvps: { select: { userId: true, status: true } } },
+      select: { published: true },
     });
     if (!event || !event.published) throw new NotFoundException('Event not found.');
 
-    if (status === 'GOING' && event.capacity !== null) {
-      const going = event.rsvps.filter((r) => r.status === 'GOING' && r.userId !== userId).length;
-      if (going >= event.capacity) {
-        throw new BadRequestException('This event is full.');
-      }
+    const upsert = (client: Pick<PrismaService, 'eventRsvp'>) =>
+      client.eventRsvp.upsert({
+        where: { eventId_userId: { eventId, userId } },
+        create: { eventId, userId, status },
+        update: { status },
+      });
+
+    if (status !== 'GOING') {
+      await upsert(this.prisma);
+      return this.listForMember(userId);
     }
 
-    await this.prisma.eventRsvp.upsert({
-      where: { eventId_userId: { eventId, userId } },
-      create: { eventId, userId, status },
-      update: { status },
+    // Count-then-write for the last seat used to let two members both see one
+    // spot left and both take it. Locking the event row serialises GOING
+    // RSVPs per event — the second waits for the first to commit, then counts
+    // a full house. A row lock rather than SERIALIZABLE because it needs no
+    // retry loop: nobody gets a spurious "try again" for a seat that was free.
+    await this.prisma.$transaction(async (tx) => {
+      const [locked] = await tx.$queryRaw<Array<{ capacity: number | null }>>`
+        SELECT "capacity" FROM "Event" WHERE "id" = ${eventId} FOR UPDATE`;
+      // Capacity read under the lock, so an admin edit in between counts too.
+      const capacity = locked?.capacity ?? null;
+      if (capacity !== null) {
+        // Their own row doesn't count: re-confirming GOING keeps your seat.
+        const going = await tx.eventRsvp.count({ where: { eventId, status: 'GOING', userId: { not: userId } } });
+        if (going >= capacity) {
+          throw new BadRequestException('This event is full.');
+        }
+      }
+      await upsert(tx);
     });
 
     return this.listForMember(userId);
