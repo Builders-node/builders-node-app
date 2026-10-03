@@ -208,6 +208,10 @@ html = html.replace(
   '</head>',
   // And a tab title: the export has none, so the tab showed the bare URL.
   '<title>Buildersnode founder guide</title>\n' +
+    // Never indexed, on any host. vercel.json sends the same as an
+    // X-Robots-Tag header for /g/; this copy travels with the file, so it
+    // still holds if the page is ever served from somewhere that header isn't.
+    '<meta name="robots" content="noindex, nofollow">\n' +
     '<style>html,body{margin:0;padding:0;background:#fff;}img{box-sizing:border-box;}</style>\n</head>',
 );
 
@@ -324,6 +328,22 @@ if (!preparedFor.test(html)) {
   console.warn('  ! no "Prepared for" line found — check whether the export changed');
 }
 html = html.replace(preparedFor, '');
+
+/**
+ * Lazy-load every image but the first.
+ *
+ * The guide is one long page with dozens of photos, and the export loads all
+ * of them up front — on a phone that is megabytes fetched before the reader
+ * has scrolled past the cover. The first image is the cover itself, above the
+ * fold, so it keeps loading eagerly; lazy-loading it would only delay the one
+ * picture everybody sees. Tags that already say how to load are left alone.
+ */
+let imageCount = 0;
+html = html.replace(/<img\b([^>]*)>/g, (whole, attrs) => {
+  imageCount += 1;
+  if (imageCount === 1 || /\sloading=/.test(attrs)) return whole;
+  return `<img loading="lazy" decoding="async"${attrs}>`;
+});
 
 const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 html = html.replace('Last updated [date]', `Last updated ${today}`);

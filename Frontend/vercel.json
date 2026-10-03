@@ -9,6 +9,10 @@
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
     },
     {
+      "source": "/g/(.*)",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+    },
+    {
       "source": "/(.*)",
       "has": [{ "type": "host", "value": "ca.buildersnode.com" }],
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
