@@ -674,6 +674,31 @@ export class MailService {
     });
   }
 
+  /** To an affiliate, when someone they referred becomes a member. */
+  async sendReferralJoined(to: string, fullName: string | null, reward: { cents: number; currency: string }): Promise<boolean> {
+    const name = fullName ? firstNameOf(fullName) : 'there';
+    const amount = formatMoney(reward.cents, reward.currency);
+    const hubUrl = `${this.frontendBaseUrl()}/account/affiliate`;
+    return this.send({
+      to,
+      subject: `Someone you referred joined Builders Node — you earned ${amount}`,
+      replyTo: true,
+      text:
+        `Hi ${name},\n\n` +
+        `Someone who applied with your link has just become a member. That's ${amount} for you.\n\n` +
+        `Your numbers are on your affiliate page: ${hubUrl}\n\n` +
+        'Thank you for sending good people our way.\n\nBuilders Node',
+      html: layout(
+        `You earned ${escapeHtml(amount)}`,
+        `<p>Hi ${escapeHtml(name)},</p>
+         <p>Someone who applied with your link has just become a member. That's ${escapeHtml(amount)} for you.</p>
+         ${button('See your affiliate page', hubUrl)}
+         <p>Thank you for sending good people our way.</p>
+         <p>Builders Node</p>`,
+      ),
+    });
+  }
+
   async sendInvitation(invitation: InvitationEmail): Promise<boolean> {
     return this.send({
       to: invitation.to,

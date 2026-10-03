@@ -1,4 +1,6 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
+import { SuperAdminOnly } from '../admin/super-admin.decorator';
 import { AdminGuard } from '../admin/admin.guard';
 import { AffiliatesService } from './affiliates.service';
 
@@ -27,5 +29,22 @@ export class AdminAffiliatesController {
   @Get()
   list() {
     return this.affiliates.list();
+  }
+
+  /** Money paid out is money: Super Admin only, like invoices. */
+  @SuperAdminOnly()
+  @Post(':userId/payouts')
+  recordPayout(
+    @Param('userId') userId: string,
+    @Body() body: { amountCents?: number; note?: string },
+    @Req() request: Request & { adminAccess?: { userId?: string } },
+  ) {
+    return this.affiliates.recordPayout(userId, body ?? {}, request.adminAccess?.userId);
+  }
+
+  @SuperAdminOnly()
+  @Delete('payouts/:payoutId')
+  removePayout(@Param('payoutId') payoutId: string) {
+    return this.affiliates.removePayout(payoutId);
   }
 }

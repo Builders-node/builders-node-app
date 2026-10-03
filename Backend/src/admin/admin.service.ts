@@ -655,6 +655,42 @@ export class AdminService {
   }
 
   /**
+   * The referral pays out: fix its reward at today's rate, and tell the
+   * affiliate. Once only — the conditional update is the claim.
+   */
+  private async creditReferrer(applicationId: string) {
+    const app = await this.prisma.application.findUnique({
+      where: { id: applicationId },
+      select: { referredByUserId: true, referralRewardCents: true },
+    });
+    if (!app?.referredByUserId || app.referralRewardCents !== null) return;
+
+    const rewardRow = await this.prisma.globalSetting.findUnique({ where: { key: AFFILIATE_KEY } });
+    const reward = parseAffiliateReward(rewardRow?.value);
+    const claimed = await this.prisma.application.updateMany({
+      where: { id: applicationId, referralRewardCents: null },
+      data: { referralRewardCents: reward.rewardCents },
+    });
+    if (claimed.count === 0) return;
+
+    const referrer = await this.prisma.user.findUnique({
+      where: { id: app.referredByUserId },
+      select: { id: true, email: true, profile: { select: { fullName: true } } },
+    });
+    if (!referrer) return;
+    await this.notifications.notify(referrer.id, {
+      type: 'success',
+      title: 'Your referral joined 🎉',
+      body: 'Someone who applied with your link has become a member.',
+      link: '/account/affiliate',
+    });
+    await this.mail.sendReferralJoined(referrer.email, referrer.profile?.fullName ?? null, {
+      cents: reward.rewardCents,
+      currency: reward.currency,
+    });
+  }
+
+  /**
    * What the applicant's chosen plan costs per month, if we can tell.
    *
    * The form has always asked for a plan and a stay length; the short-stay
@@ -912,6 +948,7 @@ export class AdminService {
     // off having actually moved the row rather than off reaching this line.
     if (claimed.count > 0) {
       await this.mail.sendMembershipActivated(application.email, application.fullName);
+      await this.creditReferrer(application.id);
     }
 
     return { activated: true, userExisted: true, monthlyAmountCents };
@@ -1017,6 +1054,7 @@ export class AdminService {
         approvedAt: application.approvedAt ?? new Date(),
       },
     });
+    await this.creditReferrer(application.id);
 
     // On approval, automatically grant the global ProsperaSub.com meal plan the
     // member already paid for, and provision their ProsperaSub.com account.

@@ -7,39 +7,50 @@ import { UsersService } from './users.service';
  * `joinedCount` is the subset who got in. Money is owed on the second one, so
  * the difference between them is the whole point of returning both.
  */
-function makeService(applicationCounts: number[]) {
-  const counts = [...applicationCounts];
+function makeService(applications: Array<{ status: string; referralRewardCents?: number | null }>) {
   const prisma = {
     user: { findUnique: jest.fn().mockResolvedValue({ referralCode: 'BUILDERS-AB12CD' }) },
-    application: { count: jest.fn().mockImplementation(() => Promise.resolve(counts.shift() ?? 0)) },
+    application: {
+      findMany: jest.fn().mockResolvedValue(applications.map((app) => ({ referredByUserId: 'user-1', referralRewardCents: null, ...app }))),
+    },
+    affiliatePayout: { groupBy: jest.fn().mockResolvedValue([{ userId: 'user-1', _sum: { amountCents: 20_000 } }]) },
+    globalSetting: { findUnique: jest.fn().mockResolvedValue(null) },
   };
   const discord = { isEnabled: () => false };
   return { service: new UsersService(prisma as never, discord as never), prisma };
 }
 
+const statuses = (...list: string[]) => list.map((status) => ({ status }));
+
 describe('UsersService.findReferrals', () => {
-  it('reports applications and joins separately', async () => {
-    const { service } = makeService([7, 2]);
+  it('reports applications and joins separately, with what is earned, paid and owed', async () => {
+    const { service } = makeService(statuses('SUBMITTED', 'SUBMITTED', 'FIRST_APPROVED', 'CREDENTIALS_SENT', 'APPROVED'));
 
     const result = await service.findReferrals('user-1');
 
-    expect(result).toEqual({ referralCode: 'BUILDERS-AB12CD', referredCount: 7, joinedCount: 2 });
+    expect(result).toEqual({
+      referralCode: 'BUILDERS-AB12CD',
+      referredCount: 5,
+      joinedCount: 2,
+      earnedCents: 40_000,
+      paidCents: 20_000,
+      owedCents: 20_000,
+      currency: 'USD',
+    });
   });
 
   it('counts a join only from a status that means they got in', async () => {
     // A rejection is terminal too, so "reached a terminal status" would have
     // paid out on people who were turned away.
-    const { service, prisma } = makeService([7, 2]);
+    const { service } = makeService(statuses('FIRST_REJECTED', 'MEETING_REJECTED'));
 
-    await service.findReferrals('user-1');
+    const result = await service.findReferrals('user-1');
 
-    const joinedQuery = prisma.application.count.mock.calls[1][0];
-    expect(joinedQuery.where.status.in).toEqual(['APPROVED', 'CREDENTIALS_SENT']);
-    expect(joinedQuery.where.status.in).not.toContain('FIRST_REJECTED');
+    expect(result.joinedCount).toBe(0);
   });
 
   it('refuses a user that does not exist rather than reporting zero referrals', async () => {
-    const { service, prisma } = makeService([0, 0]);
+    const { service, prisma } = makeService([]);
     prisma.user.findUnique.mockResolvedValue(null);
 
     await expect(service.findReferrals('ghost')).rejects.toThrow();

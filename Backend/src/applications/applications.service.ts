@@ -306,6 +306,17 @@ export class ApplicationsService {
           })
         : await this.prisma.application.create({ data: { ...answers, email } });
 
+    // The affiliate hears that their link worked — in the app, without who:
+    // the applicant hasn't agreed to their name being passed on.
+    if (referrer) {
+      await this.notifications.notify(referrer.id, {
+        type: 'info',
+        title: 'Someone applied with your link',
+        body: "We'll let you know if they join — that's when your referral pays out.",
+        link: '/account/affiliate',
+      });
+    }
+
     await this.notifications.notifyAdmins({
       type: 'info',
       title: 'New application',

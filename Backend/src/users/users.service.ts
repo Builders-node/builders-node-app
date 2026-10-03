@@ -10,6 +10,7 @@ import {
   parseLinks,
   type ProfileLinks,
 } from '../common/profile-fields';
+import { affiliateLedgers } from '../affiliates/ledger';
 import { PrismaService } from '../database/prisma.service';
 import { DiscordService } from '../discord/discord.service';
 import { personalRecordsByEmail, purgeUser } from './purge-user';
@@ -21,7 +22,6 @@ import { personalRecordsByEmail, purgeUser } from './purge-user';
  * their credentials already sent. Rejections are terminal too, which is why this
  * can't simply be "reached a terminal status".
  */
-const JOINED_APPLICATION_STATUSES = ['APPROVED', 'CREDENTIALS_SENT'];
 
 /** Everything the unified profile page can write. All fields optional. */
 export type ProfileUpdateInput = {
@@ -115,13 +115,16 @@ export class UsersService {
     // `referredCount` is everyone who applied with the link; `joinedCount` is the
     // subset who actually got in. Showing only the first would quietly imply a
     // payout for every form submission.
-    const [referredCount, joinedCount] = await Promise.all([
-      this.prisma.application.count({ where: { referredByUserId: userId } }),
-      this.prisma.application.count({
-        where: { referredByUserId: userId, status: { in: JOINED_APPLICATION_STATUSES } },
-      }),
-    ]);
-    return { referralCode: user.referralCode, referredCount, joinedCount };
+    const ledger = (await affiliateLedgers(this.prisma, [userId])).get(userId)!;
+    return {
+      referralCode: user.referralCode,
+      referredCount: ledger.referredCount,
+      joinedCount: ledger.joinedCount,
+      earnedCents: ledger.earnedCents,
+      paidCents: ledger.paidCents,
+      owedCents: ledger.owedCents,
+      currency: ledger.currency,
+    };
   }
 
   /**

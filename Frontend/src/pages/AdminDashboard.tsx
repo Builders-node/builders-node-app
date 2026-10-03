@@ -261,8 +261,12 @@ type AffiliateRow = {
   referredCount: number;
   /** The subset who got in — the only number money is owed on. */
   joinedCount: number;
+  /** Earned at the reward each referral joined at; owed is earned minus paid. */
+  earnedCents?: number;
+  paidCents?: number;
   owedCents: number;
   currency: string;
+  payouts?: Array<{ id: string; amountCents: number; currency: string; note: string | null; paidAt: string }>;
   joinedAt: string;
 };
 
@@ -1403,6 +1407,41 @@ async function loadGuideLeads() {
       await loadGuideLeads();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not delete that lead.');
+    }
+  }
+
+  /** Owed goes down only when a payout is recorded here. Super Admin only server-side. */
+  async function recordAffiliatePayout(row: AffiliateRow) {
+    const suggested = (row.owedCents / 100).toString();
+    const amount = window.prompt(`How much did you pay ${row.fullName ?? row.email}? (${row.currency})`, suggested);
+    if (amount === null) return;
+    const dollars = Number(amount);
+    if (!Number.isFinite(dollars) || dollars <= 0) {
+      setError('Enter the amount paid.');
+      return;
+    }
+    const note = window.prompt('Note (optional) — e.g. "Wise transfer, 2 referrals"', '') ?? '';
+    setError(null);
+    try {
+      await apiRequest(`/admin/affiliates/${row.id}/payouts`, {
+        method: 'POST',
+        body: JSON.stringify({ amountCents: Math.round(dollars * 100), note }),
+      });
+      setNotice(`Recorded ${formatMoney(Math.round(dollars * 100), row.currency)} paid to ${row.fullName ?? row.email}.`);
+      await loadAffiliates();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not record the payout.');
+    }
+  }
+
+  async function undoAffiliatePayout(payoutId: string) {
+    if (!window.confirm('Remove this payout? What they are owed goes back up.')) return;
+    try {
+      await apiRequest(`/admin/affiliates/payouts/${payoutId}`, { method: 'DELETE' });
+      setNotice('Payout removed.');
+      await loadAffiliates();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not remove the payout.');
     }
   }
 
@@ -3282,10 +3321,43 @@ async function loadGuideLeads() {
                   <strong>{row.joinedCount}</strong>
                 </div>
                 <div>
+                  <span>Earned</span>
+                  <strong>{formatMoney(row.earnedCents ?? row.owedCents, row.currency)}</strong>
+                </div>
+                <div>
+                  <span>Paid</span>
+                  <strong>{formatMoney(row.paidCents ?? 0, row.currency)}</strong>
+                </div>
+                <div>
                   <span>Owed</span>
                   <strong>{formatMoney(row.owedCents, row.currency)}</strong>
                 </div>
               </div>
+
+              <div className="campaign-row__actions">
+                {row.owedCents > 0 ? (
+                  <button className="compact-button" onClick={() => void recordAffiliatePayout(row)}>
+                    Record payout
+                  </button>
+                ) : null}
+              </div>
+              {row.payouts && row.payouts.length > 0 ? (
+                <ul className="affiliate-row__payouts" style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 13, color: 'var(--muted)' }}>
+                  {row.payouts.map((payout) => (
+                    <li key={payout.id}>
+                      Paid {formatMoney(payout.amountCents, payout.currency)} on {new Date(payout.paidAt).toLocaleDateString()}
+                      {payout.note ? ` — ${payout.note}` : ''}{' '}
+                      <button
+                        className="text-button"
+                        style={{ fontSize: 12 }}
+                        onClick={() => void undoAffiliatePayout(payout.id)}
+                      >
+                        Undo
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </article>
           ))}
         </section>
@@ -4280,7 +4352,9 @@ function ApplicantFacts({ application }: { application: Applicant }) {
   const source = application.campaignCode
     ? `link: ${application.campaignCode}`
     : application.referralCode
-      ? `referral: ${application.referralCode}`
+      ? // A typed code that matched nobody is kept but credits no one —
+        // worth seeing, since it usually means a typo of a real member's code.
+        `referral: ${application.referralCode}${application.referredByUserId ? '' : ' (unknown code)'}`
       : application.heardVia
         ? `heard via: ${application.heardVia}`
         : null;

@@ -9,30 +9,48 @@ import { normalizeSignupSource } from '../auth/signup-source';
  * the derivation catches both kinds of affiliate, and that the money is counted
  * on people who got in rather than on forms submitted.
  */
+type App = { referredByUserId: string; status: string; referralRewardCents?: number | null };
+
+/** n applications by `referrer`, `joined` of them got in. */
+function apps(referrer: string, n: number, joined = 0, rewardCents: number | null = null): App[] {
+  return Array.from({ length: n }, (_, i) => ({
+    referredByUserId: referrer,
+    status: i < joined ? 'CREDENTIALS_SENT' : 'SUBMITTED',
+    referralRewardCents: i < joined ? rewardCents : null,
+  }));
+}
+
 function makeService(options: {
   sourced?: Array<Record<string, unknown>>;
-  applied?: Array<{ referredByUserId: string | null; _count: { _all: number } }>;
-  joined?: Array<{ referredByUserId: string | null; _count: { _all: number } }>;
+  applications?: App[];
+  payouts?: Array<{ userId: string; amountCents: number }>;
   extra?: Array<Record<string, unknown>>;
 } = {}) {
   const {
     sourced = [user('u1', 'nina@example.com', 'Nina Alvarez', 'affiliate-page')],
-    applied = [],
-    joined = [],
+    applications = [],
+    payouts = [],
     extra = [],
   } = options;
 
-  const groupBy = jest
-    .fn()
-    // First call is "who has been credited at all", second is "who got in".
-    .mockResolvedValueOnce(applied)
-    .mockResolvedValueOnce(joined);
+  // "Who has been credited at all", grouped from the same rows.
+  const credited = new Map<string, number>();
+  for (const app of applications) credited.set(app.referredByUserId, (credited.get(app.referredByUserId) ?? 0) + 1);
+  const paidBy = new Map<string, number>();
+  for (const payout of payouts) paidBy.set(payout.userId, (paidBy.get(payout.userId) ?? 0) + payout.amountCents);
 
   const prisma = {
     user: {
       findMany: jest.fn().mockResolvedValueOnce(sourced).mockResolvedValueOnce(extra),
     },
-    application: { groupBy },
+    application: {
+      groupBy: jest.fn().mockResolvedValue([...credited].map(([referredByUserId, n]) => ({ referredByUserId, _count: { _all: n } }))),
+      findMany: jest.fn().mockResolvedValue(applications),
+    },
+    affiliatePayout: {
+      groupBy: jest.fn().mockResolvedValue([...paidBy].map(([userId, sum]) => ({ userId, _sum: { amountCents: sum } }))),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
     globalSetting: { findUnique: jest.fn().mockResolvedValue(null) },
   };
   const mail = { frontendBaseUrl: jest.fn().mockReturnValue('https://buildersnode.com') };
@@ -70,8 +88,7 @@ describe('AffiliatesService.list', () => {
     // them.
     const { service } = makeService({
       sourced: [],
-      applied: [{ referredByUserId: 'u2', _count: { _all: 4 } }],
-      joined: [{ referredByUserId: 'u2', _count: { _all: 1 } }],
+      applications: apps('u2', 4, 1),
       extra: [user('u2', 'sam@example.com', 'Sam Reed', null)],
     });
 
@@ -83,10 +100,7 @@ describe('AffiliatesService.list', () => {
   });
 
   it('does not load an affiliate twice when they are on both lists', async () => {
-    const { service, prisma } = makeService({
-      applied: [{ referredByUserId: 'u1', _count: { _all: 3 } }],
-      joined: [{ referredByUserId: 'u1', _count: { _all: 2 } }],
-    });
+    const { service, prisma } = makeService({ applications: apps('u1', 3, 2) });
 
     const rows = await service.list();
 
@@ -97,15 +111,32 @@ describe('AffiliatesService.list', () => {
   });
 
   it('owes money per person who got in, not per application', async () => {
-    const { service } = makeService({
-      applied: [{ referredByUserId: 'u1', _count: { _all: 9 } }],
-      joined: [{ referredByUserId: 'u1', _count: { _all: 2 } }],
-    });
+    const { service } = makeService({ applications: apps('u1', 9, 2) });
 
     const [nina] = await service.list();
 
     // Nine forms, two arrivals — at the $200 default that is $400, not $1,800.
     expect(nina.owedCents).toBe(40_000);
+  });
+
+  it('pays each referral at the reward fixed when it joined, not today\'s', async () => {
+    // Two joined while the reward was $150; the setting is $200 now.
+    const { service } = makeService({ applications: apps('u1', 2, 2, 15_000) });
+
+    const [nina] = await service.list();
+
+    expect(nina.earnedCents).toBe(30_000);
+  });
+
+  it('takes recorded payouts off what is owed', async () => {
+    const { service } = makeService({
+      applications: apps('u1', 3, 3),
+      payouts: [{ userId: 'u1', amountCents: 40_000 }],
+    });
+
+    const [nina] = await service.list();
+
+    expect(nina).toMatchObject({ earnedCents: 60_000, paidCents: 40_000, owedCents: 20_000 });
   });
 
   it('puts the most productive affiliate first', async () => {
@@ -114,11 +145,7 @@ describe('AffiliatesService.list', () => {
         user('u1', 'nina@example.com', 'Nina Alvarez', 'affiliate-page'),
         user('u3', 'lee@example.com', 'Lee Park', 'affiliate-page'),
       ],
-      applied: [
-        { referredByUserId: 'u1', _count: { _all: 1 } },
-        { referredByUserId: 'u3', _count: { _all: 5 } },
-      ],
-      joined: [{ referredByUserId: 'u3', _count: { _all: 3 } }],
+      applications: [...apps('u1', 1), ...apps('u3', 5, 3)],
     });
 
     const rows = await service.list();

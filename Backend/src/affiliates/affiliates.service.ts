@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { AFFILIATE_KEY, parseAffiliateReward } from '../admin/global-settings';
+import { affiliateLedgers } from './ledger';
 
 /**
  * The affiliate programme.
@@ -61,21 +62,17 @@ export class AffiliatesService {
     if (users.length === 0) return [];
 
     const ids = users.map((user) => user.id);
-    // Applications that got in. Counted per referrer in one grouped query
-    // rather than once per row: this screen exists to compare them.
-    const joined = await this.prisma.application.groupBy({
-      by: ['referredByUserId'],
-      where: { referredByUserId: { in: ids }, status: { in: JOINED_APPLICATION_STATUSES } },
-      _count: { _all: true },
-    });
-
-    const appliedBy = new Map(referrers.map((row) => [row.referredByUserId ?? '', row._count._all]));
-    const joinedBy = new Map(joined.map((row) => [row.referredByUserId ?? '', row._count._all]));
+    const [ledgers, recentPayouts] = await Promise.all([
+      affiliateLedgers(this.prisma, ids),
+      this.prisma.affiliatePayout.findMany({ where: { userId: { in: ids } }, orderBy: { paidAt: 'desc' } }),
+    ]);
+    const payoutsBy = new Map<string, typeof recentPayouts>();
+    for (const payout of recentPayouts) payoutsBy.set(payout.userId, [...(payoutsBy.get(payout.userId) ?? []), payout]);
     const baseUrl = this.mail.frontendBaseUrl();
 
     return users
       .map((user) => {
-        const joinedCount = joinedBy.get(user.id) ?? 0;
+        const ledger = ledgers.get(user.id)!;
         return {
           id: user.id,
           email: user.email,
@@ -86,16 +83,53 @@ export class AffiliatesService {
           fromAffiliatePage: user.signupSource === 'affiliate-page',
           referralCode: user.referralCode,
           inviteLink: user.referralCode ? `${baseUrl}/?ref=${user.referralCode}` : null,
-          referredCount: appliedBy.get(user.id) ?? 0,
-          joinedCount,
-          /** What they have earned. Counted on people who got in, never on applications. */
-          owedCents: joinedCount * reward.rewardCents,
-          currency: reward.currency,
+          referredCount: ledger.referredCount,
+          joinedCount: ledger.joinedCount,
+          /** Counted on people who got in, never on applications. */
+          earnedCents: ledger.earnedCents,
+          paidCents: ledger.paidCents,
+          owedCents: ledger.owedCents,
+          currency: ledger.currency,
+          payouts: (payoutsBy.get(user.id) ?? []).map((payout) => ({
+            id: payout.id,
+            amountCents: payout.amountCents,
+            currency: payout.currency,
+            note: payout.note,
+            paidAt: payout.paidAt,
+          })),
           joinedAt: user.createdAt,
         };
       })
-      // Most productive first: an admin opens this to see who to pay.
-      .sort((a, b) => b.joinedCount - a.joinedCount || b.referredCount - a.referredCount);
+      // Most owed first, then most productive: an admin opens this to see who to pay.
+      .sort((a, b) => b.owedCents - a.owedCents || b.joinedCount - a.joinedCount || b.referredCount - a.referredCount);
+  }
+
+  /** Record money paid to an affiliate. Super Admin only (see the controller). */
+  async recordPayout(userId: string, input: { amountCents?: number; note?: string }, recordedById?: string) {
+    const amountCents = Math.round(Number(input.amountCents));
+    if (!Number.isFinite(amountCents) || amountCents <= 0) {
+      throw new BadRequestException('Enter the amount paid.');
+    }
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) throw new NotFoundException('Affiliate not found.');
+    const reward = await this.reward();
+    return this.prisma.affiliatePayout.create({
+      data: {
+        userId,
+        amountCents,
+        currency: reward.currency,
+        note: input.note?.trim().slice(0, 200) || null,
+        recordedById: recordedById ?? null,
+      },
+    });
+  }
+
+  /** Undo a payout recorded by mistake. */
+  async removePayout(payoutId: string) {
+    const payout = await this.prisma.affiliatePayout.findUnique({ where: { id: payoutId } });
+    if (!payout) throw new NotFoundException('Payout not found.');
+    await this.prisma.affiliatePayout.delete({ where: { id: payoutId } });
+    return { deleted: true };
   }
 
   /** The current payout terms, as the public page and the member page quote them. */
@@ -114,9 +148,3 @@ const AFFILIATE_SELECT = {
   createdAt: true,
   profile: { select: { fullName: true, phone: true } },
 } as const;
-
-/**
- * An application that made it in — the same two statuses the member's own
- * affiliate page counts, so the two screens can never quote different numbers.
- */
-const JOINED_APPLICATION_STATUSES = ['APPROVED', 'CREDENTIALS_SENT'];

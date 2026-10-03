@@ -11,6 +11,10 @@ type Referrals = {
   referredCount: number;
   /** The subset who actually got in — what the payout is counted on. */
   joinedCount: number;
+  /** From the server's ledger: each referral at the reward it joined at, minus payouts. */
+  earnedCents?: number;
+  paidCents?: number;
+  owedCents?: number;
 };
 
 type AffiliateHubProps = {
@@ -61,7 +65,10 @@ export function AffiliateHub({ currentUserId }: AffiliateHubProps) {
   const code = data?.referralCode ?? '';
   const inviteLink = code ? `${window.location.origin}/?ref=${code}` : '';
   const shareValue = mode === 'link' ? inviteLink : code;
-  const earned = (data?.joinedCount ?? 0) * reward.cents;
+  // The server's figure when it has one: each referral is paid at the reward
+  // in force when that person joined, which today's rate can't reproduce.
+  const earned = data?.earnedCents ?? (data?.joinedCount ?? 0) * reward.cents;
+  const paid = data?.paidCents ?? 0;
 
   async function copy() {
     if (!shareValue) return;
@@ -167,6 +174,11 @@ export function AffiliateHub({ currentUserId }: AffiliateHubProps) {
               {/* Counted from people who got in, not from applications — see
                   the two counts above. */}
               <strong className="affiliate-hub__figure">{formatMoney(earned, reward.currency)}</strong>
+              {paid > 0 ? (
+                <span style={{ fontSize: 13, color: 'var(--muted)' }}>
+                  {formatMoney(paid, reward.currency)} paid · {formatMoney(Math.max(0, earned - paid), reward.currency)} to come
+                </span>
+              ) : null}
             </article>
           </section>
 

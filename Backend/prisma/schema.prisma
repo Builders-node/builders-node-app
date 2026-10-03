@@ -237,6 +237,9 @@ model Application {
   /// keeps its own stamp (meetingReminderSentAt); this one caps the automatic
   /// ones at two, so nobody gets chased indefinitely.
   autoMeetingReminders Int @default(0)
+  /// What the referrer earns for this person, fixed when they join. Without
+  /// it, changing the reward setting re-priced every past referral.
+  referralRewardCents Int?
   /// When it was declined, and whether they were told. A declined application
   /// can be filed again for a later batch.
   rejectedAt         DateTime?
@@ -729,4 +732,22 @@ model GuideRequest {
   updatedAt    DateTime  @updatedAt
 
   @@index([createdAt])
+}
+
+/// Money paid to an affiliate. "Owed" is earned minus these — before there
+/// was a record of payouts, owed never went down.
+///
+/// No relation to User on purpose: it is a financial record, and it has to
+/// outlive the account it was paid to.
+model AffiliatePayout {
+  id           String   @id @default(uuid())
+  userId       String
+  amountCents  Int
+  currency     String   @default("USD")
+  note         String?
+  paidAt       DateTime @default(now())
+  recordedById String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
 }
