@@ -42,6 +42,21 @@ export class ApplyDto {
   @IsString({ each: true })
   socials?: string[];
 
+  /** The membership plan picked on the form — its id from the plan catalogue. */
+  @IsOptional()
+  @IsString()
+  planId?: string;
+
+  /** "1 month", "3 months"… — decides the short-stay price. */
+  @IsOptional()
+  @IsString()
+  stayDuration?: string;
+
+  /** Their answer to "where did you hear about us". */
+  @IsOptional()
+  @IsString()
+  heardVia?: string;
+
   @IsOptional()
   @IsString()
   referralCode?: string;

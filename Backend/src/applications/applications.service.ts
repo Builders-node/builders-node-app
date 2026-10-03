@@ -42,6 +42,14 @@ function profileSeedFrom(application: { fullName: string; phone?: string | null;
   };
 }
 
+/** Declined applications may be filed again; nothing else can. */
+const REAPPLY_FROM = ['FIRST_REJECTED', 'MEETING_REJECTED'];
+
+/** A short form answer, trimmed and capped; null when empty. */
+function shortField(value: string | undefined, max = 120): string | null {
+  return value?.trim().slice(0, max) || null;
+}
+
 @Injectable()
 export class ApplicationsService {
   constructor(
@@ -60,8 +68,10 @@ export class ApplicationsService {
   async requestCode(dto: ApplyDto) {
     const email = dto.email.toLowerCase();
 
-    const existing = await this.prisma.application.findUnique({ where: { email }, select: { id: true } });
-    if (existing) {
+    // One application per address — except a declined one, which can be
+    // filed again for a later batch (the decline email says so).
+    const existing = await this.prisma.application.findUnique({ where: { email }, select: { status: true } });
+    if (existing && !REAPPLY_FROM.includes(existing.status)) {
       throw new BadRequestException('An application with this email already exists.');
     }
 
@@ -252,21 +262,51 @@ export class ApplicationsService {
     const campaignCode = await this.resolveCampaignCode(dto.campaignCode);
 
     const links = linksFromUrls(dto.socials);
-    const application = await this.prisma.application.create({
-      data: {
-        fullName: dto.fullName,
-        email: dto.email.toLowerCase(),
-        phone: dto.phone,
-        note: dto.note,
-        about: dto.about?.trim().slice(0, MAX_BIO) || null,
-        moveInDate: parseMoveInDate(dto.moveInDate),
-        socialLinksJson: Object.keys(links).length > 0 ? JSON.stringify(links) : null,
-        referralCode,
-        referredByUserId: referrer?.id,
-        campaignCode,
-        status: 'SUBMITTED',
-      },
-    });
+    const email = dto.email.toLowerCase();
+    const answers = {
+      fullName: dto.fullName,
+      phone: dto.phone,
+      note: dto.note,
+      about: dto.about?.trim().slice(0, MAX_BIO) || null,
+      moveInDate: parseMoveInDate(dto.moveInDate),
+      socialLinksJson: Object.keys(links).length > 0 ? JSON.stringify(links) : null,
+      planId: shortField(dto.planId),
+      stayDuration: shortField(dto.stayDuration),
+      heardVia: shortField(dto.heardVia),
+      referralCode,
+      referredByUserId: referrer?.id,
+      campaignCode,
+      status: 'SUBMITTED',
+    };
+
+    // Applying again after a decline starts the same row over: one row per
+    // address is what the unique email (and every lookup by it) assumes.
+    // Everything from the last attempt's pipeline is cleared, the admin note
+    // kept — it is the team's memory of this person.
+    const previous = await this.prisma.application.findUnique({ where: { email }, select: { status: true } });
+    const application =
+      previous && REAPPLY_FROM.includes(previous.status)
+        ? await this.prisma.application.update({
+            where: { email },
+            data: {
+              ...answers,
+              createdAt: new Date(),
+              firstApprovedAt: null,
+              meetingReminderSentAt: null,
+              autoMeetingReminders: 0,
+              meetingApprovedAt: null,
+              paymentLink: null,
+              paymentStatus: 'NOT_SENT',
+              paymentAmountCents: null,
+              paymentLinkSentAt: null,
+              paymentReminderSentAt: null,
+              paymentConfirmedAt: null,
+              rejectedAt: null,
+              rejectionEmailSentAt: null,
+              approvedAt: null,
+            },
+          })
+        : await this.prisma.application.create({ data: { ...answers, email } });
 
     await this.notifications.notifyAdmins({
       type: 'info',

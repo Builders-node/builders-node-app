@@ -26,7 +26,10 @@ function makeService(application: Record<string, unknown> = {}) {
       updateMany: jest.fn().mockResolvedValue({ count: app.firstApprovedAt ? 0 : 1 }),
     },
   };
-  const mail = { sendFirstCheckApproved: jest.fn().mockResolvedValue(undefined) };
+  const mail = {
+    sendFirstCheckApproved: jest.fn().mockResolvedValue(undefined),
+    sendApplicationDeclined: jest.fn().mockResolvedValue(true),
+  };
   return {
     service: new AdminService(prisma as never, {} as never, mail as never, {} as never),
     prisma,
@@ -60,10 +63,17 @@ describe('AdminService.firstCheck — applicant email', () => {
     expect(mail.sendFirstCheckApproved).toHaveBeenCalled();
   });
 
-  it('sends nothing when the applicant is rejected', async () => {
+  it('sends the decline email, not the invitation, when the applicant is rejected', async () => {
     const { service, mail } = makeService();
     await service.firstCheck('app-1', false);
     expect(mail.sendFirstCheckApproved).not.toHaveBeenCalled();
+    expect(mail.sendApplicationDeclined).toHaveBeenCalledWith('robert@innerlife-ai.com', 'Robert Neufeld');
+  });
+
+  it('declines without an email when told to', async () => {
+    const { service, mail } = makeService();
+    await service.firstCheck('app-1', false, { notify: false });
+    expect(mail.sendApplicationDeclined).not.toHaveBeenCalled();
   });
 
   it('does not email twice if the check is approved again', async () => {

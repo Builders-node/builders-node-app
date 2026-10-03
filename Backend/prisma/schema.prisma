@@ -211,8 +211,30 @@ model Application {
   /// account — see ApplicationsService.createAccountFromApply.
   setupToken String?  @unique
   setupTokenExpiresAt DateTime?
+  /// The membership plan they picked on the form, and how long they want to
+  /// stay. Kept as fields (they were only ever prose in `note`) because the
+  /// payment step prices from them and the traffic report groups by them.
+  planId       String?
+  stayDuration String?
+  /// Their own answer to "where did you hear about us". Self-reported and
+  /// free-ish text, so it complements campaignCode rather than replacing it.
+  heardVia     String?
   apartmentAvailable Boolean?
   paymentLink String?
+  /// What the payment link asks for, as sent. Becomes the member's monthly
+  /// rate when their membership is activated.
+  paymentAmountCents Int?
+  paymentCurrency    String @default("USD")
+  /// Last automatic "your payment link is waiting" nudge. Caps them.
+  paymentReminderSentAt DateTime?
+  /// How many automatic booking reminders went out. The manual Remind button
+  /// keeps its own stamp (meetingReminderSentAt); this one caps the automatic
+  /// ones at two, so nobody gets chased indefinitely.
+  autoMeetingReminders Int @default(0)
+  /// When it was declined, and whether they were told. A declined application
+  /// can be filed again for a later batch.
+  rejectedAt         DateTime?
+  rejectionEmailSentAt DateTime?
   paymentStatus String @default("NOT_SENT")
   firstApprovedAt DateTime?
   /// Last time an admin nudged them to book the intro call. Recorded so the

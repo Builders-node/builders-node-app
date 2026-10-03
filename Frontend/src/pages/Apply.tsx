@@ -10,6 +10,7 @@ import featCommunity from '@/assets/gallery-9.webp';
 import featCoworking from '@/assets/adv-coworking.jpg';
 import { apiRequest } from '../lib/api';
 import { goToApplyThanks } from '../lib/applyThanks';
+import { useStartingPrice } from '../lib/membership-plans';
 import type { PageId } from '../data/dashboard';
 
 type ApplyProps = {
@@ -32,6 +33,9 @@ const features = [
 
 export function Apply({ currentUserId, setActivePage, setCurrentUserId, setCurrentUserRole }: ApplyProps) {
   const [prefill, setPrefill] = useState<{ email?: string; fullName?: string }>({});
+  // From the plan catalogue, like the landing — this was the last place the
+  // price was typed out by hand.
+  const { price: startingPrice } = useStartingPrice();
 
   // Called when the applicant sets a password and their account is created —
   // sign them in so the success screen (and the app) treat them as logged in.
@@ -102,7 +106,7 @@ export function Apply({ currentUserId, setActivePage, setCurrentUserId, setCurre
           <div className="max-w-5xl mx-auto">
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-light tracking-tight leading-[1.05]">Apply to Builders Node</h1>
             <p className="mt-4 max-w-2xl text-base md:text-lg leading-relaxed" style={{ color: 'hsl(0 0% 40%)' }}>
-              Builders Node is a startup society for builders, founders, and content creators. Located in Próspera, we provide all this for just $1,950/mo:
+              Builders Node is a startup society for builders, founders, and content creators. Located in Próspera, we provide all this for just {startingPrice}/mo:
             </p>
 
             {/* Feature gallery — auto-scrolling marquee */}

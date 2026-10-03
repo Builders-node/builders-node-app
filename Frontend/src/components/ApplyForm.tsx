@@ -52,7 +52,9 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
   const [whatsapp, setWhatsapp] = useState("");
   const [visitDate, setVisitDate] = useState("");
   const [stayDuration, setStayDuration] = useState("");
-  const [gender, setGender] = useState("male");
+  // No default: preselecting one answer quietly answers for everyone who
+  // skips the question.
+  const [gender, setGender] = useState("");
   // Holds a plan id once the catalogue loads; empty until then.
   const [plan, setPlan] = useState("");
   const [social1, setSocial1] = useState("");
@@ -156,6 +158,12 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
         // 2027" back out of prose is no way to decide when food starts.
         moveInDate: visitDate || undefined,
         socials: [social1, social2].filter(Boolean),
+        // The plan, stay and "heard via" answers as fields too: the payment
+        // step prices from the first two, and the traffic report counts the
+        // third. In the note they were prose nobody could filter on.
+        planId: selectedPlan?.id,
+        stayDuration: stayDuration || undefined,
+        heardVia: referralSource || undefined,
         referralCode: referralCode || undefined,
         campaignCode: campaignCode || undefined,
       }),
@@ -168,7 +176,7 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
     setWhatsapp("");
     setVisitDate("");
     setStayDuration("");
-    setGender("male");
+    setGender("");
     setPlan("");
     setSocial1("");
     setSocial2("");

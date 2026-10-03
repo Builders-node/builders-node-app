@@ -95,9 +95,9 @@ export class MailService {
     }
   }
 
-  async sendPasswordReset(to: string, token: string): Promise<void> {
+  async sendPasswordReset(to: string, token: string): Promise<boolean> {
     const url = `${this.frontendBaseUrl()}/reset-password?token=${token}`;
-    await this.send({
+    return this.send({
       to,
       subject: 'Reset your Builders Node password',
       text: `Reset your password using this link (valid 30 minutes):\n${url}\n\nIf you didn't request this, you can ignore this email.`,
@@ -111,9 +111,9 @@ export class MailService {
     });
   }
 
-  async sendEmailVerification(to: string, token: string): Promise<void> {
+  async sendEmailVerification(to: string, token: string): Promise<boolean> {
     const url = `${this.frontendBaseUrl()}/verify-email?token=${token}`;
-    await this.send({
+    return this.send({
       to,
       subject: 'Confirm your email for Builders Node',
       text: `Confirm your email address:\n${url}`,
@@ -125,8 +125,8 @@ export class MailService {
     });
   }
 
-  async sendApplicationCode(to: string, code: string): Promise<void> {
-    await this.send({
+  async sendApplicationCode(to: string, code: string): Promise<boolean> {
+    return this.send({
       to,
       subject: `Your Builders Node confirmation code: ${code}`,
       text: `Your Builders Node application confirmation code is ${code}. It expires in 10 minutes. If you didn't apply, you can ignore this email.`,
@@ -147,9 +147,9 @@ export class MailService {
    * their email, set a password, and got nothing back. This says we have it and
    * what happens next, so nobody is left wondering whether it went through.
    */
-  async sendApplicationReceived(to: string, fullName: string): Promise<void> {
+  async sendApplicationReceived(to: string, fullName: string): Promise<boolean> {
     const name = firstNameOf(fullName);
-    await this.send({
+    return this.send({
       to,
       subject: 'We received your Builders Node application',
       text:
@@ -178,14 +178,25 @@ export class MailService {
    * applicant received nothing — they were waiting on a link that never left the
    * building.
    */
-  async sendPaymentLink(to: string, fullName: string, paymentUrl: string): Promise<void> {
+  /**
+   * The amount is stated, not left for the payment page to reveal: someone
+   * asked to pay should see what for and how much before they click.
+   */
+  async sendPaymentLink(
+    to: string,
+    fullName: string,
+    paymentUrl: string,
+    amount?: { cents: number; currency: string },
+  ): Promise<boolean> {
     const name = firstNameOf(fullName);
-    await this.send({
+    const amountLine = amount ? `The amount is ${formatMoney(amount.cents, amount.currency)}.` : '';
+    return this.send({
       to,
       subject: 'Your Builders Node payment link',
       text:
         `Hi ${name},\n\n` +
         'Good news — your application has been approved for the next step.\n\n' +
+        (amountLine ? `${amountLine}\n\n` : '') +
         `To secure your place, complete your payment here: ${paymentUrl}\n\n` +
         "Once it's done we'll confirm your membership and send you everything you need before arrival.\n\n" +
         'Best regards,\nBuilders Node',
@@ -193,6 +204,7 @@ export class MailService {
         'Your payment link',
         `<p>Hi ${escapeHtml(name)},</p>
          <p>Good news — your application has been approved for the next step.</p>
+         ${amountLine ? `<p>${escapeHtml(amountLine)}</p>` : ''}
          <p>To secure your place, complete your payment here:</p>
          ${button('Complete payment', paymentUrl)}
          <p>Once it's done we'll confirm your membership and send you everything you need before arrival.</p>
@@ -209,11 +221,11 @@ export class MailService {
    * recreated or moved, and a hardcoded one would silently send applicants to a
    * dead page until somebody redeployed.
    */
-  async sendFirstCheckApproved(to: string, fullName: string): Promise<void> {
+  async sendFirstCheckApproved(to: string, fullName: string): Promise<boolean> {
     const calendarUrl = this.meetingBookingUrl();
     const name = firstNameOf(fullName);
 
-    await this.send({
+    return this.send({
       to,
       subject: 'Next step: book a call with Builders Node',
       text:
@@ -248,11 +260,11 @@ export class MailService {
    * means "missed the email" or "went quiet on purpose" is a judgement call,
    * and a cron nudging people weekly would get us marked as spam.
    */
-  async sendMeetingReminder(to: string, fullName: string): Promise<void> {
+  async sendMeetingReminder(to: string, fullName: string): Promise<boolean> {
     const calendarUrl = this.meetingBookingUrl();
     const name = firstNameOf(fullName);
 
-    await this.send({
+    return this.send({
       to,
       subject: 'Following up — book your call with Builders Node',
       text:
@@ -284,9 +296,9 @@ export class MailService {
    * that check can take days. This exists so the applicant isn't sitting in that
    * gap wondering how the call went.
    */
-  async sendMeetingApproved(to: string, fullName: string): Promise<void> {
+  async sendMeetingApproved(to: string, fullName: string): Promise<boolean> {
     const name = firstNameOf(fullName);
-    await this.send({
+    return this.send({
       to,
       subject: 'Great speaking with you — Builders Node',
       text:
@@ -307,9 +319,9 @@ export class MailService {
   }
 
   /** Receipt for a payment an admin has confirmed landed. */
-  async sendPaymentConfirmed(to: string, fullName: string): Promise<void> {
+  async sendPaymentConfirmed(to: string, fullName: string): Promise<boolean> {
     const name = firstNameOf(fullName);
-    await this.send({
+    return this.send({
       to,
       subject: 'Payment confirmed — welcome to Builders Node',
       text:
@@ -328,10 +340,10 @@ export class MailService {
   }
 
   /** The end of the pipeline: membership is live and the dashboard is theirs. */
-  async sendMembershipActivated(to: string, fullName: string): Promise<void> {
+  async sendMembershipActivated(to: string, fullName: string): Promise<boolean> {
     const name = firstNameOf(fullName);
     const dashboardUrl = `${this.frontendBaseUrl()}/home`;
-    await this.send({
+    return this.send({
       to,
       subject: "You're now a Builders Node member 🎉",
       text:
@@ -354,14 +366,14 @@ export class MailService {
   }
 
   /** A new invoice. The member can also see it in their account either way. */
-  async sendInvoiceIssued(to: string, fullName: string, invoice: InvoiceEmail): Promise<void> {
+  async sendInvoiceIssued(to: string, fullName: string, invoice: InvoiceEmail): Promise<boolean> {
     const name = firstNameOf(fullName);
     const amount = formatMoney(invoice.amountCents, invoice.currency);
     const due = formatDay(invoice.dueDate);
     const where = invoice.payUrl ? 'You can pay it here:' : 'You can see it in your account:';
     const link = invoice.payUrl ?? `${this.frontendBaseUrl()}/account`;
 
-    await this.send({
+    return this.send({
       to,
       subject: `Invoice from Builders Node — ${amount} due ${due}`,
       text:
@@ -383,13 +395,13 @@ export class MailService {
    * Sent the morning an invoice passes its due date — once, by the daily job.
    * Deliberately plain: someone is late, not in trouble.
    */
-  async sendPaymentOverdue(to: string, fullName: string, invoice: InvoiceEmail): Promise<void> {
+  async sendPaymentOverdue(to: string, fullName: string, invoice: InvoiceEmail): Promise<boolean> {
     const name = firstNameOf(fullName);
     const amount = formatMoney(invoice.amountCents, invoice.currency);
     const due = formatDay(invoice.dueDate);
     const link = invoice.payUrl ?? `${this.frontendBaseUrl()}/account`;
 
-    await this.send({
+    return this.send({
       to,
       subject: `Payment overdue — ${amount}`,
       text:
@@ -413,10 +425,10 @@ export class MailService {
    * An answer to a support request. Sent as well as shown in the app, because
    * a reply nobody opens the app to find is the situation this replaces.
    */
-  async sendSupportReply(to: string, fullName: string, subject: string, body: string): Promise<void> {
+  async sendSupportReply(to: string, fullName: string, subject: string, body: string): Promise<boolean> {
     const name = firstNameOf(fullName);
     const link = `${this.frontendBaseUrl()}/account`;
-    await this.send({
+    return this.send({
       to,
       subject: `Re: ${subject}`,
       text:
@@ -461,8 +473,40 @@ export class MailService {
     });
   }
 
-  async sendInvitation(invitation: InvitationEmail): Promise<void> {
-    await this.send({
+  /**
+   * The answer to everyone we don't take forward.
+   *
+   * The thank-you page promises "you'll hear back either way", and until this
+   * a rejection was a status change and silence. Kind, short, and with a door
+   * left open: a rejected application can be filed again for a later batch.
+   */
+  async sendApplicationDeclined(to: string, fullName: string): Promise<boolean> {
+    const name = firstNameOf(fullName);
+    const applyUrl = `${this.frontendBaseUrl()}/apply`;
+    return this.send({
+      to,
+      subject: 'About your Builders Node application',
+      text:
+        `Hi ${name},\n\n` +
+        'Thank you for applying to Builders Node and for the time you put into it.\n\n' +
+        "We won't be moving forward with your application for this batch. We get more applications than " +
+        "we have rooms, and it's never only about the person — timing and the mix of the group matter too.\n\n" +
+        `If your plans change or you'd like to join a later batch, you're welcome to apply again: ${applyUrl}\n\n` +
+        'Best regards,\nBuilders Node',
+      html: layout(
+        'About your application',
+        `<p>Hi ${escapeHtml(name)},</p>
+         <p>Thank you for applying to Builders Node and for the time you put into it.</p>
+         <p>We won't be moving forward with your application for this batch. We get more applications than we have rooms, and it's never only about the person — timing and the mix of the group matter too.</p>
+         <p>If your plans change or you'd like to join a later batch, you're welcome to apply again:</p>
+         ${button('Apply for a later batch', applyUrl)}
+         <p>Best regards,<br />Builders Node</p>`,
+      ),
+    });
+  }
+
+  async sendInvitation(invitation: InvitationEmail): Promise<boolean> {
+    return this.send({
       to: invitation.to,
       subject: invitation.subject,
       text: `Your Builders Node account is ready.\n\nTemporary password: ${invitation.temporaryPassword}\nSet your password: ${invitation.setupUrl}`,
@@ -499,7 +543,12 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * The URL is escaped: some of these links are typed by an admin (the payment
+ * link), and a quote in one would otherwise break out of the attribute.
+ */
 function button(label: string, url: string): string {
+  url = escapeHtml(url);
   return `<p><a href="${url}" style="background:#e5541f;color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;display:inline-block;font-weight:600">${label}</a></p>
           <p style="color:#6b7280;font-size:13px;word-break:break-all">Or paste this link: ${url}</p>`;
 }

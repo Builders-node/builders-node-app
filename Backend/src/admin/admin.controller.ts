@@ -42,7 +42,10 @@ export class AdminController {
     return this.admin.setApplicationNote(applicationId, body.note);
   }
 
-  /** `notify: false` approves without the booking email — see AdminService.firstCheck. */
+  /**
+   * `notify: false` approves without the booking email, or declines without
+   * the decline email — see AdminService.firstCheck.
+   */
   @Post('applications/:applicationId/first-check')
   firstCheck(
     @Param('applicationId') applicationId: string,
@@ -66,17 +69,19 @@ export class AdminController {
   @Post('applications/:applicationId/online-meeting-check')
   onlineMeetingCheck(
     @Param('applicationId') applicationId: string,
-    @Body() body: { approved: boolean },
+    @Body() body: { approved: boolean; notify?: boolean },
   ) {
-    return this.admin.onlineMeetingCheck(applicationId, body.approved);
+    return this.admin.onlineMeetingCheck(applicationId, body.approved, { notify: body.notify });
   }
 
+  /** The link and the amount it asks for; both remembered for a resend. */
   @Post('applications/:applicationId/send-payment-link')
   sendPaymentLink(
     @Param('applicationId') applicationId: string,
-    @Body() body: { paymentLink?: string },
+    @Body() body: { paymentLink?: string; amountCents?: number },
+    @Req() request: Request & { adminAccess?: { role: string } },
   ) {
-    return this.admin.sendPaymentLink(applicationId, body.paymentLink);
+    return this.admin.sendPaymentLink(applicationId, body ?? {}, request.adminAccess);
   }
 
   @SuperAdminOnly()

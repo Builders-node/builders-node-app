@@ -2,6 +2,8 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { buildCredentialInvitation } from '../auth/invitation';
+import { reclaimUnverifiedAccount } from '../auth/session';
+import { billingPeriodOf } from '../payments/billing.service';
 import { createTemporaryPassword } from '../auth/temporary-password';
 import { PrismaService } from '../database/prisma.service';
 import { MailService } from '../mail/mail.service';
@@ -63,6 +65,29 @@ const PAYMENT_READY_STATUSES = new Set([
   'APARTMENT_AVAILABLE',
   'NO_APARTMENT_AVAILABLE',
 ]);
+
+/**
+ * Where each pipeline decision may be taken from.
+ *
+ * The buttons only offer the right action for a card's stage, but the
+ * endpoints accepted any status: rejecting a card that had already been
+ * onboarded put the application back to "rejected" while the member stayed
+ * active, and a call could be approved straight from "submitted", skipping the
+ * first check. Each move is now a conditional update on these, so the database
+ * refuses it rather than trusting the caller.
+ */
+const FIRST_CHECK_FROM = ['SUBMITTED', 'FIRST_REJECTED'];
+const FIRST_REJECT_FROM = ['SUBMITTED', 'FIRST_APPROVED'];
+const MEETING_DECISION_FROM = ['FIRST_APPROVED', 'MEETING_SCHEDULED', 'MEETING_APPROVED', 'MEETING_REJECTED'];
+const REJECTED_STATUSES = ['FIRST_REJECTED', 'MEETING_REJECTED'];
+
+/**
+ * Hosts a payment link may point at when sent by an admin who isn't a Super
+ * Admin. The email goes out from our domain with a "Complete payment" button,
+ * so an arbitrary link there is a phishing page with our name on it.
+ * `PAYMENT_LINK_HOSTS` (comma-separated) replaces the list; subdomains count.
+ */
+const DEFAULT_PAYMENT_LINK_HOSTS = ['prosperasub.com', 'stripe.com', 'paypal.com', 'wise.com', 'revolut.me', 'buildersnode.com'];
 
 const APARTMENT_AVAILABILITY = new Set([
   'AVAILABLE',
@@ -154,6 +179,10 @@ export class AdminService {
       this.prisma.maintenanceRequest.count({ where: { status: { not: 'RESOLVED' } } }),
     ]);
     const income = this.buildIncomeSummary(paidPayments, { weekStart, monthStart, yearStart });
+    const plans = await this.prisma.membershipPlan.findMany({
+      select: { id: true, name: true, priceCents: true, shortStayPriceCents: true },
+    });
+    const planById = new Map(plans.map((plan) => [plan.id, plan]));
 
     // Applications still awaiting an admin decision (not onboarded, not rejected).
     const terminal = new Set(TERMINAL_APPLICATION_STATUSES);
@@ -181,7 +210,17 @@ export class AdminService {
         openMaintenance,
       },
       income,
-      applications,
+      // With the monthly price their plan implies, so the payment dialog can
+      // open with the right amount rather than a blank one.
+      applications: applications.map((app) => {
+        const plan = app.planId ? planById.get(app.planId) : undefined;
+        const quotedMonthlyCents = plan
+          ? app.stayDuration === '1 month'
+            ? plan.shortStayPriceCents ?? plan.priceCents
+            : plan.priceCents
+          : null;
+        return { ...app, planName: plan?.name ?? null, quotedMonthlyCents };
+      }),
       users: users.map((user) => ({
         id: user.id,
         email: user.email,
@@ -435,10 +474,11 @@ export class AdminService {
     const now = new Date();
 
     if (!approved) {
-      return this.prisma.application.update({
-        where: { id: application.id },
-        data: { status: 'FIRST_REJECTED' },
-      });
+      return this.decline(application, 'FIRST_REJECTED', FIRST_REJECT_FROM, options);
+    }
+
+    if (!FIRST_CHECK_FROM.includes(application.status) && application.status !== 'FIRST_APPROVED') {
+      throw new BadRequestException('This application is past the first check.');
     }
 
     // Claim the approval with the "not approved yet" condition in the WHERE, so
@@ -446,7 +486,7 @@ export class AdminService {
     // it left a gap: two clicks a moment apart both saw firstApprovedAt as null,
     // both passed the check below, and the applicant got the invitation twice.
     const claimed = await this.prisma.application.updateMany({
-      where: { id: application.id, firstApprovedAt: null },
+      where: { id: application.id, firstApprovedAt: null, status: { in: FIRST_CHECK_FROM } },
       data: {
         status: 'FIRST_APPROVED',
         firstApprovedAt: now,
@@ -539,23 +579,20 @@ export class AdminService {
     });
   }
 
-  async onlineMeetingCheck(applicationId: string, approved: boolean) {
+  async onlineMeetingCheck(applicationId: string, approved: boolean, options?: { notify?: boolean }) {
     const application = await this.requireApplication(applicationId);
-    if (application.status === 'FIRST_REJECTED') {
-      throw new BadRequestException('First check rejected this application.');
+    if (!approved) {
+      return this.decline(application, 'MEETING_REJECTED', MEETING_DECISION_FROM, options);
     }
 
-    const updated = await this.prisma.application.update({
-      where: { id: application.id },
-      data: approved
-        ? {
-            status: 'MEETING_APPROVED',
-            meetingApprovedAt: new Date(),
-          }
-        : {
-            status: 'MEETING_REJECTED',
-          },
+    const moved = await this.prisma.application.updateMany({
+      where: { id: application.id, status: { in: MEETING_DECISION_FROM } },
+      data: { status: 'MEETING_APPROVED', meetingApprovedAt: application.meetingApprovedAt ?? new Date() },
     });
+    if (moved.count === 0) {
+      throw new BadRequestException('This application is not at the call stage.');
+    }
+    const updated = await this.requireApplication(application.id);
 
     // Same guard as firstCheck: only on approval, and only the first time, so a
     // double click doesn't thank the same person for the same call twice.
@@ -566,41 +603,129 @@ export class AdminService {
     return updated;
   }
 
-  async sendPaymentLink(applicationId: string, paymentLink?: string) {
+  /**
+   * Decline an application, and by default tell them.
+   *
+   * The thank-you page promises "you'll hear back either way"; before this a
+   * rejection was a silent status change. `notify: false` is for when an admin
+   * has already told them personally.
+   */
+  private async decline(
+    application: { id: string; email: string; fullName: string; status: string },
+    status: 'FIRST_REJECTED' | 'MEETING_REJECTED',
+    from: string[],
+    options?: { notify?: boolean },
+  ) {
+    const moved = await this.prisma.application.updateMany({
+      where: { id: application.id, status: { in: from } },
+      data: { status, rejectedAt: new Date() },
+    });
+    if (moved.count === 0) {
+      throw new BadRequestException('This application has moved past the point where it can be declined here.');
+    }
+
+    if (options?.notify !== false) {
+      const delivered = await this.mail.sendApplicationDeclined(application.email, application.fullName);
+      if (delivered) {
+        await this.prisma.application.update({
+          where: { id: application.id },
+          data: { rejectionEmailSentAt: new Date() },
+        });
+      }
+    }
+
+    return this.requireApplication(application.id);
+  }
+
+  /**
+   * What the applicant's chosen plan costs per month, if we can tell.
+   *
+   * The form has always asked for a plan and a stay length; the short-stay
+   * price applies to a one-month stay, the same rule the form shows.
+   */
+  async quotedMonthlyCents(application: { planId?: string | null; stayDuration?: string | null }): Promise<number | null> {
+    if (!application.planId) return null;
+    const plan = await this.prisma.membershipPlan.findUnique({ where: { id: application.planId } });
+    if (!plan) return null;
+    const oneMonth = application.stayDuration === '1 month';
+    return oneMonth ? plan.shortStayPriceCents ?? plan.priceCents : plan.priceCents;
+  }
+
+  async sendPaymentLink(
+    applicationId: string,
+    input: { paymentLink?: string; amountCents?: number } = {},
+    actor?: { role: string },
+  ) {
     const application = await this.requireApplication(applicationId);
     // The apartment step is no longer part of the pipeline — availability is
     // settled off the board — so the only thing that has to be true is that the
     // call has happened. The two APARTMENT statuses stay accepted: applications
     // filed before the change can still be carried through to payment.
-    if (!PAYMENT_READY_STATUSES.has(application.status)) {
+    // PAYMENT_LINK_SENT is accepted too: that is "resend".
+    if (!PAYMENT_READY_STATUSES.has(application.status) && application.status !== 'PAYMENT_LINK_SENT') {
       throw new BadRequestException('Hold the call before sending a payment link.');
     }
 
-    const link = paymentLink?.trim() || 'https://prosperasub.com/builders-node/pay';
+    // Every applicant used to get the same hard-coded placeholder link, with
+    // no amount. The link is now whatever the admin pastes (or what was sent
+    // last time, on a resend), and the amount is stated.
+    const link = this.checkPaymentLink(input.paymentLink?.trim() || application.paymentLink || '', actor);
+    const amountCents =
+      input.amountCents !== undefined
+        ? Math.round(Number(input.amountCents))
+        : application.paymentAmountCents ?? (await this.quotedMonthlyCents(application));
+    if (!amountCents || !Number.isFinite(amountCents) || amountCents <= 0) {
+      throw new BadRequestException('Enter the amount the link asks for.');
+    }
+
     const updated = await this.prisma.application.update({
       where: { id: application.id },
       data: {
         status: 'PAYMENT_LINK_SENT',
         paymentStatus: 'PENDING',
         paymentLink: link,
+        paymentAmountCents: amountCents,
         paymentLinkSentAt: new Date(),
       },
     });
 
-    // Actually send it. This used to compose the message and hand it back to the
-    // UI, which showed a "Payment link prepared" toast and dropped it — the
-    // button said "Send payment link" and nothing ever reached the applicant.
-    await this.mail.sendPaymentLink(application.email, application.fullName, link);
+    const delivered = await this.mail.sendPaymentLink(application.email, application.fullName, link, {
+      cents: amountCents,
+      currency: application.paymentCurrency,
+    });
+    if (!delivered) {
+      throw new BadRequestException('The link is saved, but the email did not go out. Try "Resend link" in a moment.');
+    }
 
-    return {
-      application: updated,
-      email: { to: application.email, subject: 'Your Builders Node payment link', body: link },
-    };
+    return { application: updated };
+  }
+
+  /** https only, and from a known payment host unless a Super Admin sends it. */
+  private checkPaymentLink(raw: string, actor?: { role: string }): string {
+    if (!raw) throw new BadRequestException('Paste the payment link for this applicant.');
+    let url: URL;
+    try {
+      url = new URL(raw);
+    } catch {
+      throw new BadRequestException('That payment link is not a valid URL.');
+    }
+    if (url.protocol !== 'https:') throw new BadRequestException('The payment link must start with https://.');
+
+    if (actor?.role !== 'SUPER_ADMIN') {
+      const hosts = (process.env.PAYMENT_LINK_HOSTS?.split(',') ?? DEFAULT_PAYMENT_LINK_HOSTS)
+        .map((host) => host.trim().toLowerCase())
+        .filter(Boolean);
+      const host = url.hostname.toLowerCase();
+      if (!hosts.some((allowed) => host === allowed || host.endsWith(`.${allowed}`))) {
+        throw new BadRequestException(`Payment links must be on ${hosts.join(', ')}. A Super Admin can send others.`);
+      }
+    }
+    return url.toString();
   }
 
   async confirmPayment(applicationId: string) {
     const application = await this.requireApplication(applicationId);
-    if (application.status !== 'PAYMENT_LINK_SENT' && application.paymentStatus !== 'PENDING') {
+    if (application.status !== 'PAYMENT_LINK_SENT') {
       throw new BadRequestException('Send a payment link before confirming payment.');
     }
 
@@ -613,11 +738,63 @@ export class AdminService {
       },
     });
 
+    // On the books, not just on the card: first payments never became Payment
+    // rows, so income reports missed every one of them.
+    await this.recordFirstPayment(updated);
+
     if (!application.paymentConfirmedAt) {
       await this.mail.sendPaymentConfirmed(application.email, application.fullName);
     }
 
     return updated;
+  }
+
+  /**
+   * The first payment as a PAID Payment row, once per applicant.
+   *
+   * Filed under the billing period of their first month, which is also what
+   * stops the monthly job invoicing that month again — (userId,
+   * billingPeriod) is unique. Needs an account to hang off; an applicant
+   * without one gets it recorded at activation instead.
+   */
+  private async recordFirstPayment(application: {
+    email: string;
+    moveInDate: Date | null;
+    note: string | null;
+    paymentAmountCents: number | null;
+    paymentCurrency: string;
+  }) {
+    if (!application.paymentAmountCents) return;
+    const user = await this.prisma.user.findUnique({ where: { email: application.email }, select: { id: true } });
+    if (!user) return;
+
+    const firstMonth = this.firstMonthOf(application);
+    const period = billingPeriodOf(firstMonth);
+    try {
+      await this.prisma.payment.create({
+        data: {
+          userId: user.id,
+          amountCents: application.paymentAmountCents,
+          currency: application.paymentCurrency,
+          status: 'PAID',
+          dueDate: firstMonth,
+          paidAt: new Date(),
+          billingPeriod: period,
+          description: `Membership — first payment (${period})`,
+        },
+      });
+    } catch (error) {
+      // Already recorded (a second confirm, or activation after confirm).
+      if ((error as { code?: string }).code !== 'P2002') throw error;
+    }
+  }
+
+  /** The first day they are a member: their move-in date, or today if that has passed. */
+  private firstMonthOf(application: { moveInDate: Date | null; note: string | null }): Date {
+    const today = new Date();
+    const todayUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+    const moveIn = moveInDateOf(application);
+    return moveIn && moveIn > todayUtc ? moveIn : todayUtc;
   }
 
   /**
@@ -632,14 +809,36 @@ export class AdminService {
       throw new BadRequestException('Confirm payment before activating membership.');
     }
 
-    const dates = this.defaultMembershipDates();
-    const user = await this.prisma.user.findUnique({ where: { email: application.email }, select: { id: true } });
+    // The membership hangs off an account. Without one this used to "succeed":
+    // the card moved to onboarded and the welcome email went out, while no
+    // membership existed and nothing would ever be billed.
+    const user = await this.prisma.user.findUnique({
+      where: { email: application.email },
+      select: { id: true, emailVerifiedAt: true },
+    });
+    if (!user) {
+      throw new BadRequestException(
+        'This applicant has no account yet. Use "Send credentials" to create one, or ask them to finish the password step.',
+      );
+    }
+    // The application proves the address (they entered the emailed code).
+    // An account on it that never did was made by someone else — see
+    // reclaimUnverifiedAccount. They get in through "forgot password".
+    if (!user.emailVerifiedAt) {
+      await reclaimUnverifiedAccount(this.prisma, user.id);
+    }
 
-    if (user) {
+    // Membership starts when they arrive, not when the button is clicked, and
+    // their first month is already paid — so the first invoice is a month
+    // after arrival.
+    const dates = this.membershipDatesFrom(this.firstMonthOf(application));
+    const monthlyAmountCents = application.paymentAmountCents ?? (await this.quotedMonthlyCents(application));
+
+    {
       // Common case: applicant went through the self-serve apply flow — account already exists.
       const existing = await this.prisma.membership.findUnique({
         where: { userId: user.id },
-        select: { status: true },
+        select: { status: true, monthlyAmountCents: true },
       });
 
       // `dueDate` stopped being decoration when monthly billing started reading
@@ -649,6 +848,9 @@ export class AdminService {
       // becomes active.
       const becomingActive = existing?.status !== 'ACTIVE_MEMBER';
 
+      // The rate is set here too. Billing only invoices memberships that have
+      // one, and nothing set it — so every new member went unbilled from month
+      // two unless an admin remembered to type it in by hand.
       await this.prisma.membership.upsert({
         where: { userId: user.id },
         create: {
@@ -658,6 +860,8 @@ export class AdminService {
           startingDate: dates.startingDate,
           dueDate: dates.dueDate,
           finishDate: dates.finishDate,
+          monthlyAmountCents,
+          currency: application.paymentCurrency,
         },
         update: becomingActive
           ? {
@@ -666,9 +870,11 @@ export class AdminService {
               startingDate: dates.startingDate,
               dueDate: dates.dueDate,
               finishDate: dates.finishDate,
+              ...(existing?.monthlyAmountCents ? {} : { monthlyAmountCents, currency: application.paymentCurrency }),
             }
           : { status: 'ACTIVE_MEMBER' },
       });
+      await this.recordFirstPayment(application);
       await this.notifications.notify(user.id, {
         type: 'success',
         title: "You're an active member 🎉",
@@ -691,7 +897,7 @@ export class AdminService {
       await this.mail.sendMembershipActivated(application.email, application.fullName);
     }
 
-    return { activated: true, userExisted: Boolean(user) };
+    return { activated: true, userExisted: true, monthlyAmountCents };
   }
 
   async sendCredentials(applicationId: string) {
@@ -2469,6 +2675,21 @@ export class AdminService {
     }
 
     return application;
+  }
+
+  /**
+   * Start, first invoice and end for a membership beginning on `start`, in
+   * UTC calendar days. The first invoice is a month on, clamped to the end of
+   * a shorter month (Jan 31 → Feb 28), rather than spilling into the next one.
+   */
+  private membershipDatesFrom(start: Date) {
+    const addMonths = (date: Date, months: number) => {
+      const target = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1));
+      const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+      target.setUTCDate(Math.min(date.getUTCDate(), lastDay));
+      return target;
+    };
+    return { startingDate: start, dueDate: addMonths(start, 1), finishDate: addMonths(start, 12) };
   }
 
   private defaultMembershipDates() {

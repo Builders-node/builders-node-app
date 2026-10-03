@@ -72,7 +72,10 @@ describe('ApplicationsService.apply — move-in date', () => {
   function makeService() {
     const prisma = {
       user: { findUnique: jest.fn().mockResolvedValue(null) },
-      application: { create: jest.fn().mockResolvedValue({ id: 'app-1', email: 'ada@builders.test' }) },
+      application: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'app-1', email: 'ada@builders.test' }),
+      },
     };
     const service = new ApplicationsService(
       prisma as never,

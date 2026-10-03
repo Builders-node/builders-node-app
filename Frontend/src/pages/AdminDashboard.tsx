@@ -58,7 +58,23 @@ type AdminOverview = {
     note?: string | null;
     about?: string | null;
     socialLinksJson?: string | null;
+    campaignCode?: string | null;
+    heardVia?: string | null;
+    moveInDate?: string | null;
+    planName?: string | null;
+    stayDuration?: string | null;
+    /** What their plan costs per month — the payment dialog's starting amount. */
+    quotedMonthlyCents?: number | null;
+    /** What the payment link actually asked for, once sent. */
+    paymentAmountCents?: number | null;
+    firstApprovedAt?: string | null;
+    meetingApprovedAt?: string | null;
+    paymentLinkSentAt?: string | null;
+    paymentConfirmedAt?: string | null;
+    rejectedAt?: string | null;
+    rejectionEmailSentAt?: string | null;
     createdAt: string;
+    updatedAt?: string;
   }>;
   users: Array<{
     id: string;
@@ -779,6 +795,8 @@ export function AdminDashboard({ currentUserRole, setActivePage, adminPage }: Ad
   }>({ audience: 'all-members', userId: '', type: 'info', title: '', message: '', link: '' });
   const [notifSending, setNotifSending] = useState(false);
   const [notifSentMsg, setNotifSentMsg] = useState<string | null>(null);
+  /** The payment-link dialog: which applicant, and the link and amount being sent. */
+  const [paymentDialog, setPaymentDialog] = useState<{ app: Applicant; link: string; amount: string } | null>(null);
   const [invoiceForm, setInvoiceForm] = useState<{ userId: string; amountCents: string; description: string; dueDate: string; payUrl: string } | null>(null);
   useEscapeToClose(Boolean(invoiceForm), () => setInvoiceForm(null));
   const [resources, setResources] = useState<AdminResource[]>([]);
@@ -1611,6 +1629,43 @@ async function loadGuideLeads() {
     }
   }
 
+  /**
+   * Open the payment dialog, pre-filled with what was sent last time or, the
+   * first time, the monthly price of the plan they picked.
+   */
+  function openPaymentDialog(app: Applicant) {
+    const cents = app.paymentAmountCents ?? app.quotedMonthlyCents ?? null;
+    setPaymentDialog({ app, link: app.paymentLink ?? '', amount: cents ? String(cents / 100) : '' });
+  }
+
+  async function submitPaymentDialog() {
+    if (!paymentDialog) return;
+    const amountCents = Math.round(Number(paymentDialog.amount) * 100);
+    const resend = paymentDialog.app.status === 'PAYMENT_LINK_SENT';
+    setPaymentDialog(null);
+    await updateApplication(
+      paymentDialog.app.id,
+      'send-payment-link',
+      { paymentLink: paymentDialog.link.trim(), amountCents },
+      resend ? 'Payment link re-sent.' : 'Payment link sent.',
+    );
+  }
+
+  /**
+   * Decline, after asking. Two questions because they are two decisions: is
+   * this a no, and should the standard decline email go out — the second is a
+   * "no" when the admin has already told them personally.
+   */
+  function declineApplicant(app: Applicant, path: 'first-check' | 'online-meeting-check', success: string) {
+    if (!window.confirm(`Decline ${app.fullName}?`)) return;
+    const notify = window.confirm(
+      `Send ${app.fullName} the decline email?\n\n` +
+        'OK — send it (a short, kind note that leaves the door open for a later batch).\n' +
+        'Cancel — decline without emailing, because you have already told them.',
+    );
+    void updateApplication(app.id, path, { approved: false, notify }, notify ? `${success} Decline email sent.` : success);
+  }
+
   // The single relevant next action for an applicant's current stage, plus any
   // contextual secondary actions (reject / resend). Avoids showing all 6 buttons.
   function applicantActions(app: Applicant): { primary: ApplicantAction | null; secondary: ApplicantAction[] } {
@@ -1632,7 +1687,7 @@ async function loadGuideLeads() {
             hint: 'Move to Conversation without emailing them — use when you have already reached out yourself',
             run: run('first-check', { approved: true, notify: false }, 'Moved to Conversation — no email sent.'),
           },
-          { key: 'first-no', label: 'Reject', icon: <X size={15} />, tone: 'danger', run: run('first-check', { approved: false }, 'Applicant rejected at first check.') },
+          { key: 'first-no', label: 'Reject', icon: <X size={15} />, tone: 'danger', run: () => declineApplicant(app, 'first-check', 'Applicant rejected at first check.') },
         ],
       };
     }
@@ -1652,7 +1707,7 @@ async function loadGuideLeads() {
             hint: reminded ? `Last reminded ${reminded.toLocaleDateString()}` : 'Send the follow-up email with the booking link',
             run: run('remind-meeting', undefined, 'Reminder sent.'),
           },
-          { key: 'meet-no', label: 'Reject', icon: <X size={15} />, tone: 'danger', run: run('online-meeting-check', { approved: false }, 'Applicant rejected.') },
+          { key: 'meet-no', label: 'Reject', icon: <X size={15} />, tone: 'danger', run: () => declineApplicant(app, 'online-meeting-check', 'Applicant rejected.') },
         ],
       };
     }
@@ -1661,7 +1716,7 @@ async function loadGuideLeads() {
       // it went. Reminding is pointless here — they've already booked.
       return {
         primary: { key: 'meet', label: 'Meeting went well', icon: <ShieldCheck size={15} />, run: run('online-meeting-check', { approved: true }, 'Moved to Past meeting.') },
-        secondary: [{ key: 'meet-no', label: 'Reject', icon: <X size={15} />, tone: 'danger', run: run('online-meeting-check', { approved: false }, 'Applicant rejected after the call.') }],
+        secondary: [{ key: 'meet-no', label: 'Reject', icon: <X size={15} />, tone: 'danger', run: () => declineApplicant(app, 'online-meeting-check', 'Applicant rejected after the call.') }],
       };
     }
     if (
@@ -1670,14 +1725,14 @@ async function loadGuideLeads() {
       app.paymentStatus !== 'SUCCESS'
     ) {
       return {
-        primary: { key: 'pay', label: 'Send payment link', icon: <LinkIcon size={15} />, run: run('send-payment-link', undefined, 'Payment link prepared.') },
-        secondary: [],
+        primary: { key: 'pay', label: 'Send payment link', icon: <LinkIcon size={15} />, run: () => openPaymentDialog(app) },
+        secondary: [{ key: 'meet-no', label: 'Reject', icon: <X size={15} />, tone: 'danger', run: () => declineApplicant(app, 'online-meeting-check', 'Applicant rejected.') }],
       };
     }
     if (status === 'PAYMENT_LINK_SENT') {
       return {
         primary: { key: 'paid', label: 'Confirm payment', icon: <Check size={15} />, run: run('confirm-payment', undefined, 'Payment marked successful.') },
-        secondary: [{ key: 'resend-link', label: 'Resend link', icon: <LinkIcon size={15} />, tone: 'ghost', run: run('send-payment-link', undefined, 'Payment link re-sent.') }],
+        secondary: [{ key: 'resend-link', label: 'Resend link', icon: <LinkIcon size={15} />, tone: 'ghost', hint: app.paymentAmountCents ? `Last sent for ${formatMoney(app.paymentAmountCents)}` : undefined, run: () => openPaymentDialog(app) }],
       };
     }
     if (status === 'PAYMENT_CONFIRMED') {
@@ -2348,6 +2403,7 @@ async function loadGuideLeads() {
                         <strong>{application.fullName}</strong>
                         <span style={{ display: 'block' }}>{application.email}</span>
                         {meta ? <small>{meta}</small> : null}
+                        <ApplicantFacts application={application} />
                       </div>
                     </div>
                     <div className="applicant-card__status">
@@ -3933,6 +3989,55 @@ async function loadGuideLeads() {
         </div>
       ) : null}
 
+      {paymentDialog ? (
+        <div className="modal-overlay" role="presentation" onClick={() => setPaymentDialog(null)}>
+          <form
+            className="profile-edit-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Send payment link"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={(event) => { event.preventDefault(); void submitPaymentDialog(); }}
+          >
+            <div className="modal-head">
+              <div>
+                <h2>{paymentDialog.app.status === 'PAYMENT_LINK_SENT' ? 'Resend payment link' : 'Send payment link'}</h2>
+                <p>
+                  {paymentDialog.app.fullName} gets an email with this link and the amount.
+                  {paymentDialog.app.planName ? ` They picked ${paymentDialog.app.planName}${paymentDialog.app.stayDuration ? `, ${paymentDialog.app.stayDuration}` : ''}.` : ''}
+                </p>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setPaymentDialog(null)} aria-label="Close"><X size={18} /></button>
+            </div>
+            <label>
+              Payment link
+              <input
+                type="url"
+                required
+                value={paymentDialog.link}
+                onChange={(event) => setPaymentDialog({ ...paymentDialog, link: event.target.value })}
+                placeholder="https://…"
+              />
+            </label>
+            <label>
+              Amount (USD)
+              <input
+                type="number"
+                step="0.01"
+                min="1"
+                required
+                value={paymentDialog.amount}
+                onChange={(event) => setPaymentDialog({ ...paymentDialog, amount: event.target.value })}
+              />
+              {/* Becomes their monthly rate when the membership is activated,
+                  which is what monthly billing invoices from. */}
+              <small className="modal-hint">This becomes their monthly rate once their membership is activated.</small>
+            </label>
+            <button className="primary-button" type="submit">Send to {paymentDialog.app.email}</button>
+          </form>
+        </div>
+      ) : null}
+
       {invoiceForm ? (
         <div className="modal-overlay" role="presentation" onClick={() => setInvoiceForm(null)}>
           <form
@@ -3982,5 +4087,70 @@ async function loadGuideLeads() {
           layout — saving something no longer shoves the whole dashboard down. */}
       <Toast message={notice} onDismiss={dismissNotice} />
     </div>
+  );
+}
+
+/** When the card last moved, from the timestamps each stage leaves behind. */
+function stageEnteredAt(app: Applicant): string {
+  switch (app.status) {
+    case 'FIRST_APPROVED':
+    case 'MEETING_SCHEDULED':
+      return app.firstApprovedAt ?? app.createdAt;
+    case 'MEETING_APPROVED':
+    case 'APARTMENT_AVAILABLE':
+    case 'NO_APARTMENT_AVAILABLE':
+      return app.meetingApprovedAt ?? app.createdAt;
+    case 'PAYMENT_LINK_SENT':
+      return app.paymentLinkSentAt ?? app.createdAt;
+    case 'PAYMENT_CONFIRMED':
+      return app.paymentConfirmedAt ?? app.createdAt;
+    case 'FIRST_REJECTED':
+    case 'MEETING_REJECTED':
+      return app.rejectedAt ?? app.createdAt;
+    default:
+      return app.createdAt;
+  }
+}
+
+const DAY = 24 * 60 * 60 * 1000;
+const daysSince = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / DAY));
+
+/**
+ * The facts that decide what to do with a card, which it didn't show: how long
+ * ago they applied, how long the card has sat where it is, where they came
+ * from, and when and on what plan they want to arrive. A card waiting on us for
+ * more than five days is flagged — that is a lead going cold.
+ */
+function ApplicantFacts({ application }: { application: Applicant }) {
+  const applied = daysSince(application.createdAt);
+  const inStage = daysSince(stageEnteredAt(application));
+  const waitingOnUs = ['SUBMITTED', 'MEETING_SCHEDULED', 'MEETING_APPROVED', 'PAYMENT_CONFIRMED'].includes(application.status);
+  const stale = waitingOnUs && inStage > 5;
+  const source = application.campaignCode
+    ? `link: ${application.campaignCode}`
+    : application.referralCode
+      ? `referral: ${application.referralCode}`
+      : application.heardVia
+        ? `heard via: ${application.heardVia}`
+        : null;
+  const moveIn = application.moveInDate
+    ? new Date(application.moveInDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })
+    : null;
+  const parts = [
+    `Applied ${applied === 0 ? 'today' : `${applied}d ago`}`,
+    source,
+    moveIn ? `move-in ${moveIn}` : null,
+    application.planName ? `${application.planName}${application.stayDuration ? ` · ${application.stayDuration}` : ''}` : null,
+    application.rejectedAt ? (application.rejectionEmailSentAt ? 'decline email sent' : 'declined without email') : null,
+  ].filter(Boolean);
+
+  return (
+    <small style={{ display: 'block', marginTop: 4 }}>
+      {parts.join(' · ')}
+      {' · '}
+      <span style={stale ? { color: '#b45309', fontWeight: 700 } : undefined} title={stale ? 'Waiting on us for more than 5 days' : undefined}>
+        {inStage === 0 ? 'in this stage since today' : `${inStage}d in this stage`}
+      </span>
+    </small>
   );
 }

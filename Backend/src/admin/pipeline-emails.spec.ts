@@ -30,7 +30,7 @@ function makeService(application: Record<string, unknown> = {}) {
       // and send their email only when they were the request that moved it.
       updateMany: jest.fn().mockResolvedValue({ count: app.status === 'CREDENTIALS_SENT' ? 0 : 1 }),
     },
-    user: { findUnique: jest.fn().mockResolvedValue({ id: 'user-1' }) },
+    user: { findUnique: jest.fn().mockResolvedValue({ id: 'user-1', emailVerifiedAt: new Date('2026-07-01') }) },
     membership: {
       // Read before the upsert so an already-active member keeps their billing
       // anchor — activation no longer resets dueDate on a re-run.
@@ -42,6 +42,7 @@ function makeService(application: Record<string, unknown> = {}) {
     sendMeetingApproved: jest.fn().mockResolvedValue(undefined),
     sendPaymentConfirmed: jest.fn().mockResolvedValue(undefined),
     sendMembershipActivated: jest.fn().mockResolvedValue(undefined),
+    sendApplicationDeclined: jest.fn().mockResolvedValue(true),
   };
   const notifications = { notify: jest.fn().mockResolvedValue(undefined) };
   return {
@@ -58,10 +59,25 @@ describe('AdminService.onlineMeetingCheck — applicant email', () => {
     expect(mail.sendMeetingApproved).toHaveBeenCalledWith('robert@innerlife-ai.com', 'Robert Neufeld');
   });
 
-  it('sends nothing when the meeting is rejected', async () => {
+  it('sends the decline email, not the thank-you, when the meeting is rejected', async () => {
+    // "You'll hear back either way" — a rejection used to be silence.
     const { service, mail } = makeService();
     await service.onlineMeetingCheck('app-1', false);
     expect(mail.sendMeetingApproved).not.toHaveBeenCalled();
+    expect(mail.sendApplicationDeclined).toHaveBeenCalledWith('robert@innerlife-ai.com', 'Robert Neufeld');
+  });
+
+  it('declines quietly when the admin has already told them', async () => {
+    const { service, mail } = makeService();
+    await service.onlineMeetingCheck('app-1', false, { notify: false });
+    expect(mail.sendApplicationDeclined).not.toHaveBeenCalled();
+  });
+
+  it('refuses to decline an application that has already been onboarded', async () => {
+    // The card used to go back to "rejected" while the member stayed active.
+    const { service, prisma } = makeService({ status: 'CREDENTIALS_SENT' });
+    prisma.application.updateMany.mockResolvedValue({ count: 0 });
+    await expect(service.onlineMeetingCheck('app-1', false)).rejects.toThrow(/moved past/);
   });
 
   it('does not email twice if the meeting is approved again', async () => {
@@ -94,6 +110,23 @@ describe('AdminService.activateMembership — applicant email', () => {
     const { service, mail } = makeService({ status: 'PAYMENT_CONFIRMED', paymentStatus: 'SUCCESS' });
     await service.activateMembership('app-1');
     expect(mail.sendMembershipActivated).toHaveBeenCalledWith('robert@innerlife-ai.com', 'Robert Neufeld');
+  });
+
+  it('refuses when the applicant has no account, instead of claiming success', async () => {
+    const { service, prisma, mail } = makeService({ status: 'PAYMENT_CONFIRMED', paymentStatus: 'SUCCESS' });
+    prisma.user.findUnique.mockResolvedValue(null);
+    await expect(service.activateMembership('app-1')).rejects.toThrow(/no account/);
+    expect(mail.sendMembershipActivated).not.toHaveBeenCalled();
+  });
+
+  it('sets the monthly rate from the amount the payment link asked for', async () => {
+    // Billing only invoices memberships with a rate, and nothing used to set it.
+    const { service, prisma } = makeService({ status: 'PAYMENT_CONFIRMED', paymentStatus: 'SUCCESS', paymentAmountCents: 195000, paymentCurrency: 'USD' });
+    (prisma as unknown as { payment: unknown }).payment = { create: jest.fn().mockResolvedValue({}) };
+    await service.activateMembership('app-1');
+    expect(prisma.membership.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ create: expect.objectContaining({ monthlyAmountCents: 195000 }) }),
+    );
   });
 
   it('stays quiet when the application is already onboarded', async () => {

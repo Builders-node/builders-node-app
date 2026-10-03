@@ -9,6 +9,7 @@ describe('ApplicationsService referrals', () => {
         findUnique: jest.fn().mockResolvedValue(referrer),
       },
       application: {
+        findUnique: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({
           id: 'application-1',
           email: 'new@terminus.test',
