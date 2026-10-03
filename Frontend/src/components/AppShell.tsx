@@ -142,7 +142,12 @@ export function AppShell({
   }
 
   return (
-    <div className="app-shell">
+    // Everything inside the signed-in app is somebody's personal data —
+    // applicants' passports, payments, addresses, the admin's view of all of
+    // it. Clarity records page text unless told otherwise, so the whole shell
+    // is masked. index.html also skips loading Clarity when a session starts
+    // on an app URL; this covers a visitor who signs in after it has loaded.
+    <div className="app-shell" data-clarity-mask="true">
       <aside className={`sidebar ${menuOpen ? 'sidebar--open' : ''}`}>
         <div className="brand-row">
           <button
