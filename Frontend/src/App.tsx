@@ -3,7 +3,7 @@ import { AppShell } from './components/AppShell';
 import { AuthPanel } from './components/AuthPanel';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { PullToRefresh } from './components/PullToRefresh';
-import { ADMIN_SUB_PAGES, canonicalPathFor, pageForPath, type PageId } from './data/dashboard';
+import { ADMIN_SUB_PAGES, canonicalPathFor, pageForPath, pathForPage, type PageId } from './data/dashboard';
 import { ApiError, isTokenExpired } from './lib/api';
 import { useProfile } from './lib/queries';
 import { queryClient } from './lib/queryClient';
@@ -37,6 +37,7 @@ const Community = lazy(() => import('./pages/Community').then((m) => ({ default:
 const MyProfile = lazy(() => import('./pages/MyProfile').then((m) => ({ default: m.MyProfile })));
 const Pass = lazy(() => import('./pages/Pass').then((m) => ({ default: m.Pass })));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail').then((m) => ({ default: m.VerifyEmail })));
+const NotFound = lazy(() => import('./pages/NotFound').then((m) => ({ default: m.NotFound })));
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'MODERATOR', 'COMMUNITY_LEADER'];
 
@@ -79,7 +80,46 @@ const PAGE_TITLES: Partial<Record<PageId, string>> = {
   adminGuide: 'Guide leads — Builders Node',
   adminSettings: 'Admin settings — Builders Node',
   pass: 'Member pass — Builders Node',
+  notFound: 'Page not found — Builders Node',
 };
+
+const SITE_ORIGIN = 'https://buildersnode.com';
+
+/**
+ * The pages a search engine should know about. Each is canonical at its own
+ * URL; index.html can only hard-code one canonical, the homepage, and left
+ * alone it told crawlers that /apply and /affiliate were duplicates of '/'.
+ */
+const PUBLIC_PAGES: PageId[] = ['landing', 'apply', 'affiliate', 'applyThanks', 'guide'];
+
+/**
+ * Descriptions for the public pages that are worth a search snippet of their
+ * own. The landing keeps index.html's (read back below), which is written for
+ * it; every other view falls back to the same.
+ */
+const PAGE_DESCRIPTIONS: Partial<Record<PageId, string>> = {
+  apply:
+    'Apply to Builders Node, a startup society in Próspera for builders, founders and content creators. Five minutes; every application is read by a person.',
+  affiliate:
+    'Earn a reward for every founder you send to Builders Node, a startup society in Próspera. Sign up, share your link, get paid when they join.',
+};
+
+/** Pages whose og:url should be their own address rather than the homepage. */
+const OG_URL_PAGES: PageId[] = ['landing', 'apply', 'affiliate'];
+
+/**
+ * index.html's own values, read once so a view without an override can put
+ * them back. Read rather than copied here so the HTML stays the one place
+ * they are written.
+ */
+const HEAD_DEFAULTS = {
+  description: document.querySelector<HTMLMetaElement>('meta[name="description"]')?.content ?? '',
+  robots: document.querySelector<HTMLMetaElement>('meta[name="robots"]')?.content ?? 'index, follow',
+};
+
+function setHeadAttr(selector: string, attr: 'content' | 'href', value: string) {
+  document.querySelector(selector)?.setAttribute(attr, value);
+}
 
 /** Shown only while a split page chunk is in flight. */
 function PageFallback() {
@@ -87,7 +127,7 @@ function PageFallback() {
 }
 
 function App() {
-  const [activePage, setActivePage] = useState<PageId>(() => pageForPath(window.location.pathname) ?? 'landing');
+  const [activePage, setActivePage] = useState<PageId>(() => pageForPath(window.location.pathname) ?? 'notFound');
   const [isDark, setIsDark] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(() => {
@@ -109,9 +149,22 @@ function App() {
     document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
   }, [isDark]);
 
-  // Per-view document title for tabs, history, and JS-rendering crawlers.
+  // Per-view head for tabs, history, and JS-rendering crawlers: the title,
+  // the canonical URL, the description and og:url, and noindex on a 404.
   useEffect(() => {
     document.title = PAGE_TITLES[activePage] ?? SITE_NAME;
+
+    const isPublic = PUBLIC_PAGES.includes(activePage);
+    setHeadAttr('link[rel="canonical"]', 'href', SITE_ORIGIN + (isPublic ? pathForPage(activePage) : '/'));
+    setHeadAttr('meta[name="description"]', 'content', PAGE_DESCRIPTIONS[activePage] ?? HEAD_DEFAULTS.description);
+    setHeadAttr(
+      'meta[property="og:url"]',
+      'content',
+      SITE_ORIGIN + (OG_URL_PAGES.includes(activePage) ? pathForPage(activePage) : '/'),
+    );
+    // A 404 served as a 200 (all an SPA can do) is a "soft 404" to Google;
+    // noindex is what keeps it from being indexed as a real page.
+    setHeadAttr('meta[name="robots"]', 'content', activePage === 'notFound' ? 'noindex' : HEAD_DEFAULTS.robots);
   }, [activePage]);
 
   // Keep the address bar in sync with the active page so every view is
@@ -166,7 +219,7 @@ function App() {
   // Browser back/forward: derive the active page from the URL.
   useEffect(() => {
     const onPopState = () => {
-      setActivePage(pageForPath(window.location.pathname) ?? 'landing');
+      setActivePage(pageForPath(window.location.pathname) ?? 'notFound');
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
@@ -283,6 +336,7 @@ function App() {
     if (activePage === 'resetPassword') return <AuthPanel mode="resetPassword" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
     if (activePage === 'verifyEmail') return <VerifyEmail setActivePage={setActivePage} />;
     if (activePage === 'pass') return <Pass />;
+    if (activePage === 'notFound') return <NotFound setActivePage={setActivePage} currentUserId={currentUserId} />;
     if (activePage === 'profile') {
       if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
       return <Profile currentUserId={currentUserId} setActivePage={setActivePage} />;
@@ -340,7 +394,7 @@ function App() {
 
   // Full-screen views (no app shell): the landing, every auth screen, and any
   // protected page viewed while logged out (which falls back to the login panel).
-  const AUTH_PAGES: PageId[] = ['apply', 'applyThanks', 'affiliate', 'guide', 'login', 'signup', 'setupPassword', 'forgotPassword', 'resetPassword', 'verifyEmail', 'adminLogin', 'pass'];
+  const AUTH_PAGES: PageId[] = ['apply', 'applyThanks', 'affiliate', 'guide', 'login', 'signup', 'setupPassword', 'forgotPassword', 'resetPassword', 'verifyEmail', 'adminLogin', 'pass', 'notFound'];
   const PROTECTED_PAGES: PageId[] = ['profile', 'community', 'myProfile', 'resources', 'affiliateHub', 'security', 'allUsers', 'units', ...ADMIN_SUB_PAGES];
   if (
     showLanding ||
