@@ -6,7 +6,9 @@ import { GoogleSignInButton } from './GoogleSignInButton';
 
 type AuthPanelProps = {
   mode: 'login' | 'setupPassword' | 'signup' | 'resetPassword' | 'forgotPassword';
-  setActivePage: (page: PageId) => void;
+  /** `replace` for the redirects after signing in or resetting a password —
+   *  the form shouldn't be where Back takes them afterwards. */
+  setActivePage: (page: PageId, options?: { replace?: boolean }) => void;
   setCurrentUserId: (userId: string | null) => void;
   setCurrentUserRole: (role: string | null) => void;
 };
@@ -43,10 +45,10 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
     // not the applicant queue.
     const intended = takePostAuthPage();
     if (intended) {
-      setActivePage(intended);
+      setActivePage(intended, { replace: true });
       return;
     }
-    setActivePage(ADMIN_ROLES.includes(session.user.role) ? 'adminDashboard' : 'profile');
+    setActivePage(ADMIN_ROLES.includes(session.user.role) ? 'adminDashboard' : 'profile', { replace: true });
   }
 
   async function signInWithGoogle(credential: string) {
@@ -101,7 +103,7 @@ export function AuthPanel({ mode, setActivePage, setCurrentUserId, setCurrentUse
         });
         window.history.replaceState(null, '', '/');
         setSuccess(isReset ? 'Password updated. You can log in now.' : 'Password set. You can log in now.');
-        setTimeout(() => setActivePage('login'), 700);
+        setTimeout(() => setActivePage('login', { replace: true }), 700);
         return;
       }
 

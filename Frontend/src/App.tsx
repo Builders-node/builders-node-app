@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from './components/AppShell';
 import { AuthPanel } from './components/AuthPanel';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -129,6 +129,33 @@ function PageFallback() {
 function App() {
   const [activePage, setActivePage] = useState<PageId>(() => pageForPath(window.location.pathname) ?? 'notFound');
   const [isDark, setIsDark] = useState(false);
+
+  /**
+   * Push or replace: the URL-sync effect below has to know which.
+   *
+   * Every page change used to push a history entry, redirects included. So a
+   * signed-in member pressing Back onto '/' was pushed forward to /account
+   * again — a fresh entry each time, and the back button never got past it.
+   * A redirect is not somewhere the visitor went; it replaces the entry it
+   * redirects from. Clicks and links still push.
+   *
+   * Holds the page the redirect is headed for, not a flag, so a redirect to the
+   * page already showing (which renders nothing and so never reaches the
+   * effect) can't leave a stale "replace" for the next real click.
+   */
+  const pendingReplace = useRef<PageId | null>(null);
+  const activePageRef = useRef(activePage);
+  activePageRef.current = activePage;
+  const redirectTo = useCallback((page: PageId) => {
+    if (page === activePageRef.current) return;
+    pendingReplace.current = page;
+    setActivePage(page);
+  }, []);
+  /** The page setter for screens that both link and redirect (sign-in, reset). */
+  const navigate = useCallback(
+    (page: PageId, options?: { replace?: boolean }) => (options?.replace ? redirectTo(page) : setActivePage(page)),
+    [redirectTo],
+  );
   const [menuOpen, setMenuOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(() => {
     // Drop a dead/expired session on boot so we never fire a doomed authed request.
@@ -170,14 +197,26 @@ function App() {
   // Keep the address bar in sync with the active page so every view is
   // deep-linkable, bookmarkable and refresh-safe. Compares pathname only, so any
   // query string (e.g. ?token=... on the reset/verify pages) is preserved.
+  const urlSynced = useRef(false);
   useEffect(() => {
     // canonicalPathFor keeps the trailing segment of a dynamic route
     // (/pass/:token) while still rewriting legacy aliases to their new home.
     const target = canonicalPathFor(activePage, window.location.pathname);
+    // Replace rather than push when the visitor didn't go anywhere: the first
+    // sync on load, a URL that already names this page in another spelling
+    // (a legacy alias, a trailing slash — including one reached with Back),
+    // and a redirect (see pendingReplace).
+    const replace =
+      !urlSynced.current ||
+      pageForPath(window.location.pathname) === activePage ||
+      pendingReplace.current === activePage;
+    urlSynced.current = true;
+    pendingReplace.current = null;
     // Landing on a token URL (e.g. /reset-password?token=…) already matches the
-    // target pathname, so no push fires and the query survives for the page to read.
+    // target pathname, so nothing fires and the query survives for the page to read.
     if (window.location.pathname !== target) {
-      window.history.pushState(null, '', target);
+      if (replace) window.history.replaceState(null, '', target);
+      else window.history.pushState(null, '', target);
     }
   }, [activePage]);
 
@@ -209,12 +248,12 @@ function App() {
       setCurrentUserLabel(null);
       setCurrentUserEmail(null);
       setCurrentUserReferral(null);
-      setActivePage('login');
+      redirectTo('login');
       queryClient.clear();
     };
     window.addEventListener('auth:unauthorized', onUnauthorized);
     return () => window.removeEventListener('auth:unauthorized', onUnauthorized);
-  }, []);
+  }, [redirectTo]);
 
   // Browser back/forward: derive the active page from the URL.
   useEffect(() => {
@@ -230,9 +269,9 @@ function App() {
   useEffect(() => {
     if (currentUserId && activePage === 'landing') {
       const isAdmin = ADMIN_ROLES.includes(currentUserRole ?? '');
-      setActivePage(isAdmin ? 'adminDashboard' : 'profile');
+      redirectTo(isAdmin ? 'adminDashboard' : 'profile');
     }
-  }, [currentUserId, currentUserRole, activePage]);
+  }, [currentUserId, currentUserRole, activePage, redirectTo]);
 
   function updateCurrentUserId(userId: string | null) {
     setCurrentUserId(userId);
@@ -291,7 +330,7 @@ function App() {
     // Sign out so we show the landing/login instead of a broken account page.
     if (sessionProfileError instanceof ApiError && (sessionProfileError.status === 401 || sessionProfileError.status === 404)) {
       updateCurrentUserId(null);
-      setActivePage((current) => (current === 'apply' ? 'apply' : 'landing'));
+      redirectTo(activePageRef.current === 'apply' ? 'apply' : 'landing');
       return;
     }
     updateCurrentUserRole(null);
@@ -329,40 +368,40 @@ function App() {
         />
       );
     }
-    if (activePage === 'login') return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
-    if (activePage === 'signup') return <AuthPanel mode="signup" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
-    if (activePage === 'setupPassword') return <AuthPanel mode="setupPassword" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
-    if (activePage === 'forgotPassword') return <AuthPanel mode="forgotPassword" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
-    if (activePage === 'resetPassword') return <AuthPanel mode="resetPassword" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+    if (activePage === 'login') return <AuthPanel mode="login" setActivePage={navigate} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+    if (activePage === 'signup') return <AuthPanel mode="signup" setActivePage={navigate} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+    if (activePage === 'setupPassword') return <AuthPanel mode="setupPassword" setActivePage={navigate} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+    if (activePage === 'forgotPassword') return <AuthPanel mode="forgotPassword" setActivePage={navigate} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+    if (activePage === 'resetPassword') return <AuthPanel mode="resetPassword" setActivePage={navigate} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
     if (activePage === 'verifyEmail') return <VerifyEmail setActivePage={setActivePage} />;
     if (activePage === 'pass') return <Pass />;
     if (activePage === 'notFound') return <NotFound setActivePage={setActivePage} currentUserId={currentUserId} />;
     if (activePage === 'profile') {
-      if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+      if (!currentUserId) return <AuthPanel mode="login" setActivePage={navigate} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
       return <Profile currentUserId={currentUserId} setActivePage={setActivePage} />;
     }
     if (activePage === 'myProfile') {
-      if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+      if (!currentUserId) return <AuthPanel mode="login" setActivePage={navigate} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
       return <MyProfile currentUserId={currentUserId} />;
     }
     if (activePage === 'community') {
-      if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+      if (!currentUserId) return <AuthPanel mode="login" setActivePage={navigate} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
       return <Community currentUserId={currentUserId} setActivePage={setActivePage} />;
     }
     if (activePage === 'resources') {
-      if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+      if (!currentUserId) return <AuthPanel mode="login" setActivePage={navigate} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
       return <Resources />;
     }
     if (activePage === 'affiliateHub') {
-      if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+      if (!currentUserId) return <AuthPanel mode="login" setActivePage={navigate} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
       return <AffiliateHub currentUserId={currentUserId} />;
     }
     if (activePage === 'security') {
-      if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+      if (!currentUserId) return <AuthPanel mode="login" setActivePage={navigate} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
       return <Security currentUserId={currentUserId} setCurrentUserId={updateCurrentUserId} setActivePage={setActivePage} />;
     }
     if (activePage === 'allUsers') {
-      if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+      if (!currentUserId) return <AuthPanel mode="login" setActivePage={navigate} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
       if (!canAccessAdmin) {
         return (
           <div className="page-stack">
@@ -376,7 +415,7 @@ function App() {
     // `units` is part of ADMIN_SUB_PAGES now — it renders as a Settings
     // sub-tab inside AdminDashboard rather than as its own page.
     if (ADMIN_SUB_PAGES.includes(activePage)) {
-      if (!currentUserId) return <AuthPanel mode="login" setActivePage={setActivePage} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
+      if (!currentUserId) return <AuthPanel mode="login" setActivePage={navigate} setCurrentUserId={updateCurrentUserId} setCurrentUserRole={updateCurrentUserRole} />;
       if (!canAccessAdmin) {
         return (
           <div className="page-stack">
