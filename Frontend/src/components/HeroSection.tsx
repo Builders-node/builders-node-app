@@ -2,15 +2,11 @@ import { Send } from "lucide-react";
 import { useGsapTitle } from "@/hooks/useGsapTitle";
 import { HeroVideo } from "@/components/HeroVideo";
 import { TELEGRAM_COMMUNITY_URL } from "@/lib/telegram";
-import { useStartingPrice } from "@/lib/membership-plans";
 import { useApplyNav } from "@/lib/applyNav";
 
 const HeroSection = () => {
   const openApply = useApplyNav();
   const titleRef = useGsapTitle<HTMLHeadingElement>();
-  // Quoted from the plan catalogue, so a price change in the admin reaches
-  // the landing too — this sentence used to name its own number.
-  const { price: startingPrice } = useStartingPrice();
 
   return (
     <section
@@ -25,10 +21,10 @@ const HeroSection = () => {
       {/* Main content — centered */}
       <div className="relative z-10 w-full px-6 md:px-12 flex flex-col items-center text-center gap-6">
         <h1 ref={titleRef} className="text-4xl sm:text-5xl md:text-6xl lg:text-[5.5rem] font-light leading-[1.05] text-white max-w-6xl tracking-tight">
-          Come to build. <br />Stay for the people
+          Coliving in the Caribbean startup city
         </h1>
         <p className="text-base md:text-lg text-white/70 max-w-xl leading-relaxed">
-          {startingPrice}/month and includes private accommodation, nutritious meals, coworking, gym, pool and more.
+          Live and join community only for $999/month
         </p>
         {/* Two ways in, ranked. Applying is the ask; the chat is for the
             visitor who wants to see the people before committing to a month's
