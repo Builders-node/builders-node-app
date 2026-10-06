@@ -19,10 +19,10 @@ const HeroSection = () => {
       {/* Main content — centered */}
       <div className="relative z-10 w-full px-6 md:px-12 flex flex-col items-center text-center gap-6">
         <h1 ref={titleRef} className="text-4xl sm:text-5xl md:text-6xl lg:text-[5.5rem] font-light leading-[1.05] text-white max-w-6xl tracking-tight">
-          Coliving in the Caribbean startup city
+          Coliving in Prospera
         </h1>
         <p className="text-base md:text-lg text-white/70 max-w-xl leading-relaxed">
-          Live and join community only for $999/month
+          Join the founder's community on the Caribbean island only for $999/month
         </p>
         {/* One ask. The Telegram community button that sat beside it was
             taken off the landing. */}
