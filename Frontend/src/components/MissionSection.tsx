@@ -41,10 +41,17 @@ const MissionSection = ({
   showCommunity = true,
   showStartups = true,
   governanceText = {},
-}: { showCommunity?: boolean; showStartups?: boolean; governanceText?: Record<string, string> } = {}) => {
-  const governance = governanceItems.map((item) =>
-    governanceText[item.title] ? { ...item, desc: governanceText[item.title] } : item,
-  );
+  hideGovernance = [],
+}: {
+  showCommunity?: boolean;
+  showStartups?: boolean;
+  governanceText?: Record<string, string>;
+  /** Governance card titles to leave out. */
+  hideGovernance?: string[];
+} = {}) => {
+  const governance = governanceItems
+    .filter((item) => !hideGovernance.includes(item.title))
+    .map((item) => (governanceText[item.title] ? { ...item, desc: governanceText[item.title] } : item));
   const title1Ref = useGsapTitle<HTMLHeadingElement>();
   const title2Ref = useGsapTitle<HTMLHeadingElement>();
   const title3Ref = useGsapTitle<HTMLHeadingElement>();

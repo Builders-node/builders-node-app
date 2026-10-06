@@ -59,7 +59,12 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
         <PricingSection />
         <WeekSection />
         <GallerySection items={MAIN_GALLERY_ITEMS} />
-        <MissionSection showCommunity={false} showStartups={false} governanceText={MAIN_GOVERNANCE_TEXT} />
+        <MissionSection
+          showCommunity={false}
+          showStartups={false}
+          governanceText={MAIN_GOVERNANCE_TEXT}
+          hideGovernance={['Flexible regulatory framework']}
+        />
         <TwitterSection hide={MAIN_HIDDEN_TWEETS} />
         <WhereYouLiveSection />
         <FAQSection />
