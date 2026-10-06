@@ -31,7 +31,8 @@ const startups = [
   { name: "RealityNet", desc: "A decentralized network that verifies data, logic, and execution across systems and devices to ensure reliability and consistency without central control.", url: "https://realitynet.xyz/" },
 ];
 
-const MissionSection = () => {
+/** `showStartups: false` drops the /03 startups slider — the main site has no use for it. */
+const MissionSection = ({ showStartups = true }: { showStartups?: boolean } = {}) => {
   const title1Ref = useGsapTitle<HTMLHeadingElement>();
   const title2Ref = useGsapTitle<HTMLHeadingElement>();
   const title3Ref = useGsapTitle<HTMLHeadingElement>();
@@ -219,6 +220,7 @@ const MissionSection = () => {
       </div>
 
       {/* Block 3 — Startups (full-width slider) */}
+      {showStartups ? (
       <div className="mt-32">
         <div className="px-8 md:px-12">
           <div className="flex items-end justify-between pb-6 mb-8">
@@ -300,6 +302,7 @@ const MissionSection = () => {
           <div className="flex-shrink-0 w-8 md:w-12" />
         </div>
       </div>
+      ) : null}
     </section>
   );
 };

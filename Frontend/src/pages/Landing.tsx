@@ -48,7 +48,7 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
         <WhereYouLiveSection />
         <GallerySection />
         <AdvantagesSection only={MAIN_ADVANTAGES} rename={MAIN_ADVANTAGE_NAMES} />
-        <MissionSection />
+        <MissionSection showStartups={false} />
         <TwitterSection />
         <SpeakersSection />
         <FAQSection />
