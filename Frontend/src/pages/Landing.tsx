@@ -51,12 +51,12 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
           body="A coliving community where founders, builders and creators live in the same tower for 1-3 months, work on their own projects, and share dinners, sport and weekends."
         />
         <PricingSection />
-        <WhereYouLiveSection />
         <GallerySection />
         <AdvantagesSection only={MAIN_ADVANTAGES} rename={MAIN_ADVANTAGE_NAMES} />
         <MissionSection showStartups={false} />
         <TwitterSection />
         <SpeakersSection />
+        <WhereYouLiveSection />
         <FAQSection />
         <Footer showEvents={false} />
         {/* Outside the page flow on purpose — it follows the visitor down
