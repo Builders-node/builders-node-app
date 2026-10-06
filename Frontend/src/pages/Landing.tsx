@@ -12,6 +12,7 @@ import FAQSection from '@/components/FAQSection';
 import Footer from '@/components/Footer';
 import WhereYouLiveSection from '@/components/WhereYouLiveSection';
 import PricingSection from '@/components/PricingSection';
+import WeekSection from '@/components/WeekSection';
 import { GuideCta } from '@/sites/ca/components/GuideCta';
 import TelegramCommunityButton from '@/components/TelegramCommunityButton';
 import { ApplyNavProvider, AccountNavProvider } from '@/lib/applyNav';
@@ -51,6 +52,7 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
           body="A coliving community where founders, builders and creators live in the same tower for 1-3 months, work on their own projects, and share dinners, sport and weekends."
         />
         <PricingSection />
+        <WeekSection />
         <GallerySection />
         <AdvantagesSection only={MAIN_ADVANTAGES} rename={MAIN_ADVANTAGE_NAMES} />
         <MissionSection showStartups={false} />
@@ -58,7 +60,7 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
         <SpeakersSection />
         <WhereYouLiveSection />
         <FAQSection />
-        <Footer showEvents={false} />
+        <Footer showEvents={false} comeBuild />
         {/* Outside the page flow on purpose — it follows the visitor down
             the page rather than waiting in a section they may not reach. */}
         <TelegramCommunityButton />

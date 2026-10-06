@@ -6,14 +6,30 @@ const textWhite = "hsl(0 0% 100%)";
 const textWhiteMuted = "hsl(0 0% 100% / 0.6)";
 const borderWhite = "hsl(0 0% 100% / 0.2)";
 
+/**
+ * `https://wa.me/<number>` once there is a number to chat on. Until then the
+ * WhatsApp button stays hidden rather than leading nowhere.
+ */
+const WHATSAPP_URL = "";
+const CONTACT_EMAIL = "hello@buildersnode.com";
+
 const socialLinks = [
   { label: "X / Twitter", href: "#" },
   { label: "Instagram", href: "https://instagram.com/buildersnode" },
   { label: "Discord", href: "https://discord.gg/Aa4jqe4dth" },
 ];
 
-/** `showEvents: false` on pages without an events section, so the link isn't dead. */
-const Footer = ({ showEvents = true }: { showEvents?: boolean } = {}) => {
+type FooterProps = {
+  /** `false` on pages without an events section, so the link isn't dead. */
+  showEvents?: boolean;
+  /**
+   * The main landing's ask: "Come build with us." with Apply, WhatsApp and
+   * the contact address, in place of the "Let's talk" line.
+   */
+  comeBuild?: boolean;
+};
+
+const Footer = ({ showEvents = true, comeBuild = false }: FooterProps = {}) => {
   const openApply = useApplyNav();
   const { openAffiliate } = useAccountNav();
 
@@ -26,6 +42,44 @@ const Footer = ({ showEvents = true }: { showEvents?: boolean } = {}) => {
     >
       <div>
         {/* Big CTA */}
+        {comeBuild ? (
+          <div className="mb-20">
+            <h2
+              className="text-5xl md:text-7xl lg:text-8xl font-light tracking-tight leading-[1.05] max-w-3xl"
+              style={{ color: textWhite }}
+            >
+              Come build with us.
+            </h2>
+            <div className="mt-10 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={openApply}
+                className="text-xs tracking-[0.25em] uppercase font-semibold rounded-full px-7 py-3.5 transition-all duration-300 hover:scale-105 cursor-pointer border-none"
+                style={{ backgroundColor: "hsl(0 0% 10%)", color: textWhite }}
+              >
+                Apply
+              </button>
+              {WHATSAPP_URL ? (
+                <a
+                  href={WHATSAPP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs tracking-[0.25em] uppercase font-semibold rounded-full px-7 py-3.5 border transition-all duration-300 hover:scale-105 hover:bg-white/10"
+                  style={{ color: textWhite, borderColor: "hsl(0 0% 100% / 0.7)" }}
+                >
+                  Chat on WhatsApp
+                </a>
+              ) : null}
+            </div>
+            <a
+              href={`mailto:${CONTACT_EMAIL}`}
+              className="inline-block mt-8 text-sm font-medium border-b pb-1 transition-opacity hover:opacity-80"
+              style={{ color: textWhite, borderColor: "hsl(0 0% 100% / 0.7)" }}
+            >
+              {CONTACT_EMAIL}
+            </a>
+          </div>
+        ) : (
         <div className="mb-20">
           <button
             onClick={openApply}
@@ -50,6 +104,7 @@ const Footer = ({ showEvents = true }: { showEvents?: boolean } = {}) => {
             </div>
           </button>
         </div>
+        )}
 
         {/* Footer columns */}
         <div className="grid md:grid-cols-3 gap-12 mb-16">
