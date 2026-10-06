@@ -140,7 +140,10 @@ const MissionSection = ({
         <div className="px-8 md:px-12">
           <div className="flex items-end justify-between pb-6 mb-8">
             <div>
-              <span className="text-xs tracking-[0.15em] block mb-4" style={{ color: textMuted }}>{showCommunity ? "/02" : "/01"}</span>
+              {/* Numbered only alongside the community block; on its own it needs no /01. */}
+              {showCommunity ? (
+                <span className="text-xs tracking-[0.15em] block mb-4" style={{ color: textMuted }}>/02</span>
+              ) : null}
               <h2 ref={title2Ref} className="text-4xl md:text-6xl font-light tracking-tight mb-6" style={{ color: textDark }}>
                 Designed for builders to connect, create, and grow
               </h2>
