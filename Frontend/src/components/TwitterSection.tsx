@@ -189,8 +189,10 @@ const TweetCard = ({ tweet }: { tweet: Tweet }) => (
   </a>
 );
 
-const TwitterSection = () => {
+/** `hide`: handles to leave out on this landing — the main site shows fewer. */
+const TwitterSection = ({ hide = [] }: { hide?: string[] } = {}) => {
   const titleRef = useGsapTitle<HTMLHeadingElement>();
+  const shown = tweets.filter((tweet) => !hide.includes(tweet.handle));
 
   return (
     <section className="py-24 md:py-32">
@@ -216,7 +218,7 @@ const TwitterSection = () => {
 
       {/* Mobile: horizontal slider */}
       <div className="md:hidden flex overflow-x-auto gap-4 snap-x snap-mandatory scrollbar-hide pb-4 pl-8" style={{ scrollPaddingLeft: '2rem' }}>
-        {tweets.map((tweet, i) => (
+        {shown.map((tweet, i) => (
           <div key={i} className="shrink-0 w-[80vw] snap-start">
             <TweetCard tweet={tweet} />
           </div>
@@ -226,7 +228,7 @@ const TwitterSection = () => {
 
       {/* Desktop: masonry grid */}
       <div className="hidden md:block px-8 md:px-12 columns-2 lg:columns-3 gap-5 space-y-5">
-        {tweets.map((tweet, i) => (
+        {shown.map((tweet, i) => (
           <div key={i} className="break-inside-avoid">
             <TweetCard tweet={tweet} />
           </div>

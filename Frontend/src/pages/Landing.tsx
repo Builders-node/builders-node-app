@@ -17,6 +17,9 @@ import TelegramCommunityButton from '@/components/TelegramCommunityButton';
 import { ApplyNavProvider, AccountNavProvider } from '@/lib/applyNav';
 import type { PageId } from '../data/dashboard';
 
+/** Tweets the main landing leaves out; the CA site shows them all. */
+const MAIN_HIDDEN_TWEETS = ['@anna9vakh', '@techno0ptimist', '@erickbrimen', '@aubreydegrey', '@ThatMrE'];
+
 type LandingProps = {
   setActivePage: (page: PageId) => void;
   currentUserId?: string | null;
@@ -51,7 +54,7 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
         <WeekSection />
         <GallerySection items={MAIN_GALLERY_ITEMS} />
         <MissionSection showCommunity={false} showStartups={false} />
-        <TwitterSection />
+        <TwitterSection hide={MAIN_HIDDEN_TWEETS} />
         <WhereYouLiveSection />
         <FAQSection />
         <Footer showEvents={false} comeBuild />
