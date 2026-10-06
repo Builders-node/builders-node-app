@@ -50,7 +50,7 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
         <PricingSection />
         <WeekSection />
         <GallerySection items={MAIN_GALLERY_ITEMS} />
-        <MissionSection showStartups={false} />
+        <MissionSection showCommunity={false} showStartups={false} />
         <TwitterSection />
         <WhereYouLiveSection />
         <FAQSection />

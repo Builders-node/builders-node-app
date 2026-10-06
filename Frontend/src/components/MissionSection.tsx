@@ -31,8 +31,12 @@ const startups = [
   { name: "RealityNet", desc: "A decentralized network that verifies data, logic, and execution across systems and devices to ensure reliability and consistency without central control.", url: "https://realitynet.xyz/" },
 ];
 
-/** `showStartups: false` drops the /03 startups slider — the main site has no use for it. */
-const MissionSection = ({ showStartups = true }: { showStartups?: boolean } = {}) => {
+/**
+ * `showCommunity: false` drops the /01 "We build a community" block and
+ * `showStartups: false` the /03 startups slider — the main site shows only
+ * the governance slider, numbered /01 there.
+ */
+const MissionSection = ({ showCommunity = true, showStartups = true }: { showCommunity?: boolean; showStartups?: boolean } = {}) => {
   const title1Ref = useGsapTitle<HTMLHeadingElement>();
   const title2Ref = useGsapTitle<HTMLHeadingElement>();
   const title3Ref = useGsapTitle<HTMLHeadingElement>();
@@ -89,6 +93,7 @@ const MissionSection = ({ showStartups = true }: { showStartups?: boolean } = {}
 
   return (
     <section className="py-24 md:py-32">
+      {showCommunity ? (
       <div className="px-8 md:px-12">
 
         {/* Block 1 — Community (editorial layout like reference) */}
@@ -120,13 +125,14 @@ const MissionSection = ({ showStartups = true }: { showStartups?: boolean } = {}
         </div>
 
       </div>
+      ) : null}
 
       {/* Block 2 — Governance (full-width slider) */}
-      <div className="mt-32">
+      <div className={showCommunity ? "mt-32" : undefined}>
         <div className="px-8 md:px-12">
           <div className="flex items-end justify-between pb-6 mb-8">
             <div>
-              <span className="text-xs tracking-[0.15em] block mb-4" style={{ color: textMuted }}>/02</span>
+              <span className="text-xs tracking-[0.15em] block mb-4" style={{ color: textMuted }}>{showCommunity ? "/02" : "/01"}</span>
               <h2 ref={title2Ref} className="text-4xl md:text-6xl font-light tracking-tight mb-6" style={{ color: textDark }}>
                 Designed for builders to connect, create, and grow
               </h2>
