@@ -6,11 +6,8 @@ const textWhite = "hsl(0 0% 100%)";
 const textWhiteMuted = "hsl(0 0% 100% / 0.6)";
 const borderWhite = "hsl(0 0% 100% / 0.2)";
 
-/**
- * `https://wa.me/<number>` once there is a number to chat on. Until then the
- * WhatsApp button stays hidden rather than leading nowhere.
- */
-const WHATSAPP_URL = "";
+/** Opens a WhatsApp chat with the team (+380 93 492 1005). */
+const WHATSAPP_URL = "https://wa.me/380934921005";
 const CONTACT_EMAIL = "hello@buildersnode.com";
 
 const socialLinks = [
