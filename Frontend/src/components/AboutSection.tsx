@@ -10,12 +10,17 @@ type AboutSectionProps = {
   label?: string;
   /** Replaces the default statement — the main site has its own. */
   statement?: string;
+  /**
+   * Replaces the right column's heading and two paragraphs. The "Learn more"
+   * link stays either way.
+   */
+  body?: string;
 };
 
 const DEFAULT_STATEMENT =
   "Builders Node is a frontier community for techno-optimists — blending self-improvement with startup society building.";
 
-const AboutSection = ({ label, statement = DEFAULT_STATEMENT }: AboutSectionProps = {}) => {
+const AboutSection = ({ label, statement = DEFAULT_STATEMENT, body }: AboutSectionProps = {}) => {
   const titleRef = useGsapTitle<HTMLHeadingElement>();
   const batch = useBatch();
   // Quoted from the plan catalogue, so a price change in the admin reaches
@@ -81,6 +86,15 @@ const AboutSection = ({ label, statement = DEFAULT_STATEMENT }: AboutSectionProp
 
         {/* Right column - title + text + link */}
         <div>
+          {body ? (
+            <p
+              className="text-xl md:text-2xl font-light leading-relaxed mb-10"
+              style={{ color: "hsl(0 0% 10%)" }}
+            >
+              {body}
+            </p>
+          ) : (
+          <>
           <h3
             className="text-xl md:text-2xl font-medium mb-6"
             style={{ color: "hsl(0 0% 10%)" }}
@@ -101,6 +115,8 @@ const AboutSection = ({ label, statement = DEFAULT_STATEMENT }: AboutSectionProp
           >
             If you're accepted to Builders Node, membership starts at {startingPrice}/month and includes everything from meals to gym to accommodations. We think of it as society-as-a-service. First arrivals join us from {batch.longDate} — you might be in the first batch.
           </p>
+          </>
+          )}
 
           {/* Leaves the site now, so it opens in its own tab — a visitor part
               way down the landing page shouldn't lose it to read a post. */}
