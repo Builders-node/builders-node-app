@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
 import { useApplyNav } from "@/lib/applyNav";
+import { useGsapTitle } from "@/hooks/useGsapTitle";
 import { useModalA11y } from "@/lib/useModalA11y";
 
 import apartment from "@/assets/pricing/apartment.webp";
@@ -58,30 +59,34 @@ const PLANS: Plan[] = [
   },
 ];
 
+// The landing's own palette and type — light headings, muted body, uppercase
+// tracked labels and buttons — rather than the mock-up's heavier weights.
 const textDark = "hsl(0 0% 10%)";
+const textMuted = "hsl(0 0% 45%)";
+const borderLight = "hsl(0 0% 10% / 0.12)";
 const accent = "#EA5404";
 
 const PricingSection = () => {
   const openApply = useApplyNav();
   const [gallery, setGallery] = useState<{ plan: Plan; index: number } | null>(null);
+  const titleRef = useGsapTitle<HTMLHeadingElement>();
 
   return (
-    <section id="pricing" className="py-20 md:py-28 px-8 md:px-12" style={{ backgroundColor: "hsl(30 30% 93%)" }}>
-      <h2
-        className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tighter leading-[1.05] mb-10 md:mb-12"
-        style={{ color: textDark }}
-      >
-        Two plans. That&apos;s it.
-      </h2>
+    <section id="pricing" className="py-24 md:py-32 px-8 md:px-12" style={{ backgroundColor: "hsl(30 30% 93%)" }}>
+      <div className="mb-12 md:mb-16">
+        <h2 ref={titleRef} className="text-4xl md:text-6xl font-light tracking-tight" style={{ color: textDark }}>
+          Two plans. That&apos;s it.
+        </h2>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {PLANS.map((plan) => (
           <article
             key={plan.name}
-            className="flex flex-col rounded-3xl p-3 border"
+            className="flex flex-col rounded-2xl p-3 border"
             style={{
-              backgroundColor: "hsl(40 33% 98%)",
-              borderColor: plan.popular ? accent : "hsl(0 0% 10% / 0.1)",
+              backgroundColor: "hsl(0 0% 100% / 0.35)",
+              borderColor: plan.popular ? accent : borderLight,
             }}
           >
             {/* The first photo large, the next one peeking beside it — a
@@ -90,7 +95,7 @@ const PricingSection = () => {
               <button
                 type="button"
                 onClick={() => setGallery({ plan, index: 0 })}
-                className="relative overflow-hidden rounded-2xl p-0 border-0 cursor-pointer"
+                className="relative overflow-hidden rounded-xl p-0 border-0 cursor-pointer"
                 aria-label={`See ${plan.name} photos`}
               >
                 <img src={plan.photos[0].src} alt={plan.photos[0].alt} loading="lazy" decoding="async" className="w-full h-full object-cover" />
@@ -98,7 +103,7 @@ const PricingSection = () => {
               <button
                 type="button"
                 onClick={() => setGallery({ plan, index: 1 })}
-                className="relative overflow-hidden rounded-2xl p-0 border-0 cursor-pointer"
+                className="relative overflow-hidden rounded-xl p-0 border-0 cursor-pointer"
                 aria-label={`See all ${plan.photos.length} ${plan.name} photos`}
               >
                 <img src={plan.photos[1].src} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
@@ -106,7 +111,7 @@ const PricingSection = () => {
               {/* On the block, not inside the narrow photo: there it was cut
                   off on a phone. Decorative — both photos already open it. */}
               <span
-                className="absolute bottom-3 right-2 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold text-white pointer-events-none"
+                className="absolute bottom-3 right-2 whitespace-nowrap rounded-full px-3 py-1.5 text-[10px] tracking-[0.15em] uppercase font-semibold text-white pointer-events-none"
                 style={{ backgroundColor: "hsl(0 0% 10% / 0.75)" }}
                 aria-hidden="true"
               >
@@ -116,25 +121,25 @@ const PricingSection = () => {
 
             <div className="flex flex-col flex-1 px-4 sm:px-5 pt-7 pb-4">
               <div className="flex items-center justify-between gap-3 mb-4">
-                <h3 className="text-sm sm:text-base font-semibold tracking-wide uppercase" style={{ color: textDark }}>
+                <h3 className="text-xs tracking-[0.25em] uppercase font-normal" style={{ color: textMuted }}>
                   {plan.name}
                 </h3>
                 {plan.popular ? (
-                  <span className="rounded-full px-3 py-1.5 text-xs sm:text-sm font-semibold text-white" style={{ backgroundColor: accent }}>
+                  <span className="rounded-full px-3 py-1.5 text-[10px] tracking-[0.2em] uppercase font-semibold text-white" style={{ backgroundColor: accent }}>
                     Most popular
                   </span>
                 ) : null}
               </div>
 
               <p className="flex items-baseline gap-1 mb-6" style={{ color: textDark }}>
-                <span className="text-6xl sm:text-7xl font-bold tracking-tighter">{plan.price}</span>
-                <span className="text-lg" style={{ color: "hsl(0 0% 40%)" }}>/month</span>
+                <span className="text-5xl md:text-6xl font-light tracking-tight">{plan.price}</span>
+                <span className="text-base font-light" style={{ color: textMuted }}>/month</span>
               </p>
 
               <ul className="space-y-3 mb-8 flex-1 list-none p-0">
                 {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-3 text-base sm:text-lg" style={{ color: textDark }}>
-                    <span className="mt-2 inline-block w-2 h-2 rounded-sm flex-none" style={{ backgroundColor: accent }} aria-hidden="true" />
+                  <li key={feature} className="flex items-start gap-3 text-base md:text-lg font-light" style={{ color: textMuted }}>
+                    <span className="mt-2.5 inline-block w-1.5 h-1.5 rounded-full flex-none" style={{ backgroundColor: accent }} aria-hidden="true" />
                     {feature}
                   </li>
                 ))}
@@ -143,8 +148,11 @@ const PricingSection = () => {
               <button
                 type="button"
                 onClick={openApply}
-                className="w-full rounded-full py-4 text-lg font-semibold text-white border-0 cursor-pointer transition-transform hover:scale-[1.01]"
-                style={{ backgroundColor: plan.popular ? accent : textDark }}
+                className="w-full rounded-full py-3.5 text-xs tracking-[0.25em] uppercase font-semibold text-white border-0 cursor-pointer transition-all duration-300 hover:scale-[1.02]"
+                style={{
+                  backgroundColor: plan.popular ? accent : textDark,
+                  boxShadow: plan.popular ? "0 10px 28px rgba(234, 84, 4, 0.35)" : undefined,
+                }}
               >
                 Apply
               </button>
