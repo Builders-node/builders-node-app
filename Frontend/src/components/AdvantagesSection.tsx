@@ -42,10 +42,14 @@ type AdvantagesSectionProps = {
    * picks from it. Numbers follow what is shown, so there are no gaps.
    */
   only?: string[];
+  /** Different names for some rows on this landing, keyed by the title above. */
+  rename?: Record<string, string>;
 };
 
-const AdvantagesSection = ({ only }: AdvantagesSectionProps = {}) => {
-  const shown = only ? advantages.filter((item) => only.includes(item.title)) : advantages;
+const AdvantagesSection = ({ only, rename }: AdvantagesSectionProps = {}) => {
+  const shown = (only ? advantages.filter((item) => only.includes(item.title)) : advantages).map((item) =>
+    rename?.[item.title] ? { ...item, title: rename[item.title] } : item,
+  );
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [tappedIndex, setTappedIndex] = useState<number | null>(null);
   const isMobile = useIsMobile();

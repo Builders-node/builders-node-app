@@ -17,6 +17,7 @@ import type { PageId } from '../data/dashboard';
 
 /** What the main landing lists under Advantages; the CA site shows the full list. */
 const MAIN_ADVANTAGES = ['Duna Tower Service Room', 'E-Residency', 'Infinita Coworking'];
+const MAIN_ADVANTAGE_NAMES = { 'Infinita Coworking': 'Coworking' };
 
 type LandingProps = {
   setActivePage: (page: PageId) => void;
@@ -40,7 +41,7 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
         <HeroSection />
         <AboutSection />
         <GallerySection />
-        <AdvantagesSection only={MAIN_ADVANTAGES} />
+        <AdvantagesSection only={MAIN_ADVANTAGES} rename={MAIN_ADVANTAGE_NAMES} />
         <MissionSection />
         <PartnersSection />
         <TwitterSection />
