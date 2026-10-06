@@ -11,6 +11,7 @@ import FAQSection from '@/components/FAQSection';
 import Footer from '@/components/Footer';
 import WhereYouLiveSection from '@/components/WhereYouLiveSection';
 import PricingSection from '@/components/PricingSection';
+import { MAIN_GALLERY_ITEMS } from '@/components/MainGalleryItems';
 import WeekSection from '@/components/WeekSection';
 import { GuideCta } from '@/sites/ca/components/GuideCta';
 import TelegramCommunityButton from '@/components/TelegramCommunityButton';
@@ -53,7 +54,7 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
         />
         <PricingSection />
         <WeekSection />
-        <GallerySection />
+        <GallerySection items={MAIN_GALLERY_ITEMS} />
         <AdvantagesSection only={MAIN_ADVANTAGES} rename={MAIN_ADVANTAGE_NAMES} />
         <MissionSection showStartups={false} />
         <TwitterSection />

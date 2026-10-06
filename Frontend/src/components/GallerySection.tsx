@@ -19,7 +19,7 @@ gsap.registerPlugin(ScrollTrigger);
 const textDark = "hsl(0 0% 10%)";
 const textMuted = "hsl(0 0% 45%)";
 
-interface GalleryItem {
+export interface GalleryItem {
   src: string;
   label: string;
   w: string;
@@ -32,7 +32,7 @@ interface GalleryItem {
   centerX?: boolean;
 }
 
-const items: GalleryItem[] = [
+const defaultItems: GalleryItem[] = [
   // Top row — corners pulled inward for oval shape
   { src: gallery1, label: "Duna Pool", top: "4%", left: "13%", w: "290px", h: "220px", rotate: "-3deg" },
   { src: gallery3, label: "Duna Gym", top: "1%", left: "calc(50% - 130px)", w: "260px", h: "200px", rotate: "1.5deg" },
@@ -46,7 +46,11 @@ const items: GalleryItem[] = [
   { src: gallery7, label: "Wellness", bottom: "4%", right: "13%", w: "280px", h: "215px", rotate: "-1.5deg" },
 ];
 
-const GallerySection = () => {
+/**
+ * `items` replaces the photos, their captions and their places — the main
+ * landing has its own set; the CA site keeps the one above.
+ */
+const GallerySection = ({ items = defaultItems }: { items?: GalleryItem[] } = {}) => {
   const titleRef = useGsapTitle<HTMLHeadingElement>();
   const sectionRef = useRef<HTMLElement>(null);
   const desktopRef = useRef<HTMLDivElement>(null);
