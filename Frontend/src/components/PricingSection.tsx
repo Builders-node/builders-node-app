@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
 import { useApplyNav } from "@/lib/applyNav";
 import { useGsapTitle } from "@/hooks/useGsapTitle";
@@ -89,35 +89,7 @@ const PricingSection = () => {
               borderColor: plan.popular ? accent : borderLight,
             }}
           >
-            {/* The first photo large, the next one peeking beside it — a
-                hint that there are more, which the button opens. */}
-            <div className="relative grid grid-cols-[1fr_72px] sm:grid-cols-[1fr_88px] gap-2 h-56 sm:h-72">
-              <button
-                type="button"
-                onClick={() => setGallery({ plan, index: 0 })}
-                className="relative overflow-hidden rounded-xl p-0 border-0 cursor-pointer"
-                aria-label={`See ${plan.name} photos`}
-              >
-                <img src={plan.photos[0].src} alt={plan.photos[0].alt} loading="lazy" decoding="async" className="w-full h-full object-cover" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setGallery({ plan, index: 1 })}
-                className="relative overflow-hidden rounded-xl p-0 border-0 cursor-pointer"
-                aria-label={`See all ${plan.photos.length} ${plan.name} photos`}
-              >
-                <img src={plan.photos[1].src} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
-              </button>
-              {/* On the block, not inside the narrow photo: there it was cut
-                  off on a phone. Decorative — both photos already open it. */}
-              <span
-                className="absolute bottom-3 right-2 whitespace-nowrap rounded-full px-3 py-1.5 text-[10px] tracking-[0.15em] uppercase font-semibold text-white pointer-events-none"
-                style={{ backgroundColor: "hsl(0 0% 10% / 0.75)" }}
-                aria-hidden="true"
-              >
-                {plan.photos.length} photos →
-              </span>
-            </div>
+            <PhotoSlider plan={plan} onOpen={(index) => setGallery({ plan, index })} />
 
             <div className="flex flex-col flex-1 px-4 sm:px-5 pt-7 pb-4">
               <div className="flex items-center justify-between gap-3 mb-4">
@@ -172,6 +144,90 @@ const PricingSection = () => {
     </section>
   );
 };
+
+/**
+ * The card's photos as a slider: swipe or the arrows, one photo per stop with
+ * the next one peeking in, and a counter. Tapping a photo opens it full size.
+ */
+function PhotoSlider({ plan, onOpen }: { plan: Plan; onOpen: (index: number) => void }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [index, setIndex] = useState(0);
+  const count = plan.photos.length;
+
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    // Which slide is in front, from where the track has scrolled to — so the
+    // counter follows a swipe as well as the arrows.
+    const onScroll = () => {
+      const slide = track.firstElementChild as HTMLElement | null;
+      if (!slide) return;
+      const step = slide.offsetWidth + 8;
+      setIndex(Math.min(count - 1, Math.round(track.scrollLeft / step)));
+    };
+    track.addEventListener("scroll", onScroll, { passive: true });
+    return () => track.removeEventListener("scroll", onScroll);
+  }, [count]);
+
+  const goTo = (next: number) => {
+    const track = trackRef.current;
+    const slide = track?.children[next] as HTMLElement | undefined;
+    if (track && slide) track.scrollTo({ left: slide.offsetLeft - track.offsetLeft, behavior: "smooth" });
+  };
+
+  const arrow =
+    "absolute top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center border-0 cursor-pointer text-white transition-opacity disabled:opacity-0";
+
+  return (
+    <div className="relative h-56 sm:h-72">
+      <div
+        ref={trackRef}
+        className="flex gap-2 h-full overflow-x-auto snap-x snap-mandatory rounded-xl"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      >
+        {plan.photos.map((photo, i) => (
+          <button
+            key={photo.src}
+            type="button"
+            onClick={() => onOpen(i)}
+            className="relative flex-[0_0_88%] h-full overflow-hidden rounded-xl p-0 border-0 cursor-pointer snap-start"
+            aria-label={`${plan.name} photo ${i + 1} of ${count} — open full size`}
+          >
+            <img src={photo.src} alt={photo.alt} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+          </button>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        aria-label="Previous photo"
+        onClick={() => goTo(Math.max(0, index - 1))}
+        disabled={index === 0}
+        className={`${arrow} left-2`}
+        style={{ backgroundColor: "hsl(0 0% 10% / 0.6)" }}
+      >
+        <ArrowLeft size={16} />
+      </button>
+      <button
+        type="button"
+        aria-label="Next photo"
+        onClick={() => goTo(Math.min(count - 1, index + 1))}
+        disabled={index === count - 1}
+        className={`${arrow} right-2`}
+        style={{ backgroundColor: "hsl(0 0% 10% / 0.6)" }}
+      >
+        <ArrowRight size={16} />
+      </button>
+      <span
+        className="absolute bottom-3 right-3 rounded-full px-3 py-1.5 text-[10px] tracking-[0.15em] uppercase font-semibold text-white pointer-events-none"
+        style={{ backgroundColor: "hsl(0 0% 10% / 0.75)" }}
+        aria-hidden="true"
+      >
+        {index + 1} / {count}
+      </span>
+    </div>
+  );
+}
 
 /** A plain lightbox: one photo at a time, arrows and keys to move, Esc to close. */
 function PhotoViewer({ photos, title, start, onClose }: { photos: Photo[]; title: string; start: number; onClose: () => void }) {
