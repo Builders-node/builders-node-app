@@ -7,7 +7,6 @@ import AboutSection from '@/components/AboutSection';
 import GallerySection from '@/components/GallerySection';
 import AdvantagesSection from '@/components/AdvantagesSection';
 import TwitterSection from '@/components/TwitterSection';
-import SpeakersSection from '@/components/SpeakersSection';
 import FAQSection from '@/components/FAQSection';
 import Footer from '@/components/Footer';
 import WhereYouLiveSection from '@/components/WhereYouLiveSection';
@@ -57,7 +56,6 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
         <AdvantagesSection only={MAIN_ADVANTAGES} rename={MAIN_ADVANTAGE_NAMES} />
         <MissionSection showStartups={false} />
         <TwitterSection />
-        <SpeakersSection />
         <WhereYouLiveSection />
         <FAQSection />
         <Footer showEvents={false} comeBuild />
