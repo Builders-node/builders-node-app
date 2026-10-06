@@ -19,11 +19,12 @@ import type { PageId } from '../data/dashboard';
 /** Tweets the main landing leaves out; the CA site shows them all. */
 const MAIN_HIDDEN_TWEETS = ['@anna9vakh', '@techno0ptimist', '@erickbrimen', '@aubreydegrey', '@ThatMrE'];
 
-/** Governance cards whose second paragraph the main landing drops. */
+/** Governance card text on the main landing, where it differs from the CA site's. */
 const MAIN_GOVERNANCE_TEXT = {
   'Start your business faster':
     "Register and launch your business in as little as 40 minutes using Próspera's regulatory sandbox.",
   'Low, competitive taxes': 'A simplified tax system with rates as low as 1%–5% and minimal reporting.',
+  'A community that builds': 'Startups in Prospera have raised over $50 million.',
 };
 
 type LandingProps = {
