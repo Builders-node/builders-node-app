@@ -11,6 +11,7 @@ import TwitterSection from '@/components/TwitterSection';
 import SpeakersSection from '@/components/SpeakersSection';
 import FAQSection from '@/components/FAQSection';
 import Footer from '@/components/Footer';
+import WhereYouLiveSection from '@/components/WhereYouLiveSection';
 import TelegramCommunityButton from '@/components/TelegramCommunityButton';
 import { ApplyNavProvider, AccountNavProvider } from '@/lib/applyNav';
 import type { PageId } from '../data/dashboard';
@@ -43,6 +44,7 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
           label="What Builders Node is"
           statement="A coliving community where founders, builders and creators live in the same tower for 1-3 months, work on their own projects, and share dinners, sport and weekends."
         />
+        <WhereYouLiveSection />
         <GallerySection />
         <AdvantagesSection only={MAIN_ADVANTAGES} rename={MAIN_ADVANTAGE_NAMES} />
         <MissionSection />
