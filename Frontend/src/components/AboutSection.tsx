@@ -15,12 +15,14 @@ type AboutSectionProps = {
    * link stays either way.
    */
   body?: string;
+  /** `false` hides the "Learn more about us" link. */
+  showLearnMore?: boolean;
 };
 
 const DEFAULT_STATEMENT =
   "Builders Node is a frontier community for techno-optimists — blending self-improvement with startup society building.";
 
-const AboutSection = ({ label, statement = DEFAULT_STATEMENT, body }: AboutSectionProps = {}) => {
+const AboutSection = ({ label, statement = DEFAULT_STATEMENT, body, showLearnMore = true }: AboutSectionProps = {}) => {
   const titleRef = useGsapTitle<HTMLHeadingElement>();
   const batch = useBatch();
   // Quoted from the plan catalogue, so a price change in the admin reaches
@@ -120,6 +122,7 @@ const AboutSection = ({ label, statement = DEFAULT_STATEMENT, body }: AboutSecti
 
           {/* Leaves the site now, so it opens in its own tab — a visitor part
               way down the landing page shouldn't lose it to read a post. */}
+          {showLearnMore ? (
           <a
             href="https://x.com/syrtsov_ivan/status/2085041095109419206"
             target="_blank"
@@ -130,6 +133,7 @@ const AboutSection = ({ label, statement = DEFAULT_STATEMENT, body }: AboutSecti
             Learn more about us
             <span className="text-lg">→</span>
           </a>
+          ) : null}
         </div>
       </div>
     </section>

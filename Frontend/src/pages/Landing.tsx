@@ -49,6 +49,7 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
         <AboutSection
           statement="What Builders Node is"
           body="A coliving community where founders, builders and creators live in the same tower for 1-3 months, work on their own projects, and share dinners, sport and weekends."
+          showLearnMore={false}
         />
         <PricingSection />
         <WeekSection />
