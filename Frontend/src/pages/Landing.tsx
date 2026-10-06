@@ -39,7 +39,10 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
       <div className="landing-root min-h-screen" style={{ backgroundColor: 'hsl(30 30% 93%)', color: 'hsl(0 0% 10%)' }}>
         <Navbar />
         <HeroSection />
-        <AboutSection />
+        <AboutSection
+          label="What Builders Node is"
+          statement="A coliving community where founders, builders and creators live in the same tower for 1-3 months, work on their own projects, and share dinners, sport and weekends."
+        />
         <GallerySection />
         <AdvantagesSection only={MAIN_ADVANTAGES} rename={MAIN_ADVANTAGE_NAMES} />
         <MissionSection />

@@ -5,7 +5,17 @@ import about1 from "@/assets/gallery-1.jpg";
 import about2 from "@/assets/gallery-2.jpg";
 import about3 from "@/assets/gallery-3.jpg";
 
-const AboutSection = () => {
+type AboutSectionProps = {
+  /** A small label over the statement. The CA site has none. */
+  label?: string;
+  /** Replaces the default statement — the main site has its own. */
+  statement?: string;
+};
+
+const DEFAULT_STATEMENT =
+  "Builders Node is a frontier community for techno-optimists — blending self-improvement with startup society building.";
+
+const AboutSection = ({ label, statement = DEFAULT_STATEMENT }: AboutSectionProps = {}) => {
   const titleRef = useGsapTitle<HTMLHeadingElement>();
   const batch = useBatch();
   // Quoted from the plan catalogue, so a price change in the admin reaches
@@ -19,12 +29,17 @@ const AboutSection = () => {
     >
       {/* Top large statement */}
       <div className="max-w-4xl mb-20 md:mb-32">
+        {label ? (
+          <p className="text-xs tracking-[0.2em] uppercase mb-6" style={{ color: "hsl(0 0% 40%)" }}>
+            {label}
+          </p>
+        ) : null}
         <h2
           ref={titleRef}
           className="text-3xl md:text-5xl lg:text-6xl font-light tracking-tight leading-[1.15]"
           style={{ color: "hsl(0 0% 10%)" }}
         >
-          Builders Node is a frontier community for techno-optimists — blending self-improvement with startup society building.
+          {statement}
         </h2>
       </div>
 
