@@ -3,7 +3,6 @@ import { Toaster } from '@/components/ui/toaster';
 import Navbar from '@/components/Navbar';
 import HeroSection from '@/components/HeroSection';
 import MissionSection from '@/components/MissionSection';
-import PartnersSection from '@/components/PartnersSection';
 import AboutSection from '@/components/AboutSection';
 import GallerySection from '@/components/GallerySection';
 import AdvantagesSection from '@/components/AdvantagesSection';
@@ -48,7 +47,6 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
         <GallerySection />
         <AdvantagesSection only={MAIN_ADVANTAGES} rename={MAIN_ADVANTAGE_NAMES} />
         <MissionSection />
-        <PartnersSection />
         <TwitterSection />
         <SpeakersSection />
         <FAQSection />
