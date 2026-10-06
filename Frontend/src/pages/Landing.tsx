@@ -19,6 +19,13 @@ import type { PageId } from '../data/dashboard';
 /** Tweets the main landing leaves out; the CA site shows them all. */
 const MAIN_HIDDEN_TWEETS = ['@anna9vakh', '@techno0ptimist', '@erickbrimen', '@aubreydegrey', '@ThatMrE'];
 
+/** Governance cards whose second paragraph the main landing drops. */
+const MAIN_GOVERNANCE_TEXT = {
+  'Start your business faster':
+    "Register and launch your business in as little as 40 minutes using Próspera's regulatory sandbox.",
+  'Low, competitive taxes': 'A simplified tax system with rates as low as 1%–5% and minimal reporting.',
+};
+
 type LandingProps = {
   setActivePage: (page: PageId) => void;
   currentUserId?: string | null;
@@ -52,7 +59,7 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
         <PricingSection />
         <WeekSection />
         <GallerySection items={MAIN_GALLERY_ITEMS} />
-        <MissionSection showCommunity={false} showStartups={false} />
+        <MissionSection showCommunity={false} showStartups={false} governanceText={MAIN_GOVERNANCE_TEXT} />
         <TwitterSection hide={MAIN_HIDDEN_TWEETS} />
         <WhereYouLiveSection />
         <FAQSection />

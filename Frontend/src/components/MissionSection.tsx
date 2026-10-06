@@ -34,9 +34,17 @@ const startups = [
 /**
  * `showCommunity: false` drops the /01 "We build a community" block and
  * `showStartups: false` the /03 startups slider — the main site shows only
- * the governance slider, numbered /01 there.
+ * the governance slider, numbered /01 there. `governanceText` replaces a
+ * card's description, keyed by its title.
  */
-const MissionSection = ({ showCommunity = true, showStartups = true }: { showCommunity?: boolean; showStartups?: boolean } = {}) => {
+const MissionSection = ({
+  showCommunity = true,
+  showStartups = true,
+  governanceText = {},
+}: { showCommunity?: boolean; showStartups?: boolean; governanceText?: Record<string, string> } = {}) => {
+  const governance = governanceItems.map((item) =>
+    governanceText[item.title] ? { ...item, desc: governanceText[item.title] } : item,
+  );
   const title1Ref = useGsapTitle<HTMLHeadingElement>();
   const title2Ref = useGsapTitle<HTMLHeadingElement>();
   const title3Ref = useGsapTitle<HTMLHeadingElement>();
@@ -180,7 +188,7 @@ const MissionSection = ({ showCommunity = true, showStartups = true }: { showCom
           }}
         >
           <div className="flex-shrink-0 w-8 md:w-12" />
-          {governanceItems.map((item, i) => {
+          {governance.map((item, i) => {
             const Icon = item.icon;
             return (
               <div
