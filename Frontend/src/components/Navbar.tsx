@@ -25,9 +25,8 @@ type NavItem = { num: string; label: string; href?: string; page?: 'affiliate' }
 const navItems: NavItem[] = [
   { num: "/01", label: "Home", href: "#home" },
   { num: "/02", label: "About", href: "#about" },
-  { num: "/03", label: "Events", href: "#events" },
-  { num: "/04", label: "Affiliates", page: "affiliate" },
-  { num: "/05", label: "Contact", href: "#contact" },
+  { num: "/03", label: "Affiliates", page: "affiliate" },
+  { num: "/04", label: "Contact", href: "#contact" },
 ];
 
 const Navbar = () => {

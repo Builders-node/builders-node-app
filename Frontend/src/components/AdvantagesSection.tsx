@@ -35,7 +35,17 @@ const textDark = "hsl(0 0% 10%)";
 const textMuted = "hsl(0 0% 45%)";
 const borderLight = "hsl(0 0% 10% / 0.12)";
 
-const AdvantagesSection = () => {
+type AdvantagesSectionProps = {
+  /**
+   * Titles to show, in list order. The main site shows only some of these;
+   * the CA site still shows them all, so the list stays here and each landing
+   * picks from it. Numbers follow what is shown, so there are no gaps.
+   */
+  only?: string[];
+};
+
+const AdvantagesSection = ({ only }: AdvantagesSectionProps = {}) => {
+  const shown = only ? advantages.filter((item) => only.includes(item.title)) : advantages;
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [tappedIndex, setTappedIndex] = useState<number | null>(null);
   const isMobile = useIsMobile();
@@ -68,7 +78,7 @@ const AdvantagesSection = () => {
 
         {/* List rows with expandable content */}
         <div>
-          {advantages.map((item, i) => {
+          {shown.map((item, i) => {
             const isOpen = isMobile || hoveredIndex === i || tappedIndex === i;
             const Icon = item.icon;
 
@@ -85,7 +95,7 @@ const AdvantagesSection = () => {
                 <div className="flex items-center justify-between py-7 md:py-9">
                   <div className="flex items-center gap-4">
                     <span className="text-xs tracking-[0.15em] w-8" style={{ color: textMuted }}>
-                      {item.num}
+                      {`/${String(i + 1).padStart(2, "0")}`}
                     </span>
                     <Icon
                       className="w-5 h-5 transition-colors duration-300 hidden md:block"

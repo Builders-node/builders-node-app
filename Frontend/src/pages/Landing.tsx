@@ -9,12 +9,14 @@ import GallerySection from '@/components/GallerySection';
 import AdvantagesSection from '@/components/AdvantagesSection';
 import TwitterSection from '@/components/TwitterSection';
 import SpeakersSection from '@/components/SpeakersSection';
-import EventsSection from '@/components/EventsSection';
 import FAQSection from '@/components/FAQSection';
 import Footer from '@/components/Footer';
 import TelegramCommunityButton from '@/components/TelegramCommunityButton';
 import { ApplyNavProvider, AccountNavProvider } from '@/lib/applyNav';
 import type { PageId } from '../data/dashboard';
+
+/** What the main landing lists under Advantages; the CA site shows the full list. */
+const MAIN_ADVANTAGES = ['Duna Tower Service Room', 'E-Residency', 'Infinita Coworking'];
 
 type LandingProps = {
   setActivePage: (page: PageId) => void;
@@ -38,14 +40,13 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
         <HeroSection />
         <AboutSection />
         <GallerySection />
-        <AdvantagesSection />
+        <AdvantagesSection only={MAIN_ADVANTAGES} />
         <MissionSection />
         <PartnersSection />
         <TwitterSection />
         <SpeakersSection />
-        <EventsSection />
         <FAQSection />
-        <Footer />
+        <Footer showEvents={false} />
         {/* Outside the page flow on purpose — it follows the visitor down
             the page rather than waiting in a section they may not reach. */}
         <TelegramCommunityButton />

@@ -446,7 +446,7 @@ export function Affiliate({ setActivePage, currentUserId }: AffiliateProps) {
               </div>
             </section>
 
-            <Footer />
+            <Footer showEvents={false} />
           </div>
         </AccountNavProvider>
       </ApplyNavProvider>

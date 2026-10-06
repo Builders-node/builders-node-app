@@ -12,7 +12,8 @@ const socialLinks = [
   { label: "Discord", href: "https://discord.gg/Aa4jqe4dth" },
 ];
 
-const Footer = () => {
+/** `showEvents: false` on pages without an events section, so the link isn't dead. */
+const Footer = ({ showEvents = true }: { showEvents?: boolean } = {}) => {
   const openApply = useApplyNav();
   const { openAffiliate } = useAccountNav();
 
@@ -76,7 +77,7 @@ const Footer = () => {
               {[
                 { label: "Home", href: "#home" },
                 { label: "About", href: "#about" },
-                { label: "Events", href: "#events" },
+                ...(showEvents ? [{ label: "Events", href: "#events" }] : []),
                 { label: "Privacy Policy", href: "/privacy.html" },
                 { label: "Terms of Service", href: "/terms.html" },
               ].map((link) => (
