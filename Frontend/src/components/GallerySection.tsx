@@ -173,9 +173,9 @@ const GallerySection = () => {
             className="mt-3 text-sm tracking-wide max-w-md mx-auto"
             style={{ color: textMuted }}
           >
-            A vibrant community where learning, work,
+            Some of this is in the building, some is nearby, some you&apos;ll
             <br />
-            and adventure come together.
+            pay for on the spot - all of it is better with people.
           </p>
           <button
             onClick={openApply}
@@ -256,9 +256,9 @@ const GallerySection = () => {
             className="mt-4 text-sm tracking-wide text-center max-w-md"
             style={{ color: textMuted }}
           >
-            A vibrant community where learning, work,
+            Some of this is in the building, some is nearby, some you&apos;ll
             <br />
-            and adventure come together.
+            pay for on the spot - all of it is better with people.
           </p>
           <button
             onClick={openApply}
