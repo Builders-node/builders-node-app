@@ -73,15 +73,19 @@ const PricingSection = () => {
         {PLANS.map((plan) => (
           <article
             key={plan.name}
-            className="flex flex-col rounded-2xl p-3 border"
+            // Plan on the left, photos on the right on a wide screen; on a
+            // phone the photos come first, above the plan.
+            className="flex flex-col lg:grid lg:grid-cols-2 lg:gap-6 rounded-2xl p-3 border"
             style={{
               backgroundColor: "hsl(0 0% 100% / 0.35)",
               borderColor: plan.popular ? accent : borderLight,
             }}
           >
-            <PhotoSlider plan={plan} onOpen={(index) => setGallery({ plan, index })} />
+            <div className="lg:order-2 lg:h-full">
+              <PhotoSlider plan={plan} onOpen={(index) => setGallery({ plan, index })} />
+            </div>
 
-            <div className="flex flex-col flex-1 px-4 sm:px-5 pt-7 pb-4">
+            <div className="flex flex-col flex-1 px-4 sm:px-5 pt-7 pb-4 lg:order-1 lg:py-6">
               <div className="flex items-center justify-between gap-3 mb-4">
                 <h3 className="text-xs tracking-[0.25em] uppercase font-normal" style={{ color: textMuted }}>
                   {plan.name}
@@ -177,7 +181,7 @@ function PhotoSlider({ plan, onOpen }: { plan: Plan; onOpen: (index: number) => 
     "absolute top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center border-0 cursor-pointer text-white transition-opacity disabled:opacity-0";
 
   return (
-    <div className="relative h-56 sm:h-72 lg:h-96">
+    <div className="relative h-56 sm:h-72 lg:h-full lg:min-h-[420px]">
       <div
         ref={trackRef}
         className="flex gap-2 h-full overflow-x-auto snap-x snap-mandatory rounded-xl"
@@ -188,8 +192,7 @@ function PhotoSlider({ plan, onOpen }: { plan: Plan; onOpen: (index: number) => 
             key={photo.src}
             type="button"
             onClick={() => onOpen(i)}
-            // On a wide card two photos show side by side, the next peeking in.
-            className="relative flex-[0_0_88%] lg:flex-[0_0_46%] h-full overflow-hidden rounded-xl p-0 border-0 cursor-pointer snap-start"
+            className="relative flex-[0_0_88%] h-full overflow-hidden rounded-xl p-0 border-0 cursor-pointer snap-start"
             aria-label={`${plan.name} photo ${i + 1} of ${count} — open full size`}
           >
             <img src={photo.src} alt={photo.alt} loading="lazy" decoding="async" className="w-full h-full object-cover" />
