@@ -12,6 +12,7 @@ import FAQSection from '@/components/FAQSection';
 import Footer from '@/components/Footer';
 import WhereYouLiveSection from '@/components/WhereYouLiveSection';
 import PricingSection from '@/components/PricingSection';
+import { GuideCta } from '@/sites/ca/components/GuideCta';
 import TelegramCommunityButton from '@/components/TelegramCommunityButton';
 import { ApplyNavProvider, AccountNavProvider } from '@/lib/applyNav';
 import type { PageId } from '../data/dashboard';
@@ -40,6 +41,11 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
       <div className="landing-root min-h-screen" style={{ backgroundColor: 'hsl(30 30% 93%)', color: 'hsl(0 0% 10%)' }}>
         <Navbar />
         <HeroSection />
+        <GuideCta
+          site="main"
+          heading="Get the Builders Node guide: pricing, daily life, Próspera, and how to get here."
+          description={null}
+        />
         <AboutSection
           statement="What Builders Node is"
           body="A coliving community where founders, builders and creators live in the same tower for 1-3 months, work on their own projects, and share dinners, sport and weekends."

@@ -23,7 +23,21 @@ const field = 'hsl(30 30% 96%)';
  * Marked `data-guide-cta` so the hero and gallery buttons can scroll to
  * whichever copy is nearest — see CaLanding.
  */
-export function GuideCta() {
+type GuideCtaProps = {
+  /** Which site this sits on: decides the guide the email opens. CA by default. */
+  site?: 'main' | 'ca';
+  heading?: string;
+  /** Omit for none. */
+  description?: string | null;
+};
+
+const CA_HEADING = 'Get the complete Buildersnode founder guide';
+const CA_DESCRIPTION =
+  'Everything you need to know before deciding: the program, pricing, the vibe, what a day here looks like and flights from Canada.';
+
+export function GuideCta({ site = GUIDE_SOURCE, heading = CA_HEADING, description = CA_DESCRIPTION }: GuideCtaProps = {}) {
+  // The gate page the success note points at: this site's own /guide.
+  const guidePageHref = site === 'ca' ? caHref(CA_PATHS.guide) : '/guide';
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -50,7 +64,7 @@ export function GuideCta() {
         method: 'POST',
         body: JSON.stringify({
           email: email.trim(),
-          source: GUIDE_SOURCE,
+          source: site,
           campaignCode: campaignCode || undefined,
         }),
       });
@@ -89,12 +103,13 @@ export function GuideCta() {
               className="text-3xl sm:text-4xl md:text-[2.75rem] font-light tracking-tight leading-[1.15]"
               style={{ color: panelText }}
             >
-              Get the complete Buildersnode founder guide
+              {heading}
             </h2>
-            <p className="mt-5 text-base leading-relaxed max-w-md" style={{ color: panelMuted }}>
-              Everything you need to know before deciding: the program, pricing, the vibe, what a day here looks like
-              and flights from Canada.
-            </p>
+            {description ? (
+              <p className="mt-5 text-base leading-relaxed max-w-md" style={{ color: panelMuted }}>
+                {description}
+              </p>
+            ) : null}
           </div>
 
           <div className="lg:justify-self-end w-full lg:max-w-md">
@@ -117,7 +132,7 @@ export function GuideCta() {
                   <p className="mt-3 text-sm leading-relaxed" style={{ color: panelMuted }}>
                     Sent to <strong style={{ color: panelText }}>{sentTo}</strong>. The email opens the guide in one tap
                     — or paste the key on{' '}
-                    <a href={caHref(CA_PATHS.guide)} className="underline underline-offset-2" style={{ color: panelText }}>
+                    <a href={guidePageHref} className="underline underline-offset-2" style={{ color: panelText }}>
                       the guide page
                     </a>
                     . Check spam if it isn&apos;t there in a minute.
