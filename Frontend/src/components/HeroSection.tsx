@@ -1,7 +1,5 @@
-import { Send } from "lucide-react";
 import { useGsapTitle } from "@/hooks/useGsapTitle";
 import { HeroVideo } from "@/components/HeroVideo";
-import { TELEGRAM_COMMUNITY_URL } from "@/lib/telegram";
 import { useApplyNav } from "@/lib/applyNav";
 
 const HeroSection = () => {
@@ -26,10 +24,8 @@ const HeroSection = () => {
         <p className="text-base md:text-lg text-white/70 max-w-xl leading-relaxed">
           Live and join community only for $999/month
         </p>
-        {/* Two ways in, ranked. Applying is the ask; the chat is for the
-            visitor who wants to see the people before committing to a month's
-            rent, so it sits alongside as an outline rather than competing as a
-            second filled button. */}
+        {/* One ask. The Telegram community button that sat beside it was
+            taken off the landing. */}
         <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
           <button
             onClick={openApply}
@@ -38,19 +34,6 @@ const HeroSection = () => {
           >
             APPLY NOW
           </button>
-          <a
-            href={TELEGRAM_COMMUNITY_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-xs tracking-[0.25em] uppercase font-semibold rounded-full px-6 py-3 border border-white/40 bg-white/5 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-white/10"
-            /* Inline, not `text-white`: `.landing-root a { color: inherit }` is a
-               class+element selector and outranks the utility, so the link would
-               quietly take the page's dark text colour on a dark photo. */
-            style={{ color: "#fff" }}
-          >
-            <Send size={14} aria-hidden="true" />
-            Telegram Community
-          </a>
         </div>
       </div>
     </section>

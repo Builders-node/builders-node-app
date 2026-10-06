@@ -13,7 +13,6 @@ import PricingSection from '@/components/PricingSection';
 import { MAIN_GALLERY_ITEMS } from '@/components/MainGalleryItems';
 import WeekSection from '@/components/WeekSection';
 import { GuideCta } from '@/sites/ca/components/GuideCta';
-import TelegramCommunityButton from '@/components/TelegramCommunityButton';
 import { ApplyNavProvider, AccountNavProvider } from '@/lib/applyNav';
 import type { PageId } from '../data/dashboard';
 
@@ -60,7 +59,6 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
         <Footer showEvents={false} comeBuild />
         {/* Outside the page flow on purpose — it follows the visitor down
             the page rather than waiting in a section they may not reach. */}
-        <TelegramCommunityButton />
       </div>
       </AccountNavProvider>
       </ApplyNavProvider>
