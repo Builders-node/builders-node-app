@@ -5,7 +5,6 @@ import HeroSection from '@/components/HeroSection';
 import MissionSection from '@/components/MissionSection';
 import AboutSection from '@/components/AboutSection';
 import GallerySection from '@/components/GallerySection';
-import AdvantagesSection from '@/components/AdvantagesSection';
 import TwitterSection from '@/components/TwitterSection';
 import FAQSection from '@/components/FAQSection';
 import Footer from '@/components/Footer';
@@ -17,10 +16,6 @@ import { GuideCta } from '@/sites/ca/components/GuideCta';
 import TelegramCommunityButton from '@/components/TelegramCommunityButton';
 import { ApplyNavProvider, AccountNavProvider } from '@/lib/applyNav';
 import type { PageId } from '../data/dashboard';
-
-/** What the main landing lists under Advantages; the CA site shows the full list. */
-const MAIN_ADVANTAGES = ['Duna Tower Service Room', 'E-Residency', 'Infinita Coworking'];
-const MAIN_ADVANTAGE_NAMES = { 'Infinita Coworking': 'Coworking' };
 
 type LandingProps = {
   setActivePage: (page: PageId) => void;
@@ -55,7 +50,6 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
         <PricingSection />
         <WeekSection />
         <GallerySection items={MAIN_GALLERY_ITEMS} />
-        <AdvantagesSection only={MAIN_ADVANTAGES} rename={MAIN_ADVANTAGE_NAMES} />
         <MissionSection showStartups={false} />
         <TwitterSection />
         <WhereYouLiveSection />

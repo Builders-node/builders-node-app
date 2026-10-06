@@ -8,9 +8,6 @@ import apartment from "@/assets/pricing/apartment.webp";
 import seaViewRoom from "@/assets/adv-room.jpg";
 import coworking from "@/assets/pricing/coworking.jpg";
 import pool from "@/assets/pricing/pool.avif";
-import meal1 from "@/assets/pricing/meal-1.jpg";
-import meal2 from "@/assets/pricing/meal-2.jpg";
-import meal3 from "@/assets/pricing/meal-3.jpg";
 
 type Photo = { src: string; alt: string };
 
@@ -37,6 +34,9 @@ const PLANS: Plan[] = [
       "Your own private apartment in Duna Tower",
       "Pool, coworking and gym in the building",
       "A community of like-minded founders and builders",
+      "Workshops",
+      "E-Residency",
+      "Founder sessions",
       "Stays of 1+ month",
     ],
     photos: [
@@ -44,17 +44,6 @@ const PLANS: Plan[] = [
       { src: seaViewRoom, alt: "Bedroom with a sea view" },
       { src: coworking, alt: "Coworking in the building" },
       { src: pool, alt: "Pool" },
-    ],
-  },
-  {
-    name: "Coliving + Meals",
-    price: "$1,500",
-    popular: true,
-    features: ["Everything in Coliving", "Three chef-cooked meals a day, Monday to Saturday"],
-    photos: [
-      { src: meal1, alt: "A chef-cooked meal" },
-      { src: meal2, alt: "A chef-cooked meal" },
-      { src: meal3, alt: "A chef-cooked meal" },
     ],
   },
 ];
@@ -79,7 +68,8 @@ const PricingSection = () => {
         </h2>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* One plan now: a single card at a readable width rather than half of an empty grid. */}
+      <div className="grid grid-cols-1 gap-6 max-w-3xl">
         {PLANS.map((plan) => (
           <article
             key={plan.name}
