@@ -68,8 +68,8 @@ const PricingSection = () => {
         </h2>
       </div>
 
-      {/* One plan now: a single card at a readable width rather than half of an empty grid. */}
-      <div className="grid grid-cols-1 gap-6 max-w-3xl">
+      {/* One plan, across the full width. */}
+      <div className="grid grid-cols-1 gap-6">
         {PLANS.map((plan) => (
           <article
             key={plan.name}
@@ -152,11 +152,19 @@ function PhotoSlider({ plan, onOpen }: { plan: Plan; onOpen: (index: number) => 
     const onScroll = () => {
       const slide = track.firstElementChild as HTMLElement | null;
       if (!slide) return;
+      // Scrolled all the way: the last photo is in view even when it can't
+      // reach the left edge (two to a row on a wide card).
+      const atEnd = track.scrollLeft >= track.scrollWidth - track.clientWidth - 4;
       const step = slide.offsetWidth + 8;
-      setIndex(Math.min(count - 1, Math.round(track.scrollLeft / step)));
+      setIndex(atEnd ? count - 1 : Math.min(count - 1, Math.round(track.scrollLeft / step)));
     };
+    onScroll();
     track.addEventListener("scroll", onScroll, { passive: true });
-    return () => track.removeEventListener("scroll", onScroll);
+    window.addEventListener("resize", onScroll);
+    return () => {
+      track.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
   }, [count]);
 
   const goTo = (next: number) => {
@@ -169,7 +177,7 @@ function PhotoSlider({ plan, onOpen }: { plan: Plan; onOpen: (index: number) => 
     "absolute top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center border-0 cursor-pointer text-white transition-opacity disabled:opacity-0";
 
   return (
-    <div className="relative h-56 sm:h-72">
+    <div className="relative h-56 sm:h-72 lg:h-96">
       <div
         ref={trackRef}
         className="flex gap-2 h-full overflow-x-auto snap-x snap-mandatory rounded-xl"
@@ -180,7 +188,8 @@ function PhotoSlider({ plan, onOpen }: { plan: Plan; onOpen: (index: number) => 
             key={photo.src}
             type="button"
             onClick={() => onOpen(i)}
-            className="relative flex-[0_0_88%] h-full overflow-hidden rounded-xl p-0 border-0 cursor-pointer snap-start"
+            // On a wide card two photos show side by side, the next peeking in.
+            className="relative flex-[0_0_88%] lg:flex-[0_0_46%] h-full overflow-hidden rounded-xl p-0 border-0 cursor-pointer snap-start"
             aria-label={`${plan.name} photo ${i + 1} of ${count} — open full size`}
           >
             <img src={photo.src} alt={photo.alt} loading="lazy" decoding="async" className="w-full h-full object-cover" />
