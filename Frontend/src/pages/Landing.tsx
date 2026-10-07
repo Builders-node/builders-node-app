@@ -57,6 +57,7 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
         <GallerySection items={MAIN_GALLERY_ITEMS} />
         <PricingSection />
         <WeekSection />
+        <WhereYouLiveSection />
         <MissionSection
           showCommunity={false}
           showStartups={false}
@@ -65,7 +66,6 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
           governanceCardHeight={420}
         />
         <TwitterSection hide={MAIN_HIDDEN_TWEETS} />
-        <WhereYouLiveSection />
         <FAQSection items={MAIN_FAQ} />
         <Footer showEvents={false} comeBuild />
         {/* Outside the page flow on purpose — it follows the visitor down
