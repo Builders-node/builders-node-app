@@ -50,11 +50,14 @@ const textDark = "hsl(0 0% 10%)";
 const textMuted = "hsl(0 0% 45%)";
 const borderLight = "hsl(0 0% 10% / 0.12)";
 
-const FAQSection = () => {
+export type FAQ = { q: string; a: string };
+
+/** `items` replaces the questions — the main landing has its own; the CA site keeps these. */
+const FAQSection = ({ items }: { items?: FAQ[] } = {}) => {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const titleRef = useGsapTitle<HTMLHeadingElement>();
   const batch = useBatch();
-  const faqs = faqsFor(batch.longDate);
+  const faqs = items ?? faqsFor(batch.longDate);
 
   return (
     <section className="py-24 md:py-32 px-8 md:px-12">

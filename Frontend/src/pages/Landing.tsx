@@ -10,6 +10,7 @@ import FAQSection from '@/components/FAQSection';
 import Footer from '@/components/Footer';
 import WhereYouLiveSection from '@/components/WhereYouLiveSection';
 import PricingSection from '@/components/PricingSection';
+import { MAIN_FAQ } from '@/components/MainFaq';
 import { MAIN_GALLERY_ITEMS } from '@/components/MainGalleryItems';
 import WeekSection from '@/components/WeekSection';
 import { GuideCta } from '@/sites/ca/components/GuideCta';
@@ -68,7 +69,7 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
         />
         <TwitterSection hide={MAIN_HIDDEN_TWEETS} />
         <WhereYouLiveSection />
-        <FAQSection />
+        <FAQSection items={MAIN_FAQ} />
         <Footer showEvents={false} comeBuild />
         {/* Outside the page flow on purpose — it follows the visitor down
             the page rather than waiting in a section they may not reach. */}
