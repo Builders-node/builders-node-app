@@ -45,6 +45,20 @@ export default defineConfig({
       devOptions: { enabled: false },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        // The `-r2` is a one-off cache break. For a while /assets/* went out
+        // with a one-year immutable Cache-Control — 404s included, since
+        // Vercel can't condition headers on status — so a browser that asked
+        // for a chunk mid-deploy kept that 404 for a year and the landing
+        // failed to load. New names mean no browser holds a stale answer.
+        entryFileNames: 'assets/[name]-[hash]-r2.js',
+        chunkFileNames: 'assets/[name]-[hash]-r2.js',
+        assetFileNames: 'assets/[name]-[hash]-r2[extname]',
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
