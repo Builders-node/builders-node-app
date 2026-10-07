@@ -4359,7 +4359,7 @@ function ApplicantFacts({ application }: { application: Applicant }) {
         ? `heard via: ${application.heardVia}`
         : null;
   const moveIn = application.moveInDate
-    ? new Date(application.moveInDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })
+    ? new Date(application.moveInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
     : null;
   const parts = [
     `Applied ${applied === 0 ? 'today' : `${applied}d ago`}`,
