@@ -26,4 +26,16 @@ export const MAIN_FAQ: FAQ[] = [
     q: "Can I change my dates?",
     a: "We always try to meet you halfway. If something comes up, tell us and we'll work out new dates together.",
   },
+  {
+    q: "What is the apartment like?",
+    a: "A private studio in Duna Tower with bed, desk, chair, dresser, closet, kitchen, bathroom, AC, washing machine. Fully furnished — just bring your clothes and laptop.",
+  },
+  {
+    q: "How fast is the internet?",
+    a: "Around 260 Mbps download and 250 Mbps upload",
+  },
+  {
+    q: "What do I do about food if I don't choose the meal plan?",
+    a: "Your apartment has a kitchen, there's a supermarket 10 minutes away, and plenty of restaurants nearby. You can also add meals later.",
+  },
 ];
