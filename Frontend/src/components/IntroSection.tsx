@@ -1,4 +1,3 @@
-import { useApplyNav } from "@/lib/applyNav";
 
 import coworking from "@/assets/gallery-4.jpg";
 import pool from "@/assets/gallery-1.jpg";
@@ -20,16 +19,13 @@ const FAN = [
 
 const textDark = "hsl(0 0% 10%)";
 const textMuted = "hsl(0 0% 45%)";
-const accent = "#EA5404";
 
 /**
  * The main landing's "What Builders Node is", set as a statement: the name
- * small and in brackets, the description large and centred, one button under
- * it — in the landing's own type and accent.
+ * small and in brackets, the description large and centred, and a fan of
+ * photos under it — in the landing's own type.
  */
 const IntroSection = () => {
-  const openApply = useApplyNav();
-
   return (
     <section
       id="about"
@@ -49,19 +45,9 @@ const IntroSection = () => {
         own projects, and share dinners, sport and weekends.
       </p>
 
-      <button
-        type="button"
-        onClick={openApply}
-        className="mt-10 md:mt-12 inline-flex items-center gap-3 rounded-full pl-6 pr-7 py-3.5 text-xs tracking-[0.25em] uppercase font-semibold border-none cursor-pointer transition-transform duration-300 hover:scale-105"
-        style={{ backgroundColor: textDark, color: "#fff" }}
-      >
-        <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: accent }} aria-hidden="true" />
-        Apply
-      </button>
-
       {/* The fan. Cards sit on one centre point and are pushed out sideways
           and tilted, so it scales with the card width alone. */}
-      <div data-intro-fan className="relative mt-16 md:mt-20 w-full h-[260px] sm:h-[380px] md:h-[460px]">
+      <div data-intro-fan className="relative mt-12 md:mt-16 w-full h-[260px] sm:h-[380px] md:h-[460px]">
         {FAN.map((card) => (
           <div
             key={card.alt}
