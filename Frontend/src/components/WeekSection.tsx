@@ -12,7 +12,7 @@ import sat from "@/assets/week/sat.webp";
 /** One moment per day. Photos are our own, picked to match each line. */
 const DAYS = [
   { day: "Mon", moment: "Kickoff dinner", image: mon },
-  { day: "Tue", moment: "7am pickleball", image: tue },
+  { day: "Tue", moment: "7pm tennis", image: tue },
   { day: "Wed", moment: "Founder talk", image: wed },
   { day: "Thu", moment: "Demo night", image: thu },
   { day: "Fri", moment: "Sunset at the pool", image: fri },
