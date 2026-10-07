@@ -54,9 +54,9 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
           description={null}
         />
         <IntroSection />
+        <GallerySection items={MAIN_GALLERY_ITEMS} />
         <PricingSection />
         <WeekSection />
-        <GallerySection items={MAIN_GALLERY_ITEMS} />
         <MissionSection
           showCommunity={false}
           showStartups={false}
