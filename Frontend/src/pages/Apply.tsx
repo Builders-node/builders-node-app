@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import ApplyForm from '@/components/ApplyForm';
 import { Toaster } from '@/components/ui/toaster';
 import logo from '@/assets/logo.svg';
-import featRoom from '@/assets/adv-room.jpg';
-import featMeals from '@/assets/apply-food.webp';
+import featApartment from '@/assets/pricing/apartment.webp';
+import featPool from '@/assets/life/pool.webp';
 import featGym from '@/assets/gallery-3.jpg';
-import featSpeakers from '@/assets/balaji-srinivasan.webp';
-import featCommunity from '@/assets/gallery-9.webp';
+import featWorkshops from '@/assets/gallery-9.webp';
+import featFounders from '@/assets/gallery-5.webp';
+import featCommunity from '@/assets/life/community-dinner.webp';
 import featCoworking from '@/assets/adv-coworking.jpg';
 import { apiRequest } from '../lib/api';
 import { goToApplyThanks } from '../lib/applyThanks';
@@ -22,13 +23,18 @@ type ApplyProps = {
   setCurrentUserRole?: (role: string | null) => void;
 };
 
+/**
+ * What the Coliving plan includes, as the landing's pricing card lists it.
+ * Meals are an optional add-on now, so they are not shown as included.
+ */
 const features = [
-  { img: featRoom, label: 'Serviced room' },
-  { img: featMeals, label: 'Healthy meals' },
-  { img: featGym, label: '24/7 gym' },
-  { img: featSpeakers, label: 'World-class speakers' },
+  { img: featApartment, label: 'Private apartment' },
+  { img: featCoworking, label: 'Coworking' },
+  { img: featPool, label: 'Pool' },
+  { img: featGym, label: 'Gym' },
+  { img: featWorkshops, label: 'Workshops' },
+  { img: featFounders, label: 'Founder sessions' },
   { img: featCommunity, label: 'Community' },
-  { img: featCoworking, label: '24/7 coworking' },
 ];
 
 export function Apply({ currentUserId, setActivePage, setCurrentUserId, setCurrentUserRole }: ApplyProps) {
@@ -106,7 +112,9 @@ export function Apply({ currentUserId, setActivePage, setCurrentUserId, setCurre
           <div className="max-w-5xl mx-auto">
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-light tracking-tight leading-[1.05]">Apply to Builders Node</h1>
             <p className="mt-4 max-w-2xl text-base md:text-lg leading-relaxed" style={{ color: 'hsl(0 0% 40%)' }}>
-              Builders Node is a startup society for builders, founders, and content creators. Located in Próspera, we provide all this for just {startingPrice}/mo:
+              A coliving community where founders, builders and creators live in the same tower for 1-3 months, work on
+              their own projects, and share dinners, sport and weekends. Coliving — {startingPrice}/month: private
+              apartment, community, coworking, pool, gym and sauna.
             </p>
 
             {/* Feature gallery — auto-scrolling marquee */}

@@ -52,7 +52,7 @@ export function useMembershipPlans() {
  * place a price is still written down — it used to be three sentences across
  * three components, each free to drift on its own.
  */
-const FALLBACK_STARTING_PRICE = '$1,950';
+const FALLBACK_STARTING_PRICE = '$999';
 
 /**
  * "Starting at ___" — the cheapest plan on offer, formatted for prose.
