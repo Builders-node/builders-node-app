@@ -598,7 +598,7 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
           {/* When: a plain date picker, any day */}
           <div className="space-y-2">
             <Label htmlFor="arrival" className="text-sm font-medium" style={{ color: "hsl(0 0% 10%)" }}>
-              When can you arrive? <span className="text-red-500">*</span>
+              When do you arrive? <span className="text-red-500">*</span>
             </Label>
             <Input
               id="arrival"
