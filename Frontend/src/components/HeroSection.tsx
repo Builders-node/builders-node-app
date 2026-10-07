@@ -24,8 +24,9 @@ const HeroSection = () => {
         <p className="text-base md:text-lg text-white/70 max-w-xl leading-relaxed">
           Join the founder's community on the Caribbean island only for $999/month
         </p>
-        {/* One ask. The Telegram community button that sat beside it was
-            taken off the landing. */}
+        {/* Apply is the ask, filled; the guide sits beside it as an outline
+            for the visitor who wants to read first. It scrolls to the guide
+            form just below the hero. */}
         <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
           <button
             onClick={openApply}
@@ -33,6 +34,16 @@ const HeroSection = () => {
             style={{ backgroundColor: "#EA5404", boxShadow: "0 10px 28px rgba(234, 84, 4, 0.5)" }}
           >
             APPLY NOW
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              document.querySelector<HTMLElement>("[data-guide-cta]")?.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
+            className="text-xs tracking-[0.25em] uppercase font-semibold rounded-full px-6 py-3 border border-white/40 bg-white/5 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-white/10 cursor-pointer"
+            style={{ color: "#fff" }}
+          >
+            Get guide
           </button>
         </div>
       </div>

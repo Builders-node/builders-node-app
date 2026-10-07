@@ -112,8 +112,8 @@ export function Apply({ currentUserId, setActivePage, setCurrentUserId, setCurre
           <div className="max-w-5xl mx-auto">
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-light tracking-tight leading-[1.05]">Apply to Builders Node</h1>
             <p className="mt-4 max-w-2xl text-base md:text-lg leading-relaxed" style={{ color: 'hsl(0 0% 40%)' }}>
-              A coliving community where founders, builders and creators live in the same tower for 1-3 months, work on
-              their own projects, and share dinners, sport and weekends. Coliving — {startingPrice}/month: private
+              A coliving community where founders, builders and creators live in the same tower, work on their own
+              projects, and share dinners, sport and weekends. Coliving — {startingPrice}/month: private
               apartment, community, coworking, pool, gym and sauna.
             </p>
 

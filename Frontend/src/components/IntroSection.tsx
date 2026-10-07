@@ -1,4 +1,3 @@
-
 import coworking from "@/assets/gallery-4.jpg";
 import pool from "@/assets/gallery-1.jpg";
 import community from "@/assets/life/community-dinner.webp";
@@ -41,8 +40,8 @@ const IntroSection = () => {
         className="mt-8 md:mt-10 max-w-4xl text-3xl sm:text-4xl md:text-5xl font-normal tracking-tight leading-[1.15]"
         style={{ color: textDark }}
       >
-        A coliving community where founders, builders and creators live in the same tower for 1-3 months, work on their
-        own projects, and share dinners, sport and weekends.
+        A coliving community where founders, builders and creators live in the same tower, work on their own projects,
+        and share dinners, sport and weekends.
       </p>
 
       {/* The fan. Cards sit on one centre point and are pushed out sideways
