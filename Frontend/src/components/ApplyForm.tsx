@@ -32,30 +32,7 @@ const toDay = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const fromDay = (day: string) => new Date(`${day}T00:00:00`);
 
-/**
- * The same day `months` later, held to the end of a shorter month — a month
- * from January 31 is February 28, not March 3.
- */
-function addMonths(day: string, months: number) {
-  const date = fromDay(day);
-  const target = new Date(date.getFullYear(), date.getMonth() + months, 1);
-  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
-  target.setDate(Math.min(date.getDate(), lastDay));
-  return toDay(target);
-}
-
-/** "1 month", "2 months 12 days" — the stay between two days, in whole months first. */
-function stayLength(arrival: string, departure: string) {
-  let months = 0;
-  while (addMonths(arrival, months + 1) <= departure) months += 1;
-  const days = Math.round((fromDay(departure).getTime() - fromDay(addMonths(arrival, months)).getTime()) / 86_400_000);
-  return [
-    months ? `${months} month${months === 1 ? "" : "s"}` : "",
-    days ? `${days} day${days === 1 ? "" : "s"}` : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
+const stayDurations = ["1 month", "3 months", "6 months", "12 months"];
 
 const longDay = (day: string) =>
   day ? fromDay(day).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "";
@@ -93,9 +70,9 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
   // Stored in Application.phone — the column has always been there, the form
   // just never asked. It seeds the member's profile phone once they're in.
   const [whatsapp, setWhatsapp] = useState("");
-  // Arrival and departure, as YYYY-MM-DD. The stay is at least a month.
+  // Arrival as YYYY-MM-DD — any day, not just the first of a month.
   const [visitDate, setVisitDate] = useState("");
-  const [departureDate, setDepartureDate] = useState("");
+  const [stayDuration, setStayDuration] = useState("");
   // No default: preselecting one answer quietly answers for everyone who
   // skips the question.
   const [gender, setGender] = useState("");
@@ -149,14 +126,6 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
     return batchStart > tomorrow ? batchStart : tomorrow;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batch.startDate]);
-  const minDeparture = visitDate ? addMonths(visitDate, 1) : addMonths(minArrival, 1);
-  const stayDuration = visitDate && departureDate >= minDeparture ? stayLength(visitDate, departureDate) : "";
-
-  const pickArrival = (day: string) => {
-    setVisitDate(day);
-    // Keep the departure a month or more out; fill it in on the first pick.
-    if (day && (!departureDate || departureDate < addMonths(day, 1))) setDepartureDate(addMonths(day, 1));
-  };
 
   const isOneMonth = stayDuration === "1 month";
   // Priced by the admin, not by this file. These two lines used to be the only
@@ -167,7 +136,6 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
     (isOneMonth ? option.shortStayPriceCents : option.priceCents) / 100;
 
   const visitLabel = longDay(visitDate);
-  const departureLabel = longDay(departureDate);
   const planLabel = selectedPlan
     ? `${selectedPlan.name} - $${priceOf(selectedPlan).toLocaleString()}/month`
     : "";
@@ -175,7 +143,6 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
   const buildNote = () =>
     [
       `Move-in: ${visitLabel}`,
-      `Move-out: ${departureLabel}`,
       `Stay: ${stayDuration}`,
       `Plan: ${planLabel}`,
       gender ? `Gender: ${gender}` : "",
@@ -222,7 +189,7 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
     setFullName("");
     setWhatsapp("");
     setVisitDate("");
-    setDepartureDate("");
+    setStayDuration("");
     setGender("");
     setPlan("");
     setSocial1("");
@@ -241,7 +208,7 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email || !fullName || !whatsapp.trim() || !visitDate || !departureDate || !aboutText) {
+    if (!email || !fullName || !whatsapp.trim() || !visitDate || !stayDuration || !aboutText) {
       toast({ title: "Missing fields", description: "Please fill in all required fields.", variant: "destructive" });
       return;
     }
@@ -261,10 +228,6 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
 
     if (visitDate < minArrival) {
       toast({ title: "Invalid date", description: `The earliest arrival is ${longDay(minArrival)}.`, variant: "destructive" });
-      return;
-    }
-    if (departureDate < addMonths(visitDate, 1)) {
-      toast({ title: "Stay too short", description: "The minimum stay is one month.", variant: "destructive" });
       return;
     }
 
@@ -313,7 +276,6 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
           fullName,
           whatsapp,
           visitDate: visitLabel,
-          departureDate: departureLabel,
           stayDuration,
           gender,
           plan: planLabel,
@@ -633,42 +595,39 @@ const ApplyForm = ({ onClose, onSuccess, onAuthenticated, initialEmail, initialF
             </p>
           </div>
 
-          {/* When: two plain date pickers, the stay a month or longer */}
+          {/* When: a plain date picker, any day */}
+          <div className="space-y-2">
+            <Label htmlFor="arrival" className="text-sm font-medium" style={{ color: "hsl(0 0% 10%)" }}>
+              When can you arrive? <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="arrival"
+              type="date"
+              required
+              min={minArrival}
+              value={visitDate}
+              onChange={(e) => setVisitDate(e.target.value)}
+              className="border-0 bg-white shadow-sm focus-visible:ring-1"
+              style={{ borderColor: "hsl(0 0% 80%)", color: "hsl(0 0% 10%)" }}
+            />
+          </div>
+
+          {/* How long */}
           <div className="space-y-2">
             <Label className="text-sm font-medium" style={{ color: "hsl(0 0% 10%)" }}>
-              When are you coming? <span className="text-red-500">*</span>
+              How long do you want to stay? <span className="text-red-500">*</span>
             </Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="arrival" className="text-xs" style={{ color: "hsl(0 0% 45%)" }}>Arrival</Label>
-                <Input
-                  id="arrival"
-                  type="date"
-                  required
-                  min={minArrival}
-                  value={visitDate}
-                  onChange={(e) => pickArrival(e.target.value)}
-                  className="border-0 bg-white shadow-sm focus-visible:ring-1"
-                  style={{ borderColor: "hsl(0 0% 80%)", color: "hsl(0 0% 10%)" }}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="departure" className="text-xs" style={{ color: "hsl(0 0% 45%)" }}>Departure</Label>
-                <Input
-                  id="departure"
-                  type="date"
-                  required
-                  min={minDeparture}
-                  value={departureDate}
-                  onChange={(e) => setDepartureDate(e.target.value)}
-                  className="border-0 bg-white shadow-sm focus-visible:ring-1"
-                  style={{ borderColor: "hsl(0 0% 80%)", color: "hsl(0 0% 10%)" }}
-                />
-              </div>
-            </div>
-            <p className="text-xs" style={{ color: "hsl(0 0% 45%)" }}>
-              {stayDuration ? `Your stay: ${stayDuration}. ` : ""}The minimum stay is one month.
-            </p>
+            <Select value={stayDuration} onValueChange={setStayDuration}>
+              <SelectTrigger className="border-0 bg-white shadow-sm" style={{ borderColor: "hsl(0 0% 80%)", color: "hsl(0 0% 10%)" }}>
+                <SelectValue placeholder="Select..." />
+              </SelectTrigger>
+              <SelectContent>
+                {stayDurations.map((dur) => (
+                  <SelectItem key={dur} value={dur}>{dur}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs" style={{ color: "hsl(0 0% 45%)" }}>The minimum stay is one month.</p>
           </div>
 
           {/* Gender */}
