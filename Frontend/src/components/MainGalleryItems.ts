@@ -17,7 +17,7 @@ import weekendTrip from "@/assets/life/weekend-trip.webp";
  * side, four along the bottom (narrower, so they fit).
  */
 export const MAIN_GALLERY_ITEMS: GalleryItem[] = [
-  { src: pool, label: "The pool on the 8th floor — best at sunset", top: "4%", left: "13%", w: "290px", h: "220px", rotate: "-3deg" },
+  { src: pool, label: "The pool and sauna on the 8th floor — best at sunset", top: "4%", left: "13%", w: "290px", h: "220px", rotate: "-3deg" },
   { src: gym, label: "Gym, downstairs", top: "1%", left: "calc(50% - 130px)", w: "260px", h: "200px", rotate: "1.5deg" },
   { src: coworking, label: "Coworking with an ocean view", top: "4%", right: "13%", w: "275px", h: "210px", rotate: "2.5deg" },
   { src: beachClub, label: "Beach club, when the laptop closes", top: "34%", left: "2%", w: "285px", h: "240px", rotate: "-2deg" },
