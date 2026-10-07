@@ -62,6 +62,7 @@ export function Landing({ setActivePage, currentUserId }: LandingProps) {
           showStartups={false}
           governanceText={MAIN_GOVERNANCE_TEXT}
           hideGovernance={['Flexible regulatory framework']}
+          governanceCardHeight={420}
         />
         <TwitterSection hide={MAIN_HIDDEN_TWEETS} />
         <WhereYouLiveSection />

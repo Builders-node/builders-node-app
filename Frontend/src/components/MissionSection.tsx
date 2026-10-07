@@ -42,12 +42,15 @@ const MissionSection = ({
   showStartups = true,
   governanceText = {},
   hideGovernance = [],
+  governanceCardHeight = 520,
 }: {
   showCommunity?: boolean;
   showStartups?: boolean;
   governanceText?: Record<string, string>;
   /** Governance card titles to leave out. */
   hideGovernance?: string[];
+  /** Height of the governance cards, in px. */
+  governanceCardHeight?: number;
 } = {}) => {
   const governance = governanceItems
     .filter((item) => !hideGovernance.includes(item.title))
@@ -209,7 +212,7 @@ const MissionSection = ({
                     ? "linear-gradient(180deg, hsl(0 0% 8%) 0%, hsl(8 80% 30%) 50%, hsl(16 90% 45%) 100%)"
                     : "linear-gradient(180deg, hsl(0 0% 8%) 0%, hsl(12 85% 35%) 60%, hsl(25 95% 55%) 100%)",
                   width: "min(420px, 75vw)",
-                  height: "520px",
+                  height: `${governanceCardHeight}px`,
                 }}
               >
                 {/* Hover background image + overlay */}
