@@ -189,9 +189,14 @@ const GallerySection = ({ items = defaultItems }: { items?: GalleryItem[] } = {}
             Apply
           </button>
         </div>
-        <div ref={mobileGridRef} className="hidden">
-          {items.map((item) => (
-            <div key={item.label} className="group gallery-mobile-item">
+        {/* Back on: a phone shows the photos too, two to a row. */}
+        <div ref={mobileGridRef} className="grid grid-cols-2 gap-3">
+          {items.map((item, i) => (
+            // An odd one out at the end takes the whole row rather than half of it.
+            <div
+              key={item.label}
+              className={`group gallery-mobile-item${i === items.length - 1 && items.length % 2 === 1 ? " col-span-2" : ""}`}
+            >
               <div className="rounded-xl overflow-hidden shadow-md">
                 <img
                   src={item.src}
