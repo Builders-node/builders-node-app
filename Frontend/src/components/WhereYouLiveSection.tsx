@@ -3,17 +3,16 @@ import { useGsapTitle } from "@/hooks/useGsapTitle";
 /**
  * Where the tower is: a short orientation on Roatán and Próspera beside a map.
  *
- * The map is OpenStreetMap's own embed rather than a map library — one
- * iframe, nothing added to the bundle, and it brings its own zoom controls.
+ * The map is Google Maps' embed rather than a map library — one iframe,
+ * nothing added to the bundle, no API key, and its own zoom controls.
  * Framed on the whole island rather than the street, because the question a
  * reader has at this point is "where in the world is this", not "which door".
  */
 
 /** Duna Tower, Próspera — the same point the Duna Residence site uses. */
 const DUNA_TOWER = { lat: 16.3789, lng: -86.4423 };
-/** West end to past Oak Ridge: the island, with the tower in it. */
-const ISLAND_BBOX = [-86.56, 16.3, -86.3, 16.45].join(",");
-const MAP_SRC = `https://www.openstreetmap.org/export/embed.html?bbox=${ISLAND_BBOX}&layer=mapnik&marker=${DUNA_TOWER.lat},${DUNA_TOWER.lng}`;
+/** Zoom 11: the whole island, with the tower marked in it. */
+const MAP_SRC = `https://maps.google.com/maps?q=${DUNA_TOWER.lat},${DUNA_TOWER.lng}&z=11&hl=en&output=embed`;
 
 // The landing's own palette and type: light headings, muted body, the
 // same accent as everywhere else.

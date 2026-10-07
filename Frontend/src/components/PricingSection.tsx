@@ -64,7 +64,7 @@ const PricingSection = () => {
     <section id="pricing" className="py-24 md:py-32 px-8 md:px-12" style={{ backgroundColor: "hsl(30 30% 93%)" }}>
       <div className="mb-12 md:mb-16">
         <h2 ref={titleRef} className="text-4xl md:text-6xl font-light tracking-tight" style={{ color: textDark }}>
-          Two plans. That&apos;s it.
+          One plan. That&apos;s it.
         </h2>
       </div>
 
@@ -81,8 +81,13 @@ const PricingSection = () => {
               borderColor: plan.popular ? accent : borderLight,
             }}
           >
-            <div className="lg:order-2 lg:h-full">
-              <PhotoSlider plan={plan} onOpen={(index) => setGallery({ plan, index })} />
+            {/* Out of the flow on a wide screen: the photos fill whatever height
+                the plan text gives the card, instead of the photos' own
+                full-size height stretching the card to twice the screen. */}
+            <div className="relative lg:order-2 lg:min-h-[440px]">
+              <div className="lg:absolute lg:inset-0">
+                <PhotoSlider plan={plan} onOpen={(index) => setGallery({ plan, index })} />
+              </div>
             </div>
 
             <div className="flex flex-col flex-1 px-4 sm:px-5 pt-7 pb-4 lg:order-1 lg:py-6">
@@ -181,7 +186,7 @@ function PhotoSlider({ plan, onOpen }: { plan: Plan; onOpen: (index: number) => 
     "absolute top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center border-0 cursor-pointer text-white transition-opacity disabled:opacity-0";
 
   return (
-    <div className="relative h-56 sm:h-72 lg:h-full lg:min-h-[420px]">
+    <div className="relative h-56 sm:h-72 lg:h-full">
       <div
         ref={trackRef}
         className="flex gap-2 h-full overflow-x-auto snap-x snap-mandatory rounded-xl"
