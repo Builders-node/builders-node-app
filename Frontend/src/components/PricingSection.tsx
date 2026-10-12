@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
 import { useApplyNav } from "@/lib/applyNav";
-import { useGsapTitle } from "@/hooks/useGsapTitle";
 import { useModalA11y } from "@/lib/useModalA11y";
 
 import apartment from "@/assets/pricing/apartment.webp";
@@ -58,16 +57,9 @@ const accent = "#EA5404";
 const PricingSection = () => {
   const openApply = useApplyNav();
   const [gallery, setGallery] = useState<{ plan: Plan; index: number } | null>(null);
-  const titleRef = useGsapTitle<HTMLHeadingElement>();
 
   return (
     <section id="pricing" className="py-24 md:py-32 px-8 md:px-12" style={{ backgroundColor: "hsl(30 30% 93%)" }}>
-      <div className="mb-12 md:mb-16">
-        <h2 ref={titleRef} className="text-4xl md:text-6xl font-light tracking-tight" style={{ color: textDark }}>
-          One plan. That&apos;s it.
-        </h2>
-      </div>
-
       {/* One plan, across the full width. */}
       <div className="grid grid-cols-1 gap-6">
         {PLANS.map((plan) => (
